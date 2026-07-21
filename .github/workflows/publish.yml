@@ -29,4 +29,5 @@ jobs:
         run: |
           pnpm install
           pnpm build
-          npm publish ./dist --access public --provenance
+          cd dist && npm publish --access public --provenance
+
