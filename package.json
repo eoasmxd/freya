@@ -1,13 +1,21 @@
 {
   "name": "@eoasmxd/freya",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "private": true,
   "license": "MIT",
   "type": "module",
   "description": "Freya - 微内核智能体系统",
+  "keywords": [
+    "agent",
+    "ai",
+    "ai-agent",
+    "freya",
+    "openclaw",
+    "chatbot"
+  ],
   "scripts": {
     "build": "pnpm -r build && node scripts/distribute.js",
-    "release": "pnpm build && npm publish ./dist",
+    "release": "pnpm build && npm publish ./dist --access public",
     "start": "node dist/freya.js",
     "freya": "node dist/freya.js",
     "clean": "pnpm -r clean"
