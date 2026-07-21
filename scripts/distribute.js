@@ -173,6 +173,16 @@ async function main() {
     console.warn('警告: LICENSE 文件拷贝失败:', err.message);
   }
 
+  console.log('📝 正在拷贝物理 README.md 说明文档...');
+  try {
+    await fs.copyFile(
+      path.join(PROJECT_ROOT, 'README.md'),
+      path.join(distDir, 'README.md')
+    );
+  } catch (err) {
+    console.warn('警告: README.md 文件拷贝失败:', err.message);
+  }
+
   console.log('📝 正在收集并合并全量发布版依赖...');
   const finalDeps = {
     "@eoasmxd/freya-sdk": "file:./sdk"
@@ -208,6 +218,8 @@ async function main() {
     "version": rootVersion,
     "license": "MIT",
     "type": "module",
+    "description": rootPkg.description || "Freya - 微内核智能体系统",
+    "keywords": rootPkg.keywords || [],
     "publishConfig": {
       "access": "public"
     },
@@ -216,6 +228,7 @@ async function main() {
     },
     "files": [
       "LICENSE",
+      "README.md",
       "freya.js",
       "core",
       "sdk",
