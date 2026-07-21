@@ -1,4 +1,4 @@
-name: Publish to NPM
+name: Publish Package
 
 on:
   push:
@@ -6,12 +6,13 @@ on:
       - 'v*'
   workflow_dispatch:
 
+permissions:
+  id-token: write
+  contents: read
+
 jobs:
   publish:
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      id-token: write
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
@@ -23,10 +24,12 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 22
+          registry-url: 'https://registry.npmjs.org'
 
-      - name: Install, Build & Publish
+      - name: Install & Build
         run: |
           pnpm install
           pnpm build
-          cd dist && npm publish --access public --provenance
 
+      - name: Publish to NPM
+        run: cd dist && npm publish --access public

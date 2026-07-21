@@ -5,6 +5,10 @@
   "license": "MIT",
   "type": "module",
   "description": "Freya - 微内核智能体系统",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/eoasmxd/freya.git"
+  },
   "keywords": [
     "agent",
     "ai",
