@@ -220,6 +220,10 @@ async function main() {
     "type": "module",
     "description": rootPkg.description || "Freya - 微内核智能体系统",
     "keywords": rootPkg.keywords || [],
+    "repository": rootPkg.repository || {
+      "type": "git",
+      "url": "git+https://github.com/eoasmxd/freya.git"
+    },
     "publishConfig": {
       "access": "public"
     },
