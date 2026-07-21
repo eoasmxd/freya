@@ -32,4 +32,5 @@ jobs:
           pnpm build
 
       - name: Publish to NPM
-        run: cd dist && npm publish --access public
+        run: cd dist && npm publish --access public --provenance
+
