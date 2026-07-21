@@ -1,0 +1,25 @@
+[
+  {
+    "key": "telegram.bots",
+    "defaultValue": [],
+    "description": "Telegram 机器人配置列表",
+    "type": "array",
+    "category": "频道",
+    "children": [
+      {
+        "key": "id",
+        "description": "机器人唯一标识",
+        "type": "string",
+        "required": true
+      },
+      {
+        "key": "token",
+        "description": "Telegram Bot API Token",
+        "type": "string",
+        "required": true,
+        "sensitive": true,
+        "uiHint": "password"
+      }
+    ]
+  }
+]

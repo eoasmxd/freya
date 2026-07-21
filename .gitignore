@@ -1,0 +1,20 @@
+# 依赖与构建产物
+node_modules/
+dist/
+*.tsbuildinfo
+
+# 运行时数据
+/config/
+/data/
+/logs/
+/workspace/
+
+# 环境配置（含密钥，不提交）
+.env
+.env.local
+
+# 编辑器与系统
+.DS_Store
+.vscode/settings.json
+*.log
+

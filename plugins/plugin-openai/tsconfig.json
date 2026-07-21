@@ -1,0 +1,13 @@
+{
+  // plugins/plugin-openai 的 TypeScript 编译配置
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    "rootDir": "src",
+    "outDir": "dist"
+  },
+  "references": [
+    { "path": "../../packages/sdk" }
+  ],
+  "include": ["src/**/*.ts"],
+  "exclude": ["node_modules", "dist"]
+}

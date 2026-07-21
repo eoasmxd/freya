@@ -1,0 +1,22 @@
+{
+  "name": "@eoasmxd/freya",
+  "version": "0.1.0",
+  "private": true,
+  "license": "MIT",
+  "type": "module",
+  "description": "Freya - 微内核智能体系统",
+  "scripts": {
+    "build": "pnpm -r build && node scripts/distribute.js",
+    "release": "pnpm build && npm publish ./dist",
+    "start": "node dist/freya.js",
+    "freya": "node dist/freya.js",
+    "clean": "pnpm -r clean"
+  },
+  "dependencies": {
+    "@eoasmxd/freya-core": "workspace:*"
+  },
+  "engines": {
+    "node": ">=22.0.0"
+  },
+  "packageManager": "pnpm@9.0.0"
+}

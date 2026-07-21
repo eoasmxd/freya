@@ -1,0 +1,30 @@
+{
+  "name": "@eoasmxd/freya-plugin-tool-fs",
+  "version": "0.1.0",
+  "private": false,
+  "license": "MIT",
+  "publishConfig": {
+    "access": "public"
+  },
+  "description": "Freya 文件系统管理工具集插件",
+  "freya": {
+    "displayName": "文件系统管理工具集",
+    "defaultEnabled": true,
+    "prompts": [
+      "plugin.prompt.fs.md"
+    ]
+  },
+  "type": "module",
+  "main": "./dist/index.js",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "@eoasmxd/freya-sdk": "workspace:^"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "typescript": "^5.5.0"
+  }
+}

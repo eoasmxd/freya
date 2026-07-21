@@ -1,0 +1,13 @@
+{
+  // packages/ui 前端项目的 TypeScript 配置
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    "types": ["vite/client"],
+    "jsx": "react-jsx",
+    "lib": ["DOM", "DOM.Iterable", "ES2023"],
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "noEmit": true
+  },
+  "include": ["src"]
+}

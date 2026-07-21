@@ -1,0 +1,5 @@
+# pnpm Monorepo 工作区声明
+# 说明：packages/* 为内核与 SDK，plugins/* 为可插拔插件
+packages:
+  - "packages/*"
+  - "plugins/*"

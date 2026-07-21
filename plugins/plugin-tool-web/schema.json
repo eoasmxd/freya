@@ -1,0 +1,32 @@
+[
+  {
+    "key": "web.maxLength",
+    "defaultValue": 102400,
+    "description": "响应内容最大字符长度限制（默认 100KB）",
+    "type": "number",
+    "min": 1024,
+    "max": 10485760,
+    "category": "网络工具",
+    "uiHint": "slider"
+  },
+  {
+    "key": "web.autoSaveThreshold",
+    "defaultValue": 51200,
+    "description": "web_request auto 模式下自动落盘的阈值（默认 50KB）",
+    "type": "number",
+    "min": 1024,
+    "max": 10485760,
+    "category": "网络工具",
+    "uiHint": "slider"
+  },
+  {
+    "key": "web.timeout",
+    "defaultValue": 30000,
+    "description": "HTTP 请求超时时间（毫秒，默认 30 秒）",
+    "type": "number",
+    "min": 1000,
+    "max": 300000,
+    "category": "网络工具",
+    "uiHint": "slider"
+  }
+]
