@@ -20,7 +20,7 @@
   "scripts": {
     "build": "pnpm -r build && node scripts/distribute.js",
     "build:release": "pnpm -r build && node scripts/distribute.js --release",
-    "release": "pnpm build:release && pnpm --filter @eoasmxd/freya-sdk publish --access public && npm publish ./dist --access public",
+    "release": "pnpm build:release && npm publish ./packages/sdk --access public && npm publish ./dist --access public",
     "start": "node dist/freya.js",
     "freya": "node dist/freya.js",
     "stop": "node dist/freya.js stop",

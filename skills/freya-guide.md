@@ -78,7 +78,7 @@ description: 当回答 Freya 系统使用疑问、查阅物理设计文档，或
 ```bash
 pnpm install # 安装依赖
 pnpm build   # 全量物理编译
-pnpm start   # 启动后端网关与前端托管
+pnpm freya   # 启动微内核服务 (或使用 pnpm start)
 ```
 启动成功后，浏览器访问 **`http://localhost:3000`**。
 
