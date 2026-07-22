@@ -124,6 +124,10 @@ export class SessionCompactor {
                 },
             );
             const newSummary = summaryResponse.message.content;
+            if (!newSummary || newSummary.trim() === '') {
+                this.logger?.warn(`[SessionCompactor] 前置压缩生成的摘要为空，放弃应用。`);
+                return { type: 'none' };
+            }
 
             this.logger?.info(`[SessionCompactor] 上下文摘要压缩生成完成: "${newSummary}"`);
 
@@ -230,6 +234,10 @@ export class SessionCompactor {
                 }
             );
             const newSummary = summaryResponse.message.content;
+            if (!newSummary || newSummary.trim() === '') {
+                this.logger?.warn(`[SessionCompactor] 后置压缩生成的摘要为空，放弃应用。`);
+                return null;
+            }
 
             const snapFile = this.buildSnapshot(session, newSummary, historyToCompress);
             return {

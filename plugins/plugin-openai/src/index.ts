@@ -119,22 +119,37 @@ export default class OpenAICompatiblePlugin implements LLMPlugin {
       }))
       : undefined;
 
-    const { temperature, maxTokens, max_tokens, topP, top_p, timeout, ...extraParams } = options?.modelParams || {};
-
+    const params = options?.modelParams || {};
     const requestBody: Record<string, any> = {
       model: modelId,
       messages: openAiMessages,
-      tools: openAiTools,
-      ...extraParams
+      tools: openAiTools
     };
 
-    if (typeof temperature === 'number') requestBody.temperature = temperature;
-
-    const finalMaxTokens = maxTokens ?? max_tokens;
-    if (typeof finalMaxTokens === 'number' && finalMaxTokens > 0) requestBody.max_tokens = finalMaxTokens;
-
-    const finalTopP = topP ?? top_p;
-    if (typeof finalTopP === 'number') requestBody.top_p = finalTopP;
+    if (typeof params.temperature === 'number') {
+      requestBody.temperature = params.temperature;
+    }
+    if (typeof params.maxTokens === 'number' && params.maxTokens > 0) {
+      requestBody.max_tokens = params.maxTokens;
+    }
+    if (typeof params.topP === 'number') {
+      requestBody.top_p = params.topP;
+    }
+    if (typeof params.presencePenalty === 'number') {
+      requestBody.presence_penalty = params.presencePenalty;
+    }
+    if (typeof params.frequencyPenalty === 'number') {
+      requestBody.frequency_penalty = params.frequencyPenalty;
+    }
+    if (params.stopSequences !== undefined) {
+      requestBody.stop = params.stopSequences;
+    }
+    if (params.responseFormat !== undefined) {
+      requestBody.response_format = params.responseFormat;
+    }
+    if (typeof params.seed === 'number') {
+      requestBody.seed = params.seed;
+    }
 
     const isStream = !!options?.onChunk && (!tools || tools.length === 0);
     if (isStream) {
@@ -147,7 +162,7 @@ export default class OpenAICompatiblePlugin implements LLMPlugin {
       'Authorization': `Bearer ${apiKey}`
     };
 
-    const timeoutMs = typeof timeout === 'number' ? timeout : 90000;
+    const timeoutMs = typeof params.timeout === 'number' ? params.timeout : 90000;
     const timeoutSignal = AbortSignal.timeout(timeoutMs);
     const combinedSignal = options?.signal
       ? AbortSignal.any([options.signal, timeoutSignal])

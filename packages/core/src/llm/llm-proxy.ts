@@ -132,6 +132,18 @@ export class FreyaLLMProxy implements ILLMService {
       tools
     });
 
+    const {
+      id: _id,
+      name: _name,
+      inputPrice: _ip,
+      outputPrice: _op,
+      cachedInputPrice: _cip,
+      contextWindow: _cw,
+      contextTokens: _ct,
+      capabilities: _cap,
+      ...cleanModelConfig
+    } = modelConfig as any;
+
     const enrichedOptions: LLMPluginOptions = {
       ...options,
       modelId,
@@ -140,7 +152,7 @@ export class FreyaLLMProxy implements ILLMService {
         baseURL: providerConfig.baseURL
       },
       modelParams: {
-        ...modelConfig,
+        ...cleanModelConfig,
         ...options?.modelParams
       }
     };
