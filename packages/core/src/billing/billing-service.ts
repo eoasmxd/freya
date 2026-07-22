@@ -44,7 +44,7 @@ export class FreyaBillingService {
     private context: FreyaContext,
     private llmRegistry: FreyaLLMRegistry
   ) {
-    const dataDir = path.join(process.cwd(), 'data');
+    const dataDir = this.context.paths.dataDir;
     this.billingDir = path.join(dataDir, 'billing');
     this.datesDir = path.join(this.billingDir, 'dates');
     this.monthsDir = path.join(this.billingDir, 'months');

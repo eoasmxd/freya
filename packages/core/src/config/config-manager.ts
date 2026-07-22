@@ -175,14 +175,9 @@ export class FreyaConfigManager {
     return this.schemaRegistry.getSensitiveKeys();
   }
 
-  async loadAndInit(): Promise<{ port: number }> {
-    let port = 3000;
+  async loadAndInit(): Promise<void> {
     try {
       const freyaConfig = await this.fileHandler.readFreyaConfig();
-      if (freyaConfig && typeof freyaConfig.port === 'number') {
-        port = freyaConfig.port;
-      }
-
       this.updateContextConfig(freyaConfig);
 
       if (typeof (this.context.logger as any).setConsoleLevel === 'function') {
@@ -192,9 +187,8 @@ export class FreyaConfigManager {
         }
       }
     } catch (err: any) {
-      this.context.logger.error('加载主配置文件 freya.json 失败，将使用默认端口 3000:', err);
+      this.context.logger.error('加载主配置文件 freya.json 失败:', err);
     }
-    return { port };
   }
 
   async mergeAndPersist(): Promise<void> {
@@ -532,7 +526,7 @@ export class FreyaConfigManager {
 
     const coreFields: ConfigFieldSchema[] = [
       {
-        key: 'port',
+        key: 'server.port',
         defaultValue: 3000,
         description: 'Web 网关服务端口',
         type: 'number',
@@ -540,6 +534,20 @@ export class FreyaConfigManager {
         min: 1,
         max: 65535,
         category: '服务器'
+      },
+      {
+        key: 'server.enabled',
+        defaultValue: true,
+        description: '是否启用 Web 网关服务与 WebSocket 频道',
+        type: 'boolean',
+        category: '服务器'
+      },
+      {
+        key: 'cli.enabled',
+        defaultValue: true,
+        description: '是否启用命令行终端交互频道',
+        type: 'boolean',
+        category: '终端'
       },
       {
         key: 'workspace',

@@ -47,7 +47,11 @@ export const GlobalConfigPanel: React.FC<GlobalConfigPanelProps> = ({ getApiUrl 
     }, 3000);
   };
 
-  const generateId = () => crypto.randomUUID();
+  const generateId = () => {
+    return (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function')
+      ? crypto.randomUUID()
+      : Math.random().toString(36).substring(2, 15);
+  };
 
   const getValueByPath = (obj: any, path: string): any => {
     const keys = path.split('.');

@@ -97,6 +97,26 @@
   background: rgba(255, 255, 255, 0.08);
 }
 
+@media (max-width: 768px) {
+  .modal-close {
+    position: fixed;
+    top: calc(12px + env(safe-area-inset-top));
+    right: 16px;
+    z-index: 1000;
+    width: 36px;
+    height: 36px;
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 50%;
+    backdrop-filter: blur(12px);
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4);
+  }
+
+  .modal-close:hover {
+    background: rgba(255, 255, 255, 0.15);
+  }
+}
+
 .modal-body {
   flex: 1;
   padding: 2rem;

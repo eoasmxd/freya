@@ -33,7 +33,9 @@ description: 当回答 Freya 系统使用疑问、查阅物理设计文档，或
 ### 1. 全局配置工具 (Global Config)
 - **`read_config(revealSensitive?: boolean)`**：读取系统当前全量配置。
 - **`update_config(keyPath: string, value: any)`**：热更新特定 KeyPath 节点。精准 `keyPath` 映射列表如下：
-  - `port` (number): Web 服务监听端口（默认 3000，⚠️ 非热更新配置，修改后需重启服务生效）。
+  - `server.port` (number): Web 服务监听端口（默认 3000，⚠️ 非热更新配置，修改后需重启服务生效）。
+  - `server.enabled` (boolean): 是否启用 Web 网关服务与 WebSocket 频道（⚠️ 仅冷启动生效）。
+  - `cli.enabled` (boolean): 是否启用命令行终端交互频道（⚠️ 仅冷启动生效）。
   - `workspace` (string): 工作区目录路径【⚠️ 物理沙箱安全限制：系统拦截只读保护字段，只允许用户在 Web 界面上手动修改，禁止 AI 调用工具修改】。
   - `contextManagement.enabled` (boolean): 是否启用上下文管理。
   - `contextManagement.maxHistoryTurns` (number): 上下文历史最大轮数 (1~100)。
@@ -100,7 +102,7 @@ pnpm start   # 启动后端网关与前端托管
 
 ### 3.1 Web 界面操作指引
 点击右上角设置图标（齿轮），选择 **全局配置** 面板：
-- **服务器与工作区**：配置 `port` (端口修改需重启服务生效) 与 `workspace` 读写沙箱。
+- **服务器与工作区**：配置 `server.port` (端口修改需重启服务生效) 与 `workspace` 读写沙箱。
 - **上下文管理**：控制历史最大轮数 (`contextManagement.maxHistoryTurns`)、压缩保留轮数、消息条数上限以及摘要压缩选项。
 - **日志开关**：分别控制 `ERROR`, `WARN`, `INFO`, `DEBUG` 级别的终端打印及底层 `llm` 通信报文打印。
 - **核心模型角色绑定**：配置默认主模型降级链（`models.default`）、图像模型（`models.image`）和音频模型（`models.audio`）。
@@ -146,3 +148,14 @@ Web 对话框内支持快捷控制命令：
 - **`/session main`**：由分支会话切回主会话。
 - **`/session switch <ID>`**：直接切换至指定的活动会话。
 - **`/session list [archived|all]`**：按条件查看会话列表。
+
+---
+
+## 🖥️ 7. 命令行启动模式与后台管理 (CLI Daemon)
+Freya 启动器支持以下进阶启动参数，以配合服务器或后台守护进程部署：
+* **常规启动**（Web 与本地终端同时拉起）：
+  `freya`
+* **后台静默运行**（禁用本地 CLI，仅保留 Web 服务，且父进程自动退出脱离终端）：
+  `freya --no-cli`
+* **关闭后台服务**（自动读取 PID 并终止后台常驻的核心进程）：
+  `freya stop`

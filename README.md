@@ -19,6 +19,12 @@ npm install -g @eoasmxd/freya
 
 # 2. 启动服务 (默认监听 http://localhost:3000)
 freya
+
+# 3. 后台静默运行 (关闭本地控制台，适合服务器部署)
+freya --no-cli
+
+# 4. 停止正在后台运行的 Freya 服务
+freya stop
 ```
 
 ---

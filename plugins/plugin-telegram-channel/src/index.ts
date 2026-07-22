@@ -190,7 +190,7 @@ export default class TelegramChannelPlugin implements ChannelPlugin {
 
                         const chatId = msg.chat.id.toString();
                         const connectionId = this.connId(botId, chatId);
-                        ctx.eventBus.emit('connection:active', { connectionId, defaultSessionId: `telegram:${botId}:${chatId}` });
+                        ctx.eventBus.emit('connection:active', { connectionId, defaultSessionId: `telegram:${botId}:${chatId}`, staleThresholdMs: 0 });
                         this.registeredConnections.add(connectionId);
 
                         if (msg.text) {

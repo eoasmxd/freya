@@ -1,6 +1,6 @@
 {
   "name": "@eoasmxd/freya",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "private": true,
   "license": "MIT",
   "type": "module",
@@ -19,9 +19,11 @@
   ],
   "scripts": {
     "build": "pnpm -r build && node scripts/distribute.js",
-    "release": "pnpm build && npm publish ./dist --access public",
+    "build:release": "pnpm -r build && node scripts/distribute.js --release",
+    "release": "pnpm build:release && pnpm --filter @eoasmxd/freya-sdk publish --access public && npm publish ./dist --access public",
     "start": "node dist/freya.js",
     "freya": "node dist/freya.js",
+    "stop": "node dist/freya.js stop",
     "clean": "pnpm -r clean"
   },
   "dependencies": {

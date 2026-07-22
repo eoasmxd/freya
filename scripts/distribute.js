@@ -47,7 +47,22 @@ async function copyPackageDir(srcDir, destDir, excludeNames = []) {
 }
 
 async function main() {
+  const isRelease = process.argv.includes('--release');
   const distDir = path.join(PROJECT_ROOT, 'dist');
+
+  console.log('📝 正在读取版本信息...');
+  const rootPkgRaw = await fs.readFile(path.join(PROJECT_ROOT, 'package.json'), 'utf-8');
+  const rootPkg = JSON.parse(rootPkgRaw);
+  const rootVersion = rootPkg.version || '0.1.0';
+
+  if (isRelease) {
+    console.log(`📝 发布模式：正在同步 SDK 物理包版本到 ${rootVersion}...`);
+    const sdkPkgPath = path.join(PROJECT_ROOT, 'packages', 'sdk', 'package.json');
+    const rawSdkPkg = await fs.readFile(sdkPkgPath, 'utf-8');
+    const sdkPkg = JSON.parse(rawSdkPkg);
+    sdkPkg.version = rootVersion;
+    await fs.writeFile(sdkPkgPath, JSON.stringify(sdkPkg, null, 2) + '\n', 'utf-8');
+  }
 
   console.log('🧹 正在清理根目录 dist...');
   await fs.rm(distDir, { recursive: true, force: true });
@@ -63,15 +78,17 @@ async function main() {
   const configDest = path.join(distDir, 'config');
   await copyDir(configSrc, configDest);
 
-  console.log('📦 正在归档 SDK 编译产物...');
-  const sdkSrcDir = path.join(PROJECT_ROOT, 'packages', 'sdk');
-  const sdkDestDir = path.join(distDir, 'sdk');
-  await copyPackageDir(sdkSrcDir, sdkDestDir);
+  if (!isRelease) {
+    console.log('📦 正在归档 SDK 编译产物...');
+    const sdkSrcDir = path.join(PROJECT_ROOT, 'packages', 'sdk');
+    const sdkDestDir = path.join(distDir, 'sdk');
+    await copyPackageDir(sdkSrcDir, sdkDestDir);
+  }
 
   const rawCorePkg = await fs.readFile(path.join(coreDestDir, 'package.json'), 'utf-8');
   const corePkg = JSON.parse(rawCorePkg);
   if (corePkg.dependencies && corePkg.dependencies['@eoasmxd/freya-sdk']) {
-    corePkg.dependencies['@eoasmxd/freya-sdk'] = 'file:../sdk';
+    corePkg.dependencies['@eoasmxd/freya-sdk'] = isRelease ? `^${rootVersion}` : 'file:../sdk';
   }
   await fs.writeFile(path.join(coreDestDir, 'package.json'), JSON.stringify(corePkg, null, 2));
 
@@ -98,10 +115,10 @@ async function main() {
       const rawPkg = await fs.readFile(pluginPkgDest, 'utf-8');
       const pkg = JSON.parse(rawPkg);
       if (pkg.dependencies && pkg.dependencies['@eoasmxd/freya-sdk']) {
-        pkg.dependencies['@eoasmxd/freya-sdk'] = 'file:../../sdk';
+        pkg.dependencies['@eoasmxd/freya-sdk'] = isRelease ? `^${rootVersion}` : 'file:../../sdk';
       }
       if (pkg.devDependencies && pkg.devDependencies['@eoasmxd/freya-sdk']) {
-        pkg.devDependencies['@eoasmxd/freya-sdk'] = 'file:../../sdk';
+        pkg.devDependencies['@eoasmxd/freya-sdk'] = isRelease ? `^${rootVersion}` : 'file:../../sdk';
       }
       await fs.writeFile(pluginPkgDest, JSON.stringify(pkg, null, 2));
     } catch {
@@ -185,7 +202,7 @@ async function main() {
 
   console.log('📝 正在收集并合并全量发布版依赖...');
   const finalDeps = {
-    "@eoasmxd/freya-sdk": "file:./sdk"
+    "@eoasmxd/freya-sdk": isRelease ? `^${rootVersion}` : "file:./sdk"
   };
 
   if (corePkg.dependencies) {
@@ -209,9 +226,21 @@ async function main() {
   }
 
   console.log('📝 正在生成发布版 package.json...');
-  const rootPkgRaw = await fs.readFile(path.join(PROJECT_ROOT, 'package.json'), 'utf-8');
-  const rootPkg = JSON.parse(rootPkgRaw);
-  const rootVersion = rootPkg.version || '0.1.0';
+  const filesToInclude = [
+    "LICENSE",
+    "README.md",
+    "freya.js",
+    "core",
+    "plugins",
+    "config",
+    "skills",
+    "ui",
+    "doc",
+    "src"
+  ];
+  if (!isRelease) {
+    filesToInclude.push("sdk");
+  }
 
   const distPkgContent = {
     "name": "@eoasmxd/freya",
@@ -230,19 +259,7 @@ async function main() {
     "bin": {
       "freya": "./freya.js"
     },
-    "files": [
-      "LICENSE",
-      "README.md",
-      "freya.js",
-      "core",
-      "sdk",
-      "plugins",
-      "config",
-      "skills",
-      "ui",
-      "doc",
-      "src"
-    ],
+    "files": filesToInclude,
     "dependencies": finalDeps,
 
     "scripts": {

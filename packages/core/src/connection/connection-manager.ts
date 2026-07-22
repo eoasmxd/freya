@@ -5,6 +5,7 @@ import crypto from 'node:crypto';
 export class FreyaConnectionManager {
   private connectionToSession = new Map<string, string>();
   private lastActiveTime = new Map<string, number>();
+  private connectionThresholds = new Map<string, number>();
   private sweepInterval?: ReturnType<typeof setInterval>;
   private staleThresholdMs = 120_000;
   private sweepIntervalMs = 30_000;
@@ -35,8 +36,11 @@ export class FreyaConnectionManager {
   }
 
   private initEventListeners(): void {
-    this.eventBus.on('connection:active', (payload: { connectionId: string; defaultSessionId?: string }) => {
+    this.eventBus.on('connection:active', (payload: { connectionId: string; defaultSessionId?: string; staleThresholdMs?: number }) => {
       this.touch(payload.connectionId);
+      if (typeof payload.staleThresholdMs === 'number') {
+        this.connectionThresholds.set(payload.connectionId, payload.staleThresholdMs);
+      }
       this.resolveOrCreateSessionId(payload.connectionId, payload.defaultSessionId);
     });
 
@@ -108,6 +112,7 @@ export class FreyaConnectionManager {
   unregister(connectionId: string): void {
     this.connectionToSession.delete(connectionId);
     this.lastActiveTime.delete(connectionId);
+    this.connectionThresholds.delete(connectionId);
     this.logger?.debug(`[FreyaConnectionManager] 连接 "${connectionId}" 已注销并清理活跃历史。`);
   }
 
@@ -141,7 +146,15 @@ export class FreyaConnectionManager {
     const now = Date.now();
     const toRemove: string[] = [];
     for (const [connId, lastActive] of this.lastActiveTime) {
-      if (now - lastActive > this.staleThresholdMs) {
+      const threshold = this.connectionThresholds.has(connId)
+        ? this.connectionThresholds.get(connId)!
+        : this.staleThresholdMs;
+
+      if (threshold <= 0 || threshold === Infinity) {
+        continue;
+      }
+
+      if (now - lastActive > threshold) {
         toRemove.push(connId);
       }
     }

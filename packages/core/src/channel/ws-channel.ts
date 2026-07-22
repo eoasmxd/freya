@@ -67,11 +67,11 @@ export class FreyaWsChannel {
                 lastPongTime: Date.now()
             };
             this.wsMetaMap.set(tempConnId, meta);
-            ctx.eventBus.emit('connection:active', { connectionId: tempConnId, defaultSessionId: 'main' });
+            ctx.eventBus.emit('connection:active', { connectionId: tempConnId, defaultSessionId: 'main', staleThresholdMs: 300000 });
 
             ws.on('pong', () => {
                 meta.lastPongTime = Date.now();
-                ctx.eventBus.emit('connection:active', { connectionId: meta.connId });
+                ctx.eventBus.emit('connection:active', { connectionId: meta.connId, staleThresholdMs: 300000 });
             });
 
             ws.send(JSON.stringify({
@@ -85,7 +85,7 @@ export class FreyaWsChannel {
             ws.on('message', (messageData) => {
                 try {
                     const payload = JSON.parse(messageData.toString());
-                    ctx.eventBus.emit('connection:active', { connectionId: meta.connId });
+                    ctx.eventBus.emit('connection:active', { connectionId: meta.connId, staleThresholdMs: 300000 });
                     meta.lastPongTime = Date.now();
 
                     if (payload.event === 'client:reconnect') {
@@ -154,7 +154,7 @@ export class FreyaWsChannel {
         meta.connId = stableConnId;
         meta.clientId = clientId;
         this.wsMetaMap.set(stableConnId, meta);
-        ctx.eventBus.emit('connection:active', { connectionId: stableConnId, defaultSessionId: 'main' });
+        ctx.eventBus.emit('connection:active', { connectionId: stableConnId, defaultSessionId: 'main', staleThresholdMs: 300000 });
 
         ctx.logger.info(`[WsChannel] 客户端断线重连成功，clientId: ${clientId}, 连接ID: ${stableConnId}`);
 

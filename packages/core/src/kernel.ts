@@ -73,7 +73,7 @@ export class FreyaKernel {
 
     configManager.registerCoreSchema();
 
-    const { port } = await configManager.loadAndInit();
+    await configManager.loadAndInit();
 
     await configManager.resolveAndFreeze();
     await promptRegistry.loadKernelPrompts();
@@ -122,19 +122,28 @@ export class FreyaKernel {
 
     sessionToolbox.setAgentService(this.agentService);
 
-    this.webContainer = new FreyaWebContainer();
-    await this.webContainer.start(ctx, port, configManager);
+    const webEnabled = (ctx.config as any)?.server?.enabled !== false;
+    const cliEnabled = !process.argv.includes('--no-cli') && (ctx.config as any)?.cli?.enabled !== false;
+
+    if (webEnabled) {
+      this.webContainer = new FreyaWebContainer();
+      await this.webContainer.start(ctx, configManager);
+    }
 
     if (this.channelRegistry) {
-      this.wsChannel = new FreyaWsChannel(this.webContainer.getServer());
-      this.channelRegistry.register(this.wsChannel);
-      await this.wsChannel.setup(ctx);
-      await this.wsChannel.start(ctx);
+      if (webEnabled && this.webContainer) {
+        this.wsChannel = new FreyaWsChannel(this.webContainer.getServer());
+        this.channelRegistry.register(this.wsChannel);
+        await this.wsChannel.setup(ctx);
+        await this.wsChannel.start(ctx);
+      }
 
-      this.cliChannel = new FreyaCliChannel();
-      this.channelRegistry.register(this.cliChannel);
-      await this.cliChannel.setup(ctx);
-      await this.cliChannel.start(ctx);
+      if (cliEnabled) {
+        this.cliChannel = new FreyaCliChannel();
+        this.channelRegistry.register(this.cliChannel);
+        await this.cliChannel.setup(ctx);
+        await this.cliChannel.start(ctx);
+      }
     }
 
     await this.pluginManager.setupAndStartAll(ctx);
