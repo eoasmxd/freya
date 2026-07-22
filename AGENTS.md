@@ -80,7 +80,7 @@ pnpm install       # 安装依赖
 pnpm build         # 编译所有包
 pnpm dev:core      # 启动后端服务
 pnpm dev:ui        # 启动前端 Web UI
-pnpm start         # 启动本地 CLI 交互
+pnpm freya         # 启动本地服务与 CLI 交互 (或使用 pnpm start)
 ```
 
 ### 提交规范
