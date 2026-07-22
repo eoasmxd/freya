@@ -10,10 +10,7 @@
     "freya": {
         "displayName": "Telegram 频道插件",
         "defaultEnabled": false,
-        "schema": "./schema.json",
-        "prompts": [
-            "plugin.prompt.telegram.md"
-        ]
+        "schema": "./schema.json"
     },
     "type": "module",
     "main": "./dist/index.js",

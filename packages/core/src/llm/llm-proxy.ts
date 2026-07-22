@@ -123,6 +123,7 @@ export class FreyaLLMProxy implements ILLMService {
     const isStream = !!options?.onChunk && (!tools || tools.length === 0);
 
     const startTime = Date.now();
+    this.llmLogger.enabled = !!this.context.config.log?.llm;
     this.llmLogger.logRequest({
       provider: providerName,
       model: modelId,
@@ -173,10 +174,16 @@ export class FreyaLLMProxy implements ILLMService {
     } catch (err: any) {
       const durationMs = Date.now() - startTime;
 
+      let errorMsg = err.message || String(err);
+      if (err.cause) {
+        const causeMsg = err.cause.message || String(err.cause);
+        errorMsg += ` (Cause: ${causeMsg})`;
+      }
+
       this.llmLogger.logError({
         provider: providerName,
         model: modelId,
-        error: err.message || String(err),
+        error: errorMsg,
         durationMs
       });
 

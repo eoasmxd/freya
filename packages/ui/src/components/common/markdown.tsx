@@ -228,8 +228,42 @@ export function renderMarkdown(content: string): React.ReactNode[] {
 
 
 export function parseInlineMarkdown(text: string): React.ReactNode[] {
-  const parts = text.split(/(\*\*.*?\*\*|`.*?`)/g);
+  if (!text) return [];
+  const parts = text.split(/(!\[.*?\]\(.*?\)|\[.*?\]\(.*?\)|\*\*.*?\*\*|`.*?`)/g);
   return parts.map((part, idx) => {
+    if (part.startsWith('![') && part.endsWith(')')) {
+      const match = part.match(/!\[(.*?)\]\((.*?)\)/);
+      if (match) {
+        const [, alt, url] = match;
+        return (
+          <img
+            key={idx}
+            src={url}
+            alt={alt}
+            className="md-image"
+            style={{ maxWidth: '100%', maxHeight: '300px', display: 'block', borderRadius: '8px', margin: '0.8rem 0', border: '1px solid var(--border-color, #e0e0e0)' }}
+          />
+        );
+      }
+    }
+    if (part.startsWith('[') && part.endsWith(')')) {
+      const match = part.match(/\[(.*?)\]\((.*?)\)/);
+      if (match) {
+        const [, linkText, url] = match;
+        return (
+          <a
+            key={idx}
+            href={url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="md-link"
+            style={{ color: '#0066cc', textDecoration: 'underline', wordBreak: 'break-all' }}
+          >
+            {parseInlineMarkdown(linkText)}
+          </a>
+        );
+      }
+    }
     if (part.startsWith('**') && part.endsWith('**')) {
       return <strong key={idx}>{parseInlineMarkdown(part.slice(2, -2))}</strong>;
     }
