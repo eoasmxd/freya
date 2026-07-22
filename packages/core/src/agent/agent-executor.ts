@@ -102,7 +102,8 @@ export class FreyaAgentExecutor {
             return {
               role: 'tool' as const,
               content: `Error: Tool "${toolCall.name}" not found.`,
-              toolCallId: toolCall.id
+              toolCallId: toolCall.id,
+              toolName: toolCall.name
             };
           }
 
@@ -122,7 +123,8 @@ export class FreyaAgentExecutor {
             return {
               role: 'tool' as const,
               content: `Error during JSON parsing: ${parseErr.message}`,
-              toolCallId: toolCall.id
+              toolCallId: toolCall.id,
+              toolName: toolCall.name
             };
           }
 
@@ -148,7 +150,8 @@ export class FreyaAgentExecutor {
             return {
               role: 'tool' as const,
               content: result,
-              toolCallId: toolCall.id
+              toolCallId: toolCall.id,
+              toolName: toolCall.name
             };
           } catch (err: any) {
             this.context.eventBus.emit('tool:status', {
@@ -162,7 +165,8 @@ export class FreyaAgentExecutor {
             return {
               role: 'tool' as const,
               content: `Error during execution: ${err.message}`,
-              toolCallId: toolCall.id
+              toolCallId: toolCall.id,
+              toolName: toolCall.name
             };
           }
         });

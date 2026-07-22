@@ -332,13 +332,13 @@ export const ProviderConfigPanel: React.FC<ProviderConfigPanelProps> = ({ getApi
   };
 
   const toggleNewCapability = (type: string) => {
-    setNewModelCapabilities(prev => 
+    setNewModelCapabilities(prev =>
       prev.includes(type) ? prev.filter(t => t !== type) : [...prev, type]
     );
   };
 
   const toggleEditCapability = (type: string) => {
-    setEditModelCapabilities(prev => 
+    setEditModelCapabilities(prev =>
       prev.includes(type) ? prev.filter(t => t !== type) : [...prev, type]
     );
   };
@@ -403,7 +403,7 @@ export const ProviderConfigPanel: React.FC<ProviderConfigPanelProps> = ({ getApi
             >
               {availableTypes.map((t) => (
                 <option key={t} value={t}>
-                  {t === 'openai' ? 'OpenAI 兼容规格' : `${t} 规格`}
+                  {t.toUpperCase()}
                 </option>
               ))}
             </select>
@@ -588,7 +588,7 @@ export const ProviderConfigPanel: React.FC<ProviderConfigPanelProps> = ({ getApi
                           checked={newModelCapabilities.includes('image')}
                           onChange={() => toggleNewCapability('image')}
                         />
-                        <span>图像生成 (image)</span>
+                        <span>图片理解 / 视觉能力 (image)</span>
                       </label>
                       <label style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', fontSize: '0.8rem', cursor: 'pointer' }}>
                         <input
@@ -596,7 +596,7 @@ export const ProviderConfigPanel: React.FC<ProviderConfigPanelProps> = ({ getApi
                           checked={newModelCapabilities.includes('audio')}
                           onChange={() => toggleNewCapability('audio')}
                         />
-                        <span>音频处理 (audio)</span>
+                        <span>音频理解 / 语音能力 (audio)</span>
                       </label>
                     </div>
                   </div>
@@ -704,7 +704,7 @@ export const ProviderConfigPanel: React.FC<ProviderConfigPanelProps> = ({ getApi
                                 checked={editModelCapabilities.includes('image')}
                                 onChange={() => toggleEditCapability('image')}
                               />
-                              <span>图像生成 (image)</span>
+                              <span>图片理解 / 视觉能力 (image)</span>
                             </label>
                             <label style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', fontSize: '0.8rem', cursor: 'pointer' }}>
                               <input
@@ -712,7 +712,7 @@ export const ProviderConfigPanel: React.FC<ProviderConfigPanelProps> = ({ getApi
                                 checked={editModelCapabilities.includes('audio')}
                                 onChange={() => toggleEditCapability('audio')}
                               />
-                              <span>音频处理 (audio)</span>
+                              <span>音频理解 / 语音能力 (audio)</span>
                             </label>
                           </div>
                         </div>

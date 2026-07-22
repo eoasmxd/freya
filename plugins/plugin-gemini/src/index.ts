@@ -45,12 +45,14 @@ export default class GeminiPlugin implements LLMPlugin {
               parts.push({ text: msg.content });
             }
             if (msg.toolCalls && msg.toolCalls.length > 0) {
+              const sig = msg.thoughtSignature;
               for (const tc of msg.toolCalls) {
                 parts.push({
                   functionCall: {
                     name: tc.name,
                     args: JSON.parse(tc.arguments || '{}')
-                  }
+                  },
+                  ...(sig ? { thoughtSignature: sig } : {})
                 });
               }
             }
@@ -58,12 +60,28 @@ export default class GeminiPlugin implements LLMPlugin {
           }
 
           if (msg.role === 'tool') {
+            let toolName = msg.toolName;
+            if (!toolName && msg.toolCallId) {
+              const idx = messages.indexOf(msg);
+              if (idx > 0) {
+                for (let i = idx - 1; i >= 0; i--) {
+                  const prev = messages[i];
+                  if (prev.role === 'assistant' && prev.toolCalls) {
+                    const match = prev.toolCalls.find((tc) => tc.id === msg.toolCallId);
+                    if (match) {
+                      toolName = match.name;
+                      break;
+                    }
+                  }
+                }
+              }
+            }
             return {
-              role: 'tool',
+              role: 'user',
               parts: [
                 {
                   functionResponse: {
-                    name: msg.toolCallId || 'default_tool',
+                    name: toolName || 'default_tool',
                     response: { result: msg.content }
                   }
                 }
@@ -117,13 +135,36 @@ export default class GeminiPlugin implements LLMPlugin {
       }]
       : undefined;
 
-    const { temperature, maxTokens, max_tokens, topP, top_p, timeout, ...extraParams } = options?.modelParams || {};
-    const generationConfig: Record<string, any> = { ...extraParams };
-    if (typeof temperature === 'number') generationConfig.temperature = temperature;
-    const finalMaxTokens = maxTokens ?? max_tokens;
-    if (typeof finalMaxTokens === 'number' && finalMaxTokens > 0) generationConfig.maxOutputTokens = finalMaxTokens;
-    const finalTopP = topP ?? top_p;
-    if (typeof finalTopP === 'number') generationConfig.topP = finalTopP;
+    const params = options?.modelParams || {};
+    const generationConfig: Record<string, any> = {};
+
+    if (typeof params.temperature === 'number') {
+      generationConfig.temperature = params.temperature;
+    }
+    if (typeof params.maxTokens === 'number' && params.maxTokens > 0) {
+      generationConfig.maxOutputTokens = params.maxTokens;
+    }
+    if (typeof params.topP === 'number') {
+      generationConfig.topP = params.topP;
+    }
+    if (typeof params.topK === 'number') {
+      generationConfig.topK = params.topK;
+    }
+    if (params.stopSequences !== undefined) {
+      generationConfig.stopSequences = params.stopSequences;
+    }
+    if (typeof params.presencePenalty === 'number') {
+      generationConfig.presencePenalty = params.presencePenalty;
+    }
+    if (typeof params.frequencyPenalty === 'number') {
+      generationConfig.frequencyPenalty = params.frequencyPenalty;
+    }
+    if (params.responseFormat?.type === 'json_object') {
+      generationConfig.responseMimeType = 'application/json';
+      if (params.responseFormat.jsonSchema) {
+        generationConfig.responseSchema = params.responseFormat.jsonSchema;
+      }
+    }
 
     const requestBody: Record<string, any> = {
       contents: geminiContents,
@@ -132,7 +173,7 @@ export default class GeminiPlugin implements LLMPlugin {
     if (systemInstruction) requestBody.systemInstruction = systemInstruction;
     if (geminiTools) requestBody.tools = geminiTools;
 
-    const timeoutMs = typeof timeout === 'number' ? timeout : 90000;
+    const timeoutMs = typeof params.timeout === 'number' ? params.timeout : 90000;
     const timeoutSignal = AbortSignal.timeout(timeoutMs);
     const combinedSignal = options?.signal
       ? AbortSignal.any([options.signal, timeoutSignal])
@@ -168,6 +209,7 @@ export default class GeminiPlugin implements LLMPlugin {
       let finalContent = '';
       let usage: LLMTokenUsage | undefined;
       let streamToolCalls: any[] | undefined;
+      let thoughtSignature: string | undefined;
       let buffer = '';
 
       try {
@@ -199,19 +241,25 @@ export default class GeminiPlugin implements LLMPlugin {
                   }
 
                   const candidate = parsed.candidates?.[0];
-                  const part = candidate?.content?.parts?.[0];
-                  if (part?.text) {
-                    const text = part.text;
-                    finalContent += text;
-                    options?.onChunk?.(text);
-                  }
-                  if (part?.functionCall) {
-                    if (!streamToolCalls) streamToolCalls = [];
-                    streamToolCalls.push({
-                      id: `call_${Math.random().toString(36).substring(2, 11)}`,
-                      name: part.functionCall.name,
-                      arguments: JSON.stringify(part.functionCall.args || {})
-                    });
+                  const parts = candidate?.content?.parts || [];
+                  for (const part of parts) {
+                    if (part?.text) {
+                      const text = part.text;
+                      finalContent += text;
+                      options?.onChunk?.(text);
+                    }
+                    if (part?.functionCall) {
+                      if (!streamToolCalls) streamToolCalls = [];
+                      streamToolCalls.push({
+                        id: `call_${Math.random().toString(36).substring(2, 11)}`,
+                        name: part.functionCall.name,
+                        arguments: JSON.stringify(part.functionCall.args || {})
+                      });
+                    }
+                    const sig = part?.thoughtSignature;
+                    if (sig) {
+                      thoughtSignature = sig;
+                    }
                   }
                   if (parsed.usageMetadata) {
                     usage = {
@@ -259,19 +307,25 @@ export default class GeminiPlugin implements LLMPlugin {
                   }
 
                   const candidate = parsed.candidates?.[0];
-                  const part = candidate?.content?.parts?.[0];
-                  if (part?.text) {
-                    const text = part.text;
-                    finalContent += text;
-                    options?.onChunk?.(text);
-                  }
-                  if (part?.functionCall) {
-                    if (!streamToolCalls) streamToolCalls = [];
-                    streamToolCalls.push({
-                      id: `call_${Math.random().toString(36).substring(2, 11)}`,
-                      name: part.functionCall.name,
-                      arguments: JSON.stringify(part.functionCall.args || {})
-                    });
+                  const parts = candidate?.content?.parts || [];
+                  for (const part of parts) {
+                    if (part?.text) {
+                      const text = part.text;
+                      finalContent += text;
+                      options?.onChunk?.(text);
+                    }
+                    if (part?.functionCall) {
+                      if (!streamToolCalls) streamToolCalls = [];
+                      streamToolCalls.push({
+                        id: `call_${Math.random().toString(36).substring(2, 11)}`,
+                        name: part.functionCall.name,
+                        arguments: JSON.stringify(part.functionCall.args || {})
+                      });
+                    }
+                    const sig = part?.thoughtSignature;
+                    if (sig) {
+                      thoughtSignature = sig;
+                    }
                   }
                   if (parsed.usageMetadata) {
                     usage = {
@@ -296,14 +350,15 @@ export default class GeminiPlugin implements LLMPlugin {
         throw err;
       }
 
-      return {
-        message: {
-          role: 'assistant',
-          content: finalContent,
-          toolCalls: streamToolCalls
-        },
-        usage
+      const message: LLMMessage = {
+        role: 'assistant',
+        content: finalContent,
+        toolCalls: streamToolCalls
       };
+      if (thoughtSignature) {
+        message.thoughtSignature = thoughtSignature;
+      }
+      return { message, usage };
     }
 
     const json = await response.json() as any;
@@ -316,23 +371,40 @@ export default class GeminiPlugin implements LLMPlugin {
     }
 
     const candidate = json.candidates?.[0];
-    const part = candidate?.content?.parts?.[0];
+    const parts = candidate?.content?.parts || [];
 
-    if (!part?.text && !part?.functionCall && candidate?.finishReason && candidate.finishReason !== 'STOP') {
+    let textContent = '';
+    const toolCalls: any[] = [];
+    let thoughtSignature: string | undefined;
+
+    for (const part of parts) {
+      if (part.text) {
+        textContent += part.text;
+      }
+      if (part.functionCall) {
+        toolCalls.push({
+          id: `call_${Math.random().toString(36).substring(2, 11)}`,
+          name: part.functionCall.name,
+          arguments: JSON.stringify(part.functionCall.args || {})
+        });
+      }
+      const sig = part.thoughtSignature;
+      if (sig) {
+        thoughtSignature = sig;
+      }
+    }
+
+    if (textContent === '' && toolCalls.length === 0 && candidate?.finishReason && candidate.finishReason !== 'STOP') {
       throw new Error(`Gemini 输出安全策略拦截/未生成 (finishReason: "${candidate.finishReason}")`);
     }
 
     const message: LLMMessage = {
       role: 'assistant',
-      content: part?.text || ''
+      content: textContent,
+      toolCalls: toolCalls.length > 0 ? toolCalls : undefined
     };
-
-    if (part?.functionCall) {
-      message.toolCalls = [{
-        id: `call_${Math.random().toString(36).substring(2, 11)}`,
-        name: part.functionCall.name,
-        arguments: JSON.stringify(part.functionCall.args || {})
-      }];
+    if (thoughtSignature) {
+      message.thoughtSignature = thoughtSignature;
     }
 
     const usage = json.usageMetadata

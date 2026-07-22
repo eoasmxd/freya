@@ -9,7 +9,7 @@
   "description": "Freya 企业微信智能机器人长连接频道插件，通过 WebSocket 连接企业微信官方接口",
   "freya": {
     "displayName": "企业微信频道",
-    "defaultEnabled": true,
+    "defaultEnabled": false,
     "schema": "./schema.json"
   },
   "type": "module",

@@ -9,7 +9,7 @@
   "description": "Freya 微信智能硬件 iLink 频道插件，通过长轮询 getUpdates 连接微信 iLink 平台",
   "freya": {
     "displayName": "微信频道插件",
-    "defaultEnabled": true
+    "defaultEnabled": false
   },
   "type": "module",
   "main": "./dist/index.js",

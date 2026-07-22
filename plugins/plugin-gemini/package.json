@@ -9,7 +9,7 @@
   "description": "Freya Gemini 官方大模型接入插件",
   "freya": {
     "displayName": "Gemini 模型插件",
-    "defaultEnabled": true
+    "defaultEnabled": false
   },
   "type": "module",
   "main": "./dist/index.js",

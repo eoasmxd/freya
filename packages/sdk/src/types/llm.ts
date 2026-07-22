@@ -38,6 +38,8 @@ export interface LLMMessage {
   toolCalls?: LLMToolCall[];
   attachments?: ChannelAttachment[];
   toolCallId?: string;
+  thoughtSignature?: string;
+  toolName?: string;
 }
 
 export interface LLMTokenUsage {
