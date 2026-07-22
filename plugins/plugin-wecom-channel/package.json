@@ -1,18 +1,21 @@
 {
-  "name": "@eoasmxd/freya-core",
-  "version": "0.2.1",
+  "name": "@eoasmxd/freya-plugin-wecom-channel",
+  "version": "0.1.0",
   "private": false,
   "license": "MIT",
   "publishConfig": {
     "access": "public"
   },
-  "description": "Freya 核心微服务，作为 WSS 服务器和 Agent 运行的主线程",
+  "description": "Freya 企业微信智能机器人长连接频道插件，通过 WebSocket 连接企业微信官方接口",
+  "freya": {
+    "displayName": "企业微信频道",
+    "defaultEnabled": true,
+    "schema": "./schema.json"
+  },
   "type": "module",
   "main": "./dist/index.js",
   "scripts": {
     "build": "tsc -p tsconfig.json",
-    "dev": "tsc -p tsconfig.json --watch",
-    "start": "node ./dist/index.js",
     "clean": "rm -rf dist"
   },
   "dependencies": {
@@ -21,7 +24,7 @@
   },
   "devDependencies": {
     "@types/node": "^22.0.0",
-    "@types/ws": "^8.5.12",
+    "@types/ws": "^8.5.10",
     "typescript": "^5.5.0"
   }
 }

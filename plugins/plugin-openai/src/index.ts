@@ -25,6 +25,10 @@ export default class OpenAICompatiblePlugin implements LLMPlugin {
       throw new Error('未配置有效的大模型授权密钥，请在配置中检查。');
     }
 
+    if (!modelId || modelId.trim() === '') {
+      throw new Error('未配置有效的模型 ID (modelId)，请在配置中检查。');
+    }
+
     const openAiMessages = await Promise.all(messages.map(async (msg, idx) => {
       if (msg.role === 'assistant' && msg.toolCalls && msg.toolCalls.length > 0) {
         return {
@@ -115,10 +119,10 @@ export default class OpenAICompatiblePlugin implements LLMPlugin {
       }))
       : undefined;
 
-    const { temperature, maxTokens, max_tokens, topP, top_p, ...extraParams } = options?.modelParams || {};
+    const { temperature, maxTokens, max_tokens, topP, top_p, timeout, ...extraParams } = options?.modelParams || {};
 
     const requestBody: Record<string, any> = {
-      model: modelId || 'gpt-4o',
+      model: modelId,
       messages: openAiMessages,
       tools: openAiTools,
       ...extraParams
@@ -143,7 +147,8 @@ export default class OpenAICompatiblePlugin implements LLMPlugin {
       'Authorization': `Bearer ${apiKey}`
     };
 
-    const timeoutSignal = AbortSignal.timeout(30000);
+    const timeoutMs = typeof timeout === 'number' ? timeout : 90000;
+    const timeoutSignal = AbortSignal.timeout(timeoutMs);
     const combinedSignal = options?.signal
       ? AbortSignal.any([options.signal, timeoutSignal])
       : timeoutSignal;
@@ -161,7 +166,7 @@ export default class OpenAICompatiblePlugin implements LLMPlugin {
         if (options?.signal?.aborted) {
           throw err;
         }
-        throw new Error(`连接大模型服务超时 (30s)，请检查 API 网络连通性或 baseURL: ${baseURL}`);
+        throw new Error(`连接大模型服务超时 (${timeoutMs / 1000}s)，请检查 API 网络连通性或 baseURL: ${baseURL}`);
       }
       throw err;
     }

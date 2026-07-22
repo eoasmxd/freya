@@ -1,0 +1,25 @@
+[
+  {
+    "key": "wecom.bots",
+    "defaultValue": [],
+    "description": "企业微信智能机器人长连接配置列表",
+    "type": "array",
+    "category": "频道",
+    "children": [
+      {
+        "key": "botId",
+        "description": "企业微信机器人 BotID",
+        "type": "string",
+        "required": true
+      },
+      {
+        "key": "secret",
+        "description": "企业微信机器人 Secret",
+        "type": "string",
+        "required": true,
+        "sensitive": true,
+        "uiHint": "password"
+      }
+    ]
+  }
+]

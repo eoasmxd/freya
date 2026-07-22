@@ -72,6 +72,23 @@ export default class TelegramChannelPlugin implements ChannelPlugin {
     private registeredConnections = new Set<string>();
     private syncTimer?: NodeJS.Timeout;
 
+    private getBotId(bot: TelegramBotConfig): string {
+        const tok = bot.token.trim();
+        if (tok.includes(':')) {
+            return tok.split(':')[0];
+        }
+        return bot.id.trim();
+    }
+
+    private getFullToken(bot: TelegramBotConfig): string {
+        const id = bot.id.trim();
+        const tok = bot.token.trim();
+        if (tok.includes(':')) {
+            return tok;
+        }
+        return `${id}:${tok}`;
+    }
+
     private connId(botId: string, chatId: string): string {
         return `telegram:${botId}:${chatId}`;
     }
@@ -150,8 +167,8 @@ export default class TelegramChannelPlugin implements ChannelPlugin {
         }
 
         for (const botConfig of this.bots) {
-            const botId = botConfig.id.trim();
-            const token = botConfig.token.trim();
+            const botId = this.getBotId(botConfig);
+            const token = this.getFullToken(botConfig);
             if (!botId || !token) continue;
 
             const abortController = new AbortController();
@@ -167,7 +184,6 @@ export default class TelegramChannelPlugin implements ChannelPlugin {
             ctx.logger.info(`Telegram 机器人 [${botId}] 轮询服务已拉起。`);
         }
     }
-
     private startSingleBotLoop(
         ctx: FreyaContext,
         botId: string,
@@ -175,6 +191,7 @@ export default class TelegramChannelPlugin implements ChannelPlugin {
     ): void {
         (async () => {
             let offset = 0;
+            let retryDelay = 5000; // 初始重试间隔为 5 秒
             while (state.running) {
                 try {
                     const signal = state.abortController.signal;
@@ -182,6 +199,9 @@ export default class TelegramChannelPlugin implements ChannelPlugin {
                         offset,
                         timeout: 30,
                     }, signal);
+
+                    // 轮询成功，立即重置退避时间为 5 秒
+                    retryDelay = 5000;
 
                     for (const update of updates) {
                         offset = update.update_id + 1;
@@ -256,21 +276,24 @@ export default class TelegramChannelPlugin implements ChannelPlugin {
                 } catch (err) {
                     if (!state.running) break;
                     const message = err instanceof Error ? err.message : String(err);
-                    ctx.logger.error(`Telegram 机器人 [${botId}] 轮询出错:`, message);
-                    await new Promise((resolve) => setTimeout(resolve, 5000));
+                    ctx.logger.error(`Telegram 机器人 [${botId}] 轮询出错（将在 ${retryDelay / 1000} 秒后重试）:`, message);
+                    await new Promise((resolve) => setTimeout(resolve, retryDelay));
+
+                    // 指数退避：每次失败翻倍，最大为 5 分钟 (300,000 毫秒)
+                    retryDelay = Math.min(retryDelay * 2, 5 * 60 * 1000);
                 }
             }
             ctx.logger.info(`Telegram 机器人 [${botId}] 轮询循环已安全结束。`);
         })();
     }
-
     private async syncBots(ctx: FreyaContext): Promise<void> {
         const rawBots = ctx.config.telegram?.bots;
         const latestBots: TelegramBotConfig[] = Array.isArray(rawBots) ? rawBots : [];
 
         for (const [botId, active] of this.activeBots.entries()) {
-            const currentConfig = latestBots.find((b) => b.id.trim() === botId);
-            if (!currentConfig || currentConfig.token.trim() !== active.token) {
+            const currentConfig = latestBots.find((b) => this.getBotId(b) === botId);
+            const expectedToken = currentConfig ? this.getFullToken(currentConfig) : '';
+            if (!currentConfig || expectedToken !== active.token) {
                 active.running = false;
                 active.abortController.abort();
                 this.activeBots.delete(botId);
@@ -286,8 +309,8 @@ export default class TelegramChannelPlugin implements ChannelPlugin {
         }
 
         for (const botConfig of latestBots) {
-            const botId = botConfig.id.trim();
-            const token = botConfig.token.trim();
+            const botId = this.getBotId(botConfig);
+            const token = this.getFullToken(botConfig);
             if (!botId || !token) continue;
 
             if (!this.activeBots.has(botId)) {
@@ -329,8 +352,9 @@ export default class TelegramChannelPlugin implements ChannelPlugin {
     }
 
     private async sendToChat(botId: string, chatId: string, text: string): Promise<void> {
-        const token = this.bots.find((b) => b.id === botId)?.token;
-        if (!token) return;
+        const botConfig = this.bots.find((b) => this.getBotId(b) === botId);
+        if (!botConfig) return;
+        const token = this.getFullToken(botConfig);
         try {
             const numericId = Number(chatId);
             if (isNaN(numericId) || numericId === 0) return;

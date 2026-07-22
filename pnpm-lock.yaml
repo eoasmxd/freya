@@ -65,6 +65,19 @@ importers:
         specifier: ^5.3.1
         version: 5.4.21(@types/node@22.20.0)
 
+  plugins/plugin-gemini:
+    dependencies:
+      '@eoasmxd/freya-sdk':
+        specifier: workspace:^
+        version: link:../../packages/sdk
+    devDependencies:
+      '@types/node':
+        specifier: ^22.0.0
+        version: 22.20.0
+      typescript:
+        specifier: ^5.5.0
+        version: 5.9.3
+
   plugins/plugin-openai:
     dependencies:
       '@eoasmxd/freya-sdk':
@@ -122,6 +135,41 @@ importers:
       '@eoasmxd/freya-sdk':
         specifier: workspace:^
         version: link:../../packages/sdk
+    devDependencies:
+      '@types/node':
+        specifier: ^22.0.0
+        version: 22.20.0
+      typescript:
+        specifier: ^5.5.0
+        version: 5.9.3
+
+  plugins/plugin-wecom-channel:
+    dependencies:
+      '@eoasmxd/freya-sdk':
+        specifier: workspace:^
+        version: link:../../packages/sdk
+      ws:
+        specifier: ^8.18.0
+        version: 8.21.0
+    devDependencies:
+      '@types/node':
+        specifier: ^22.0.0
+        version: 22.20.0
+      '@types/ws':
+        specifier: ^8.5.10
+        version: 8.18.1
+      typescript:
+        specifier: ^5.5.0
+        version: 5.9.3
+
+  plugins/plugin-weixin-channel:
+    dependencies:
+      '@eoasmxd/freya-sdk':
+        specifier: workspace:^
+        version: link:../../packages/sdk
+      qrcode-terminal:
+        specifier: ^0.12.0
+        version: 0.12.0
     devDependencies:
       '@types/node':
         specifier: ^22.0.0
@@ -622,6 +670,10 @@ packages:
   postcss@8.5.16:
     resolution: {integrity: sha512-vuwillviilfKZsg0VGj5R/YwwcHx4SLsIOI/7K6mQkWx+l5cUHTjj5g0AasTBcyXsbfTgrwsUNmVUb5xVwyPwg==}
     engines: {node: ^10 || ^12 || >=14}
+
+  qrcode-terminal@0.12.0:
+    resolution: {integrity: sha512-EXtzRZmC+YGmGlDFbXKxQiMZNwCLEO6BANKXG4iCtSIM0yqc/pappSx3RIKr4r0uh5JsBckOXeKrB3Iz7mdQpQ==}
+    hasBin: true
 
   react-dom@18.3.1:
     resolution: {integrity: sha512-5m4nQKp+rZRb09LNH59GM4BxTh9251/ylbKIbpe7TpGxfJ+9kv6BLkLBXIjjspbgbnIBNqlI23tRnTWT0snUIw==}
@@ -1127,6 +1179,8 @@ snapshots:
       nanoid: 3.3.15
       picocolors: 1.1.1
       source-map-js: 1.2.1
+
+  qrcode-terminal@0.12.0: {}
 
   react-dom@18.3.1(react@18.3.1):
     dependencies:

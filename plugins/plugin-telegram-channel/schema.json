@@ -8,13 +8,13 @@
     "children": [
       {
         "key": "id",
-        "description": "机器人唯一标识",
+        "description": "Telegram 机器人 ID (Token 冒号前的数字数字，例如 592039281)",
         "type": "string",
         "required": true
       },
       {
         "key": "token",
-        "description": "Telegram Bot API Token",
+        "description": "Telegram 机器人密钥 (Token 冒号后的部分密钥)",
         "type": "string",
         "required": true,
         "sensitive": true,
