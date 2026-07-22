@@ -308,4 +308,12 @@ export class FreyaLLMProxy implements ILLMService {
     }
     return 16000;
   }
+
+  /**
+   * 获取指定大模型所支持的多模态及其他原生硬件能力列表。
+   */
+  getModelCapabilities(modelId?: string, providerId?: string): string[] {
+    const matched = this.llmRegistry.findModelConfig(modelId || 'default-model', providerId);
+    return matched?.capabilities || [];
+  }
 }

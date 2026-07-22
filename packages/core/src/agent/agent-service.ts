@@ -78,10 +78,40 @@ export class FreyaAgentService {
       let userText = message.content;
       const attachments = message.attachments || [];
 
-      const [audioAppend, imageResult] = await Promise.all([
-        preprocessAudio(attachments, '', this.context, this.promptRegistry),
-        preprocessImages(attachments, '', this.context, this.promptRegistry)
-      ]);
+      const capabilities = (session.modelId && typeof this.llm.getModelCapabilities === 'function')
+        ? this.llm.getModelCapabilities(session.modelId, session.providerId)
+        : [];
+      const hasImageCapability = capabilities.includes('image');
+      const hasAudioCapability = capabilities.includes('audio');
+
+      const imageAttachments = attachments.filter((a) => a.mimeType.startsWith('image/') || a.type === 'image');
+      const audioAttachments = attachments.filter(
+        (a) =>
+          a.mimeType.startsWith('audio/') ||
+          (a.type === 'file' &&
+            (a.mimeType.includes('wav') || a.mimeType.includes('mp3') || a.mimeType.includes('m4a')))
+      );
+
+      let audioAppend = '';
+      let imageResult = { text: '', multimodalAttachments: imageAttachments };
+
+      const preprocessors: Promise<any>[] = [];
+      if (!hasAudioCapability && audioAttachments.length > 0) {
+        preprocessors.push(
+          preprocessAudio(attachments, '', this.context, this.promptRegistry).then((txt) => {
+            audioAppend = txt;
+          })
+        );
+      }
+      if (!hasImageCapability && imageAttachments.length > 0) {
+        preprocessors.push(
+          preprocessImages(attachments, '', this.context, this.promptRegistry).then((res) => {
+            imageResult = res;
+          })
+        );
+      }
+
+      await Promise.all(preprocessors);
 
       if (audioAppend) {
         userText = `${userText}\n${audioAppend}`.trim();

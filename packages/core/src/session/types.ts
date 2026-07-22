@@ -22,6 +22,7 @@ export interface SessionIndex {
     cachedPromptTokens?: number;
     totalTokens?: number;
     cost?: number;
+    toolboxIdleRounds?: Record<string, number>;
 }
 
 /** 内存中的完整会话对象 */

@@ -27,6 +27,7 @@ export class FreyaAgentExecutor {
   ): Promise<LLMMessage> {
     const toolInstructions = this.toolRegistry.getToolInstructions(this.promptRegistry);
     const skills = Array.from(this.skillRegistry.getSkills().values());
+    const executedToolNames = new Set<string>();
 
     const signal = options?.signal;
     let loop = true;
@@ -94,6 +95,9 @@ export class FreyaAgentExecutor {
       lastLlmMessage = replyMessage;
 
       if (replyMessage.toolCalls && replyMessage.toolCalls.length > 0) {
+        for (const tc of replyMessage.toolCalls) {
+          executedToolNames.add(tc.name);
+        }
         await this.sessionManager.appendMessage(sessionId, replyMessage);
         const toolPromises = replyMessage.toolCalls.map(async (toolCall: any) => {
           const tool = tools.get(toolCall.name);
@@ -182,7 +186,60 @@ export class FreyaAgentExecutor {
       throw new Error('无法获得合法的模型响应结果。');
     }
 
+    await this.evaluateAndDeactivateIdleToolboxes(sessionId, executedToolNames);
     await this.sessionManager.appendMessage(sessionId, lastLlmMessage);
     return lastLlmMessage;
+  }
+
+  /**
+   * 评估并自动卸载连续闲置超过设定阈值轮数的工具箱。
+   */
+  private async evaluateAndDeactivateIdleToolboxes(
+    sessionId: string,
+    executedToolNames: Set<string>
+  ): Promise<void> {
+    const session = await this.sessionManager.getOrCreate(sessionId);
+    const activeToolboxIds = session.activeToolboxIds || [];
+    if (activeToolboxIds.length === 0) {
+      return;
+    }
+
+    const config = this.context.config.contextManagement || {};
+    const threshold = config.toolboxIdleTimeoutRounds ?? 10;
+    const toolboxIdleRounds = session.toolboxIdleRounds || {};
+
+    const nextActiveToolboxIds: string[] = [];
+    const nextToolboxIdleRounds: Record<string, number> = {};
+    const deactivatedIds: string[] = [];
+
+    for (const id of activeToolboxIds) {
+      const boxTools = this.toolRegistry.getToolsInBox(id);
+      const isUsed = boxTools.some((tool) => executedToolNames.has(tool.getDefinition().name));
+
+      if (isUsed) {
+        nextToolboxIdleRounds[id] = 0;
+        nextActiveToolboxIds.push(id);
+      } else {
+        const idleCount = (toolboxIdleRounds[id] ?? 0) + 1;
+        if (idleCount >= threshold) {
+          deactivatedIds.push(id);
+          this.context.logger.info(`[FreyaAgentExecutor] 工具箱 [${id}] 连续闲置达到 ${idleCount} 轮，已自动执行卸载。`);
+        } else {
+          nextToolboxIdleRounds[id] = idleCount;
+          nextActiveToolboxIds.push(id);
+        }
+      }
+    }
+
+    if (deactivatedIds.length > 0) {
+      await this.sessionManager.updateSession(sessionId, {
+        activeToolboxIds: nextActiveToolboxIds,
+        toolboxIdleRounds: nextToolboxIdleRounds
+      });
+    } else {
+      await this.sessionManager.updateSession(sessionId, {
+        toolboxIdleRounds: nextToolboxIdleRounds
+      });
+    }
   }
 }
