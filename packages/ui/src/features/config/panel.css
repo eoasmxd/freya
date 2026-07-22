@@ -1,4 +1,3 @@
-/* 配置侧边栏导航 */
 .modal-sidebar {
   width: 240px;
   background: var(--color-sidebar-bg);
@@ -55,7 +54,7 @@
   border-left: 3px solid #ffffff;
 }
 
-/* 控制台主体面板 */
+
 .modal-main {
   flex: 1;
   display: flex;
@@ -126,7 +125,7 @@
   min-height: 0;
 }
 
-/* 表单字段项 */
+
 .config-group {
   margin-bottom: 1.2rem;
   display: flex;
@@ -224,7 +223,7 @@
   background: rgba(255, 255, 255, 0.05);
 }
 
-/* 提示词编辑器弹性排版 */
+
 .prompt-panel-wrapper {
   display: flex;
   flex-direction: column;
@@ -263,7 +262,7 @@
   resize: none;
 }
 
-/* Providers 与 Models 可视化排版 */
+
 .providers-split {
   display: flex;
   height: 100%;
@@ -362,7 +361,7 @@
   margin-top: 0.15rem;
 }
 
-/* 动态参数 CRUD 表单卡片 */
+
 .crud-form-card {
   background: var(--color-card-bg);
   border: 1px dashed rgba(255, 255, 255, 0.1);
@@ -404,7 +403,7 @@
   color: #ffffff;
 }
 
-/* 插件面板列表 */
+
 .plugins-list {
   display: flex;
   flex-direction: column;
@@ -436,7 +435,7 @@
   line-height: 1.4;
 }
 
-/* 滑动开关 Toggle 控件 */
+
 .switch {
   position: relative;
   display: inline-block;
@@ -476,18 +475,18 @@
   border-radius: 50%;
 }
 
-input:checked + .slider {
+input:checked+.slider {
   background-color: var(--accent);
   border-color: var(--accent);
   box-shadow: 0 0 10px rgba(59, 130, 246, 0.55);
 }
 
-input:checked + .slider:before {
+input:checked+.slider:before {
   transform: translateX(18px);
   background-color: #ffffff;
 }
 
-/* 移动端配置中心布局自适应 */
+
 @media (max-width: 768px) {
   .modal-sidebar {
     width: 100%;
@@ -524,7 +523,7 @@ input:checked + .slider:before {
     padding: 1rem;
   }
 
-  /* 模型提供商管理界面移动端适配 */
+
   .providers-split {
     flex-direction: column;
     gap: 1rem;
@@ -570,3 +569,75 @@ input:checked + .slider:before {
 }
 
 
+.floating-save-btn {
+  position: fixed;
+  bottom: 2.5rem;
+  right: 2.5rem;
+  z-index: 1000;
+  padding: 0.75rem 1.5rem;
+  border-radius: 50px;
+  font-family: inherit;
+  font-weight: 600;
+  font-size: 0.88rem;
+  cursor: pointer;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
+}
+
+.floating-save-btn:hover {
+  transform: translateY(-2px);
+}
+
+.floating-save-btn:active {
+  transform: translateY(0);
+}
+
+
+.floating-save-btn:disabled {
+  cursor: not-allowed;
+  transform: none !important;
+  opacity: 0.7;
+}
+
+
+
+.floating-save-btn.dirty {
+  background: linear-gradient(135deg, #f59e0b 0%, #ea580c 100%);
+  color: #ffffff;
+  border-color: rgba(255, 255, 255, 0.15);
+  animation: save-btn-pulse 2s infinite ease-in-out;
+}
+
+.floating-save-btn.dirty:hover {
+  box-shadow: 0 12px 28px rgba(234, 88, 12, 0.5), 0 0 15px rgba(245, 158, 11, 0.3);
+}
+
+
+.floating-save-btn.clean {
+  background: linear-gradient(135deg, #334155 0%, #1e293b 100%);
+  color: rgba(255, 255, 255, 0.6);
+  border-color: rgba(255, 255, 255, 0.03);
+}
+
+.floating-save-btn.clean:hover {
+  color: rgba(255, 255, 255, 0.95);
+  background: linear-gradient(135deg, #475569 0%, #334155 100%);
+}
+
+@keyframes save-btn-pulse {
+  0% {
+    box-shadow: 0 10px 25px rgba(234, 88, 12, 0.35), 0 0 0px rgba(245, 158, 11, 0);
+  }
+
+  50% {
+    box-shadow: 0 10px 30px rgba(234, 88, 12, 0.55), 0 0 12px rgba(245, 158, 11, 0.3);
+  }
+
+  100% {
+    box-shadow: 0 10px 25px rgba(234, 88, 12, 0.35), 0 0 0px rgba(245, 158, 11, 0);
+  }
+}

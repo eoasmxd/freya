@@ -38,6 +38,8 @@ export const GlobalConfigPanel: React.FC<GlobalConfigPanelProps> = ({ getApiUrl 
   const [editingChild, setEditingChild] = useState<{ fieldKey: string; index: number } | null>(null);
   const [editingChildInputs, setEditingChildInputs] = useState<Record<string, any>>({});
   const [toasts, setToasts] = useState<{ id: string; message: string; type: 'success' | 'error' | 'info' }[]>([]);
+  const [initialValues, setInitialValues] = useState<Record<string, any> | null>(null);
+  const [isDirty, setIsDirty] = useState(false);
 
   const showToast = (message: string, type: 'success' | 'error' | 'info' = 'success') => {
     const id = generateId();
@@ -109,6 +111,8 @@ export const GlobalConfigPanel: React.FC<GlobalConfigPanelProps> = ({ getApiUrl 
         }
         setDynamicValues(flatValues);
         setTempSelectedSources(defaultSources);
+        setInitialValues(flatValues);
+        setIsDirty(false);
       }
     } catch (err) {
       console.error('WS load global config failed:', err);
@@ -213,6 +217,8 @@ export const GlobalConfigPanel: React.FC<GlobalConfigPanelProps> = ({ getApiUrl 
         setTempChildInputs({});
         setEditingChild(null);
         setEditingChildInputs({});
+        setInitialValues(finalValues);
+        setIsDirty(false);
         loadGlobalConfig();
       } else {
         showToast(`保存失败: ${json.error || json.message}`, 'error');
@@ -226,6 +232,12 @@ export const GlobalConfigPanel: React.FC<GlobalConfigPanelProps> = ({ getApiUrl 
   useEffect(() => {
     loadGlobalConfig();
   }, []);
+
+  useEffect(() => {
+    if (!initialValues) return;
+    const hasChanged = JSON.stringify(initialValues) !== JSON.stringify(dynamicValues);
+    setIsDirty(hasChanged);
+  }, [dynamicValues, initialValues]);
 
   const handleAddBinding = (fieldKey: string, sourceStr: string, alias: string) => {
     if (!sourceStr) {
@@ -726,11 +738,15 @@ export const GlobalConfigPanel: React.FC<GlobalConfigPanelProps> = ({ getApiUrl 
         );
       })}
 
-      <div className="tab-actions">
-        <button className="btn-primary" onClick={saveGlobalConfig}>
-          保存配置
-        </button>
-      </div>
+      <button
+        className={`floating-save-btn ${isDirty ? 'dirty' : 'clean'}`}
+        onClick={saveGlobalConfig}
+        disabled={!isDirty}
+        title={isDirty ? '有未保存的修改，点击保存' : '配置无改变'}
+      >
+        <span style={{ fontSize: '1.1rem' }}>{isDirty ? '💾' : '✓'}</span>
+        {isDirty ? '保存配置' : '无修改'}
+      </button>
 
       {toasts.length > 0 && (
         <div className="toast-container">
