@@ -22,8 +22,9 @@ export class FreyaCliChannel {
     }
 
     async start(ctx: FreyaContext): Promise<void> {
-        ctx.logger.info('[CliChannel] 本地控制台交互已启动。输入消息即可交流，输入 "/exit" 退出。');
-        ctx.eventBus.emit('connection:active', { connectionId: CLI_CONN_ID, defaultSessionId: 'main' });
+        console.log('\n[CliChannel] 本地控制台交互已启动。输入消息即可交流，输入 "/exit" 退出交互。');
+        console.log('[CliChannel] 提示：你可以通过在启动命令后追加 "--no-cli" 参数使程序在后台运行。\n');
+        ctx.eventBus.emit('connection:active', { connectionId: CLI_CONN_ID, defaultSessionId: 'main', staleThresholdMs: 0 });
 
         this.rl = readline.createInterface({
             input: process.stdin,

@@ -70,7 +70,11 @@ export const ProviderConfigPanel: React.FC<ProviderConfigPanelProps> = ({ getApi
     }, 3000);
   };
 
-  const generateId = () => crypto.randomUUID();
+  const generateId = () => {
+    return (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function')
+      ? crypto.randomUUID()
+      : Math.random().toString(36).substring(2, 15);
+  };
 
   const loadProviders = async () => {
     try {

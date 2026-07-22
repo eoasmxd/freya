@@ -40,8 +40,8 @@ export class FreyaWebContainer {
     /**
      * 启动 Web 静态容器托管服务
      */
-    async start(ctx: FreyaContext, port: number, configManager: FreyaConfigManager): Promise<void> {
-        this.port = port;
+    async start(ctx: FreyaContext, configManager: FreyaConfigManager): Promise<void> {
+        this.port = (ctx.config as any)?.server?.port ?? 3000;
         this.configApi = new FreyaConfigApi(configManager);
         const uiDist = this.getUiDistPath(APP_ROOT);
         const safePrefix = uiDist.endsWith(path.sep) ? uiDist : uiDist + path.sep;

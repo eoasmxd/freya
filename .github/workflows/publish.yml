@@ -22,12 +22,10 @@ jobs:
           node-version: 22
           registry-url: 'https://registry.npmjs.org'
 
-      - name: Install & Build
-        run: |
-          pnpm install
-          pnpm build
+      - name: Install Dependencies
+        run: pnpm install
 
-      - name: Publish to NPM
-        run: cd dist && npm publish --access public
+      - name: Build & Publish to NPM
+        run: pnpm release
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
