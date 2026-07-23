@@ -5,3 +5,4 @@ export * from './types/llm.js';
 export * from './types/tool.js';
 export * from './types/channel.js';
 export * from './types/command.js';
+export * from './types/attachment.js';

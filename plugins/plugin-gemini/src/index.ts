@@ -153,8 +153,13 @@ export default class GeminiPlugin implements LLMPlugin {
                   data: base64Data
                 }
               });
+            } else {
+              parts.push({
+                text: `[图像附件加载失败: ${img.url || img.path || '未知'}]`
+              });
             }
           }
+
           return { role: 'user', parts };
         })
     );

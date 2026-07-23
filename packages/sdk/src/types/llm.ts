@@ -1,4 +1,4 @@
-import type { ChannelAttachment } from './channel.js';
+import type { FreyaAttachment } from './attachment.js';
 import type { ToolDefinition } from './tool.js';
 
 export interface LLMConsumptionContext {
@@ -11,7 +11,7 @@ export interface LLMOptions {
   providerId?: string;
   signal?: AbortSignal;
   onChunk?: (text: string) => void;
-  attachments?: ChannelAttachment[];
+  attachments?: FreyaAttachment[];
   modelParams?: Record<string, any>;
   modelType?: 'default' | 'router' | 'image' | 'audio';
   onModelSelected?: (providerId: string, modelId: string) => void;
@@ -36,10 +36,11 @@ export interface LLMMessage {
   role: 'user' | 'assistant' | 'system' | 'tool';
   content: string;
   toolCalls?: LLMToolCall[];
-  attachments?: ChannelAttachment[];
+  attachments?: FreyaAttachment[];
   toolCallId?: string;
   thoughtSignature?: string;
   toolName?: string;
+  timestamp?: number;
 }
 
 export interface LLMTokenUsage {

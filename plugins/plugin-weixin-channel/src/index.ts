@@ -1,4 +1,4 @@
-import type { ChannelPlugin, FreyaCommand, FreyaContext } from "@eoasmxd/freya-sdk";
+import type { ChannelPlugin, FreyaCommand, FreyaContext, FreyaAttachment } from "@eoasmxd/freya-sdk";
 import crypto from "node:crypto";
 import fs from "node:fs/promises";
 import path from "node:path";
@@ -335,7 +335,7 @@ export default class FreyaWeixinChannelPlugin implements ChannelPlugin {
               const items = weixinMsg.item_list || [];
               for (const item of items) {
                 let text = "";
-                const attachments: any[] = [];
+                const attachments: FreyaAttachment[] = [];
 
                 if (item.type === 1 && item.text_item?.text) {
                   text = item.text_item.text;

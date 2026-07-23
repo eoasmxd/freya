@@ -94,8 +94,14 @@ export default class OpenAICompatiblePlugin implements LLMPlugin {
               type: 'image_url',
               image_url: { url }
             });
+          } else {
+            contentArray.push({
+              type: 'text',
+              text: `[图像附件加载失败: ${img.url || img.path || '未知'}]`
+            });
           }
         }
+
         return {
           role: 'user',
           content: contentArray

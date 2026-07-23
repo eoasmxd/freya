@@ -69,7 +69,9 @@ export class FreyaAgentExecutor {
             });
           }
         });
-        lastLlmMessage = finalResponse.message;
+        const msg = finalResponse.message;
+        msg.timestamp = Date.now();
+        lastLlmMessage = msg;
         break;
       }
 
@@ -92,6 +94,7 @@ export class FreyaAgentExecutor {
         }
       });
       const replyMessage = response.message;
+      replyMessage.timestamp = Date.now();
       lastLlmMessage = replyMessage;
 
       if (replyMessage.toolCalls && replyMessage.toolCalls.length > 0) {
