@@ -1,9 +1,9 @@
 import type { ChannelMessage, ILLMService, LLMMessage } from '@eoasmxd/freya-sdk';
-import type { FreyaAgentExecutor } from './agent-executor.js';
 import { FreyaCommandExecutor } from '../command/command-executor.js';
 import type { DefaultFreyaContext } from '../context.js';
 import type { FreyaPromptRegistry } from '../prompt/prompt-registry.js';
 import { FreyaSessionManager } from '../session/session-manager.js';
+import type { FreyaAgentExecutor } from './agent-executor.js';
 import { preprocessAudio, preprocessImages } from './agent-preprocessor.js';
 
 export class FreyaAgentService {
@@ -41,7 +41,7 @@ export class FreyaAgentService {
           childCtrl.abort();
           this.abortControllers.delete(key);
           const subSessionId = key.substring(`${payload.sessionId}_sub_`.length);
-          this.sessionManager.updateSession(subSessionId, { status: 'failed', durationMs: 0 }).catch(() => {});
+          this.sessionManager.updateSession(subSessionId, { status: 'failed', durationMs: 0 }).catch(() => { });
           this.context.logger.warn(`[AgentService] 已级联打断子智能体会话 ${subSessionId}`);
         }
       }
@@ -91,15 +91,83 @@ export class FreyaAgentService {
             (a.mimeType.includes('wav') || a.mimeType.includes('mp3') || a.mimeType.includes('m4a')))
       );
 
-      let audioAppend = '';
-      let imageResult = { text: '', multimodalAttachments: imageAttachments };
-
+      const now = Date.now();
+      const TEN_MINUTES_MS = 10 * 60 * 1000;
+      const hasNewMedia = imageAttachments.length > 0 || audioAttachments.length > 0;
       let prevUserText = '';
-      if (session.history && session.history.length > 0) {
-        for (let i = session.history.length - 1; i >= 0; i--) {
-          if (session.history[i].role === 'user') {
-            prevUserText = session.history[i].content || '';
-            break;
+
+      if (hasNewMedia) {
+        if (session.history && session.history.length > 0) {
+          for (let i = session.history.length - 1; i >= 0; i--) {
+            const histMsg = session.history[i];
+            if (histMsg.timestamp === undefined || (now - histMsg.timestamp >= TEN_MINUTES_MS)) {
+              break;
+            }
+            if (histMsg.role === 'user' && histMsg.content && histMsg.content.trim() !== '') {
+              prevUserText = histMsg.content;
+              break;
+            }
+          }
+        }
+      } else {
+        const currentText = message.content;
+        if (currentText && currentText.trim() !== '') {
+          const recentMediaMessages: LLMMessage[] = [];
+          let prevText = '';
+          if (session.history && session.history.length > 0) {
+            for (let i = session.history.length - 1; i >= 0; i--) {
+              const histMsg = session.history[i];
+              if (histMsg.timestamp === undefined || (now - histMsg.timestamp >= TEN_MINUTES_MS)) {
+                break;
+              }
+
+              const isUser = histMsg.role === 'user';
+              const hasImage = histMsg.attachments?.some((a) => a.mimeType.startsWith('image/'));
+              const hasAudio = histMsg.attachments?.some(
+                (a) =>
+                  a.mimeType.startsWith('audio/') ||
+                  (a.type === 'file' &&
+                    (a.mimeType.includes('wav') || a.mimeType.includes('mp3') || a.mimeType.includes('m4a')))
+              );
+              const hasMedia = hasImage || hasAudio;
+              const hasText = histMsg.content && histMsg.content.trim() !== '';
+
+              if (isUser && hasText) {
+                prevText = histMsg.content;
+                break;
+              }
+
+              if (isUser && hasMedia) {
+                recentMediaMessages.push(histMsg);
+              }
+            }
+          }
+
+          if (recentMediaMessages.length > 0) {
+            this.context.logger.info(`检测到 10 分钟内存在 ${recentMediaMessages.length} 条历史媒体消息，触发二次归纳优化描述...`);
+            const secondaryContext = {
+              prevUserText: prevText,
+              currentUserText: currentText
+            };
+            for (const msg of recentMediaMessages) {
+              if (msg.attachments) {
+                const msgImages = msg.attachments.filter((a) => a.mimeType.startsWith('image/'));
+                const msgAudios = msg.attachments.filter(
+                  (a) =>
+                    a.mimeType.startsWith('audio/') ||
+                    (a.type === 'file' &&
+                      (a.mimeType.includes('wav') || a.mimeType.includes('mp3') || a.mimeType.includes('m4a')))
+                );
+
+                if (msgImages.length > 0) {
+                  await preprocessImages(msg.attachments, '', this.context, this.promptRegistry, secondaryContext);
+                }
+                if (msgAudios.length > 0) {
+                  await preprocessAudio(msg.attachments, '', this.context, this.promptRegistry, secondaryContext);
+                }
+              }
+            }
+            await this.sessionManager.updateSession(message.sessionId, {});
           }
         }
       }
@@ -112,34 +180,23 @@ export class FreyaAgentService {
       const preprocessors: Promise<any>[] = [];
       if (!hasAudioCapability && audioAttachments.length > 0) {
         preprocessors.push(
-          preprocessAudio(attachments, '', this.context, this.promptRegistry, preprocessContext).then((txt) => {
-            audioAppend = txt;
-          })
+          preprocessAudio(attachments, '', this.context, this.promptRegistry, preprocessContext)
         );
       }
       if (!hasImageCapability && imageAttachments.length > 0) {
         preprocessors.push(
-          preprocessImages(attachments, '', this.context, this.promptRegistry, preprocessContext).then((res) => {
-            imageResult = res;
-          })
+          preprocessImages(attachments, '', this.context, this.promptRegistry, preprocessContext)
         );
       }
 
       await Promise.all(preprocessors);
 
-      if (audioAppend) {
-        userText = `${userText}\n${audioAppend}`.trim();
-      }
-      if (imageResult.text) {
-        userText = `${userText}\n${imageResult.text}`.trim();
-      }
-
       const controller = new AbortController();
       this.abortControllers.set(message.sessionId, controller);
 
-      const userMsg: LLMMessage = { role: 'user', content: userText };
-      if (imageResult.multimodalAttachments.length > 0) {
-        userMsg.attachments = imageResult.multimodalAttachments;
+      const userMsg: LLMMessage = { role: 'user', content: userText, timestamp: Date.now() };
+      if (attachments.length > 0) {
+        userMsg.attachments = attachments;
       }
       await this.sessionManager.appendMessage(message.sessionId, userMsg);
 
@@ -225,7 +282,7 @@ export class FreyaAgentService {
     if (controller && targetKey) {
       controller.abort();
       this.abortControllers.delete(targetKey);
-      this.sessionManager.updateSession(childSessionId, { status: 'failed', durationMs: 0 }).catch(() => {});
+      this.sessionManager.updateSession(childSessionId, { status: 'failed', durationMs: 0 }).catch(() => { });
       return `ℹ️ 子智能体会话 ${childSessionId} 中止成功。`;
     } else {
       throw new Error(`未找到活跃的子智能体会话 ID: ${childSessionId}，或它已执行结束。`);

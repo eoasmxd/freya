@@ -1,4 +1,4 @@
-import type { ChannelPlugin, FreyaContext } from "@eoasmxd/freya-sdk";
+import type { ChannelPlugin, FreyaAttachment, FreyaContext } from "@eoasmxd/freya-sdk";
 import crypto from "node:crypto";
 import fs from "node:fs/promises";
 import path from "node:path";
@@ -179,7 +179,7 @@ export default class FreyaWecomChannelPlugin implements ChannelPlugin {
 
       const msgtype = body.msgtype;
       let content = "";
-      const attachments: any[] = [];
+      const attachments: FreyaAttachment[] = [];
 
       const parseWecomMsgItem = async (item: any) => {
         const type = item.msgtype;
@@ -187,7 +187,7 @@ export default class FreyaWecomChannelPlugin implements ChannelPlugin {
           return { text: item.text.content, attach: [] };
         }
 
-        const attachList: any[] = [];
+        const attachList: FreyaAttachment[] = [];
         let textResult = "";
 
         if (type === "image" && item.image) {
@@ -357,16 +357,19 @@ export default class FreyaWecomChannelPlugin implements ChannelPlugin {
       let finalBuffer = rawBuffer;
 
       if (aesKey) {
-        let keyBuffer = Buffer.from(aesKey, "base64");
-        if (keyBuffer.length !== 32) {
-          keyBuffer = Buffer.from(aesKey, "utf-8");
-        }
-        if (keyBuffer.length !== 32) {
-          keyBuffer = Buffer.alloc(32, aesKey);
+        let safeKey = aesKey;
+        while (safeKey.length % 4 !== 0) {
+          safeKey += "=";
         }
 
-        const iv = keyBuffer.subarray(0, 16);
-        const decipher = crypto.createDecipheriv("aes-256-cbc", keyBuffer, iv);
+        const keyBuffer = Buffer.from(safeKey, "base64");
+        let finalKey = keyBuffer;
+        if (keyBuffer.length !== 32) {
+          finalKey = Buffer.alloc(32, keyBuffer);
+        }
+
+        const iv = finalKey.subarray(0, 16);
+        const decipher = crypto.createDecipheriv("aes-256-cbc", finalKey, iv);
         decipher.setAutoPadding(true);
 
         finalBuffer = Buffer.concat([
@@ -375,17 +378,13 @@ export default class FreyaWecomChannelPlugin implements ChannelPlugin {
         ]);
       }
 
-      const downloadDir = path.join(
-        process.env.FREYA_HOME || path.join(process.env.USERPROFILE || "", ".freya"),
-        "workspace",
-        "download"
-      );
+      const downloadDir = path.resolve(ctx.paths.workspaceDir, "cache/wecom");
       await fs.mkdir(downloadDir, { recursive: true });
 
       const safeFileName = `${Date.now()}-${fileName.replace(/[\\/:*?"<>|]/g, "_")}`;
       const filePath = path.join(downloadDir, safeFileName);
       await fs.writeFile(filePath, finalBuffer);
-      return `download/${safeFileName}`;
+      return `cache/wecom/${safeFileName}`;
     } catch (err: any) {
       ctx.logger.error(`下载或解密企业微信媒体附件失败 [${fileName}]:`, err.message);
       return undefined;

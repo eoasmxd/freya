@@ -1,4 +1,4 @@
-import type { ChannelAttachment, FreyaContext } from '@eoasmxd/freya-sdk';
+import type { FreyaAttachment, FreyaContext } from '@eoasmxd/freya-sdk';
 import type { FreyaPromptRegistry } from '../prompt/prompt-registry.js';
 
 export interface PreprocessContext {
@@ -7,7 +7,7 @@ export interface PreprocessContext {
 }
 
 export async function preprocessAudio(
-  attachments: ChannelAttachment[],
+  attachments: FreyaAttachment[],
   userText: string,
   context: FreyaContext,
   promptRegistry: FreyaPromptRegistry,
@@ -55,8 +55,12 @@ export async function preprocessAudio(
       const chatResult = await context.llm.chat(
         [
           {
+            role: 'system',
+            content: sttPrompt
+          },
+          {
             role: 'user',
-            content: `${systemGuidance}${sttPrompt}`.trim(),
+            content: systemGuidance.trim() || '请转录此音频。',
             attachments: [audio]
           }
         ],
@@ -69,9 +73,11 @@ export async function preprocessAudio(
       const transcriptionText = chatResult.message.content || '';
       const sttTemplate = promptRegistry.get('core.prompt.stt_template') || '{text}';
       const formattedSTT = sttTemplate.replace('{text}', transcriptionText);
+      audio.description = formattedSTT;
       tempResult = `${tempResult}\n${formattedSTT}`.trim();
     } catch (err: any) {
       context.logger.warn(`音频转录失败: ${err.message}`);
+      audio.description = '【音频转录失败：无可用的音频转写模型】';
       anyFailed = true;
       break;
     }
@@ -87,12 +93,12 @@ export async function preprocessAudio(
 }
 
 export async function preprocessImages(
-  attachments: ChannelAttachment[],
+  attachments: FreyaAttachment[],
   userText: string,
   context: FreyaContext,
   promptRegistry: FreyaPromptRegistry,
   preprocessContext?: PreprocessContext
-): Promise<{ text: string; multimodalAttachments: ChannelAttachment[] }> {
+): Promise<{ text: string; multimodalAttachments: FreyaAttachment[] }> {
   let finalUserText = userText;
   const imageAttachments = attachments.filter(
     (a) => a.mimeType.startsWith('image/') || a.type === 'image'
@@ -130,8 +136,12 @@ export async function preprocessImages(
       const chatResult = await context.llm.chat(
         [
           {
+            role: 'system',
+            content: imageDescPrompt
+          },
+          {
             role: 'user',
-            content: `${systemGuidance}${imageDescPrompt}`.trim(),
+            content: systemGuidance.trim() || '请客观描述这张图片。',
             attachments: [img]
           }
         ],
@@ -144,9 +154,11 @@ export async function preprocessImages(
       const descText = chatResult.message.content || '';
       const imgTemplate = promptRegistry.get('core.prompt.image_description_template') || '{text}';
       const formattedImg = imgTemplate.replace('{text}', descText);
+      img.description = formattedImg;
       tempResult = `${tempResult}\n${formattedImg}`.trim();
     } catch (imgErr: any) {
       context.logger.warn(`图片描述失败: ${imgErr.message}`);
+      img.description = '【图像描述失败：无可用的识图模型】';
       anyFailed = true;
       break;
     }

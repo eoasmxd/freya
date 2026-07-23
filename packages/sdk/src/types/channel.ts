@@ -1,10 +1,4 @@
-export interface ChannelAttachment {
-  type: 'image' | 'file';
-  mimeType: string;
-  url?: string;
-  base64?: string;
-  path?: string;
-}
+import type { FreyaAttachment } from './attachment.js';
 
 export interface ChannelMessage {
   channelId: string;
@@ -12,6 +6,6 @@ export interface ChannelMessage {
   messageId: string;
   sessionId: string;
   content: string;
-  attachments?: ChannelAttachment[];
+  attachments?: FreyaAttachment[];
   connectionId?: string;
 }

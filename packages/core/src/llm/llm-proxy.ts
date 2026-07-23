@@ -51,7 +51,8 @@ export class FreyaLLMProxy implements ILLMService {
       const currentModelId = candidate.model;
 
       try {
-        const result = await this.executeChat(messages, tools, {
+        const processedMessages = this.prepareMessagesForModel(messages, currentModelId, currentProviderId);
+        const result = await this.executeChat(processedMessages, tools, {
           ...options,
           providerId: currentProviderId || undefined,
           modelId: currentModelId || undefined
@@ -315,5 +316,51 @@ export class FreyaLLMProxy implements ILLMService {
   getModelCapabilities(modelId?: string, providerId?: string): string[] {
     const matched = this.llmRegistry.findModelConfig(modelId || 'default-model', providerId);
     return matched?.capabilities || [];
+  }
+
+  private prepareMessagesForModel(
+    messages: LLMMessage[],
+    modelId: string,
+    providerId: string
+  ): LLMMessage[] {
+    const capabilities = this.getModelCapabilities(modelId, providerId);
+    const hasImageCapability = capabilities.includes('image');
+    const hasAudioCapability = capabilities.includes('audio');
+
+    return messages.map((msg) => {
+      if (msg.role !== 'user' || !msg.attachments || msg.attachments.length === 0) {
+        return msg;
+      }
+
+      let newContent = msg.content || '';
+      const keptAttachments: any[] = [];
+
+      for (const attach of msg.attachments) {
+        const isImage = attach.mimeType.startsWith('image/') || attach.type === 'image';
+        const isAudio = attach.mimeType.startsWith('audio/') ||
+          (attach.type === 'file' &&
+            (attach.mimeType.includes('wav') ||
+              attach.mimeType.includes('mp3') ||
+              attach.mimeType.includes('m4a')));
+
+        let needConvert = false;
+        if (isImage && !hasImageCapability) needConvert = true;
+        if (isAudio && !hasAudioCapability) needConvert = true;
+
+        if (needConvert) {
+          if (attach.description) {
+            newContent = `${newContent}\n${attach.description}`.trim();
+          }
+        } else {
+          keptAttachments.push(attach);
+        }
+      }
+
+      return {
+        ...msg,
+        content: newContent,
+        attachments: keptAttachments.length > 0 ? keptAttachments : undefined
+      };
+    });
   }
 }

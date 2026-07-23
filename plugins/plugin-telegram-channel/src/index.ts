@@ -1,5 +1,4 @@
-/** Telegram 频道插件，通过原生 fetch 长轮询连接 Telegram Bot API */
-import type { ChannelAttachment, ChannelPlugin, FreyaContext } from "@eoasmxd/freya-sdk";
+import type { FreyaAttachment, ChannelPlugin, FreyaContext } from "@eoasmxd/freya-sdk";
 
 interface TelegramUpdate {
     update_id: number;
@@ -120,9 +119,9 @@ export default class TelegramChannelPlugin implements ChannelPlugin {
     private async getFileAsAttachment(
         token: string,
         fileId: string,
-        type: ChannelAttachment["type"],
+        type: FreyaAttachment["type"],
         fallbackMime: string,
-    ): Promise<ChannelAttachment | null> {
+    ): Promise<FreyaAttachment | null> {
         try {
             const fileInfo = await this.callApi<TelegramFile>(token, "getFile", { file_id: fileId });
             if (!fileInfo.file_path) return null;
@@ -231,7 +230,7 @@ export default class TelegramChannelPlugin implements ChannelPlugin {
                             continue;
                         }
 
-                        const attachments: ChannelAttachment[] = [];
+                        const attachments: FreyaAttachment[] = [];
                         let caption = msg.caption ?? "";
 
                         if (msg.photo && msg.photo.length > 0) {
