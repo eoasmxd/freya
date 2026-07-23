@@ -1,6 +1,7 @@
 import type { FreyaContext, LLMMessage, LLMPlugin, LLMPluginOptions, LLMTokenUsage, ToolDefinition } from '@eoasmxd/freya-sdk';
 import fs from 'node:fs/promises';
 import path from 'node:path';
+import crypto from 'node:crypto';
 
 export default class GeminiPlugin implements LLMPlugin {
   type = 'llm' as const;
@@ -93,6 +94,39 @@ export default class GeminiPlugin implements LLMPlugin {
           const imageAttachments = msg.attachments ? msg.attachments.filter((a) => a.mimeType.startsWith('image/')) : [];
           for (const img of imageAttachments) {
             let base64Data = img.base64;
+
+            if (!base64Data && !img.path && img.url) {
+              try {
+                const hash = crypto.createHash('md5').update(img.url).digest('hex');
+                const ext = img.mimeType.split('/')[1] || 'jpg';
+                const cacheRelPath = `cache/gemini/${hash}.${ext}`;
+                const cacheAbsPath = path.resolve(this.context.paths.workspaceDir, cacheRelPath);
+
+                let fileExists = false;
+                try {
+                  await fs.access(cacheAbsPath);
+                  fileExists = true;
+                } catch {}
+
+                if (!fileExists) {
+                  this.context.logger.info(`正在异步下载远程图像并写入物理缓存 [${img.url}]...`);
+                  const response = await fetch(img.url);
+                  if (!response.ok) {
+                    throw new Error(`HTTP 错误 ${response.status}`);
+                  }
+                  const arrayBuffer = await response.arrayBuffer();
+                  const buffer = Buffer.from(arrayBuffer);
+
+                  await fs.mkdir(path.dirname(cacheAbsPath), { recursive: true });
+                  await fs.writeFile(cacheAbsPath, buffer);
+                }
+
+                img.path = cacheRelPath;
+              } catch (err: any) {
+                this.context.logger.error(`建立远程图像本地物理缓存失败 [${img.url}]:`, err.message);
+              }
+            }
+
             if (!base64Data && img.path) {
               try {
                 if (path.isAbsolute(img.path)) {

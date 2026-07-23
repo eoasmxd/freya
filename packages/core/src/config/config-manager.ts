@@ -608,6 +608,15 @@ export class FreyaConfigManager {
         category: '上下文管理'
       },
       {
+        key: 'contextManagement.toolboxIdleTimeoutRounds',
+        defaultValue: 10,
+        description: '已激活工具箱的最大闲置交互轮数，达到后将被自动卸载',
+        type: 'number',
+        min: 1,
+        max: 100,
+        category: '上下文管理'
+      },
+      {
         key: 'log.console.error',
         defaultValue: true,
         description: '控制台输出 ERROR 日志（红色）',

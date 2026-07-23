@@ -25,6 +25,12 @@ export class FreyaToolRegistry {
     this.toolboxes = this.toolboxes.filter((tb) => tb.getId() !== id);
   }
 
+  /** 获取指定 ID 的工具箱中的所有原子工具。 */
+  getToolsInBox(id: string): FreyaTool[] {
+    const tb = this.toolboxes.find((t) => t.getId() === id);
+    return tb ? tb.getTools() : [];
+  }
+
   /** 聚合所有来源的工具，返回完整工具字典。 */
   getAllTools(): Map<string, FreyaTool> {
     const tools = new Map<string, FreyaTool>();

@@ -255,17 +255,48 @@ export default class FreyaWeixinChannelPlugin implements ChannelPlugin {
         throw new Error("获取微信登录二维码失败：服务端未返回 qrcode");
       }
 
-      const qrcodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(scanUrl)}`;
-
-      qrcodeTerminal.generate(scanUrl, { small: true }, (code: string) => {
-        ctx.logger.info(`\n[微信扫码绑定] 请使用手机微信扫描以下二维码绑定账号 [${accountId}]:\n` + code);
+      const matrix: number[][] = [];
+      qrcodeTerminal.generate(scanUrl, { small: false }, (code: string) => {
+        const lines = code.split("\n");
+        for (const line of lines) {
+          const cleanLine = line.replace(/[\r\n]/g, "");
+          if (!cleanLine) continue;
+          const row: number[] = [];
+          const re = /\x1b\[(40|47)m  \x1b\[0m/g;
+          let match;
+          while ((match = re.exec(cleanLine)) !== null) {
+            row.push(match[1] === "40" ? 1 : 0);
+          }
+          if (row.length > 0) {
+            matrix.push(row);
+          }
+        }
       });
+
+      const size = matrix.length;
+      let svgContent = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${size} ${size}" width="180" height="180" style="shape-rendering:crispEdges;">`;
+      svgContent += `<rect width="${size}" height="${size}" fill="#ffffff"/>`;
+      for (let y = 0; y < size; y++) {
+        const row = matrix[y];
+        for (let x = 0; x < row.length; x++) {
+          if (row[x] === 1) {
+            svgContent += `<rect x="${x}" y="${y}" width="1" height="1" fill="#000000"/>`;
+          }
+        }
+      }
+      svgContent += `</svg>`;
+
+      const base64Svg = Buffer.from(svgContent).toString("base64");
+      const qrDataUri = `data:image/svg+xml;base64,${base64Svg}`;
 
       this.pollWeixinQrStatus(ctx, accountId, config, qrcode).catch((err) => {
         ctx.logger.error(`微信账号 [${accountId}] 后台监听扫码绑定失败:`, err.message);
       });
 
-      return `⚠️ **微信账号 [${accountId}] 登录二维码已成功生成！**\n\n![微信扫码](${qrcodeUrl})\n\n*(提示：若上方二维码图片未能正常显示，您可以直接点击 [打开微信二维码网页](${scanUrl}) 扫码绑定，服务器终端控制台已同步打印了该二维码)*`;
+      return `⚠️ **微信账号 [${accountId}] 登录二维码已成功生成！**\n\n` +
+        `**[微信扫码] 请使用微信扫描下方二维码绑定账号 [${accountId}]**：\n\n` +
+        `![微信登录二维码](${qrDataUri})\n\n` +
+        `*(提示：若二维码未能正常显示，您可以直接点击 [打开微信二维码网页](${scanUrl}) 扫码绑定)*`;
     } catch (err: any) {
       ctx.logger.error(`微信账号 [${accountId}] 拉取扫码登录失败:`, err.message);
       return `❌ 拉取微信登录二维码失败: ${err.message}`;

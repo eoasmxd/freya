@@ -59,4 +59,5 @@ export interface ILLMService {
     usage?: LLMTokenUsage;
   }>;
   getContextWindow(modelId?: string): number;
+  getModelCapabilities?(modelId?: string, providerId?: string): string[];
 }

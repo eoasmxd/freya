@@ -98,7 +98,6 @@ export class FreyaWsChannel {
 
                     if (payload.event === 'client:message') {
                         const { content } = payload.data || {};
-                        ctx.logger.debug(`[WsChannel] 收到客户端对话请求: "${content}"`);
 
                         const messagePayload = {
                             connectionId: meta.connId,
@@ -138,7 +137,7 @@ export class FreyaWsChannel {
             }
             try {
                 oldMeta.ws.close();
-            } catch {}
+            } catch { }
             this.connections.delete(oldMeta.ws);
         }
 
@@ -196,7 +195,7 @@ export class FreyaWsChannel {
             }
             try {
                 meta.ws.close();
-            } catch {}
+            } catch { }
         }
         this.wsMetaMap.clear();
         this.connections.clear();
