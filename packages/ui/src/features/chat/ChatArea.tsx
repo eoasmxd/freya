@@ -124,6 +124,12 @@ const ToolGroupCard: React.FC<{
               />
             );
           })}
+          {items.length > 1 && (
+            <div className="tool-group-footer" onClick={onToggleGroup}>
+              <span>🛠️ 工具调用过程 ({items.length} 步 · {statusText})</span>
+              <span className="tool-group-footer-btn">▲ 折叠</span>
+            </div>
+          )}
         </div>
       )}
     </div>

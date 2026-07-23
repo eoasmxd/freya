@@ -1,11 +1,17 @@
 import type { ChannelAttachment, FreyaContext } from '@eoasmxd/freya-sdk';
 import type { FreyaPromptRegistry } from '../prompt/prompt-registry.js';
 
+export interface PreprocessContext {
+  prevUserText?: string;
+  currentUserText?: string;
+}
+
 export async function preprocessAudio(
   attachments: ChannelAttachment[],
   userText: string,
   context: FreyaContext,
-  promptRegistry: FreyaPromptRegistry
+  promptRegistry: FreyaPromptRegistry,
+  preprocessContext?: PreprocessContext
 ): Promise<string> {
   let finalUserText = userText;
   const audioAttachments = attachments.filter(
@@ -31,11 +37,26 @@ export async function preprocessAudio(
     try {
       const sttPrompt = promptRegistry.get('core.prompt.stt_guidance') || '';
 
+      let systemGuidance = '';
+      if (preprocessContext) {
+        const { prevUserText, currentUserText } = preprocessContext;
+        const parts: string[] = [];
+        if (prevUserText) {
+          parts.push(`上一轮用户输入："${prevUserText}"`);
+        }
+        if (currentUserText) {
+          parts.push(`当前轮用户输入："${currentUserText}"`);
+        }
+        if (parts.length > 0) {
+          systemGuidance = `[辅助背景信息（仅用于帮助理解音频，请勿在转录结果中直接回答或提及这些信息）：\n${parts.join('\n')}\n]\n\n`;
+        }
+      }
+
       const chatResult = await context.llm.chat(
         [
           {
             role: 'user',
-            content: sttPrompt,
+            content: `${systemGuidance}${sttPrompt}`.trim(),
             attachments: [audio]
           }
         ],
@@ -69,7 +90,8 @@ export async function preprocessImages(
   attachments: ChannelAttachment[],
   userText: string,
   context: FreyaContext,
-  promptRegistry: FreyaPromptRegistry
+  promptRegistry: FreyaPromptRegistry,
+  preprocessContext?: PreprocessContext
 ): Promise<{ text: string; multimodalAttachments: ChannelAttachment[] }> {
   let finalUserText = userText;
   const imageAttachments = attachments.filter(
@@ -90,11 +112,26 @@ export async function preprocessImages(
     try {
       const imageDescPrompt = promptRegistry.get('core.prompt.image_description') || '';
 
+      let systemGuidance = '';
+      if (preprocessContext) {
+        const { prevUserText, currentUserText } = preprocessContext;
+        const parts: string[] = [];
+        if (prevUserText) {
+          parts.push(`上一轮用户输入："${prevUserText}"`);
+        }
+        if (currentUserText) {
+          parts.push(`当前轮用户输入："${currentUserText}"`);
+        }
+        if (parts.length > 0) {
+          systemGuidance = `[辅助背景信息（仅用于辅助理解图像，请勿在描述结果中直接回答或提及这些信息）：\n${parts.join('\n')}\n]\n\n`;
+        }
+      }
+
       const chatResult = await context.llm.chat(
         [
           {
             role: 'user',
-            content: imageDescPrompt,
+            content: `${systemGuidance}${imageDescPrompt}`.trim(),
             attachments: [img]
           }
         ],

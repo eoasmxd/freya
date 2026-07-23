@@ -99,7 +99,7 @@ export default class GeminiPlugin implements LLMPlugin {
               try {
                 const hash = crypto.createHash('md5').update(img.url).digest('hex');
                 const ext = img.mimeType.split('/')[1] || 'jpg';
-                const cacheRelPath = `download/${hash}.${ext}`;
+                const cacheRelPath = `cache/gemini/${hash}.${ext}`;
                 const cacheAbsPath = path.resolve(this.context.paths.workspaceDir, cacheRelPath);
 
                 let fileExists = false;

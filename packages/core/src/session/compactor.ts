@@ -1,7 +1,22 @@
-import type { LLMMessage, FreyaContext, ILLMService } from '@eoasmxd/freya-sdk';
+import type { FreyaContext, ILLMService, LLMMessage } from '@eoasmxd/freya-sdk';
 import crypto from 'node:crypto';
-import type { Session, SnapFile } from './types.js';
 import type { FreyaPromptRegistry } from '../prompt/prompt-registry.js';
+import type { Session, SnapFile } from './types.js';
+
+function formatHistoryToText(history: LLMMessage[]): string {
+    return history
+        .map((msg) => {
+            const roleMap: Record<string, string> = {
+                user: '用户',
+                assistant: '助手',
+                system: '系统',
+                tool: '工具结果'
+            };
+            const roleName = roleMap[msg.role] || msg.role;
+            return `[${roleName}]: ${msg.content}`;
+        })
+        .join('\n\n');
+}
 
 export class SessionCompactor {
     private logger?: FreyaContext['logger'];
@@ -40,6 +55,45 @@ export class SessionCompactor {
             messages,
             createdAt: new Date().toISOString(),
         };
+    }
+
+    private async executeSummarize(
+        session: Session,
+        historyToCompress: LLMMessage[],
+        currentSummary?: string
+    ): Promise<string | null> {
+        const summarizeGuidance = this.promptRegistry?.get('core.prompt.summarize_guidance') || '';
+        const formattedHistory = formatHistoryToText(historyToCompress);
+        const userContentParts: string[] = [];
+        if (currentSummary) {
+            userContentParts.push(`【先前的对话提要】：\n${currentSummary}`);
+        }
+        userContentParts.push(`【需要提炼的对话历史】：\n${formattedHistory}`);
+
+        const summaryRequest: LLMMessage[] = [
+            {
+                role: 'system',
+                content: summarizeGuidance
+            },
+            {
+                role: 'user',
+                content: userContentParts.join('\n\n')
+            }
+        ];
+
+        this.logger?.info(`[SessionCompactor] 正在生成增量会话背景摘要...`);
+        const cmConfig = this.context?.config.contextManagement || {};
+        const summaryMaxTokens = cmConfig.summaryMaxTokens || 150;
+        const summaryResponse = await this.llm.chat(
+            summaryRequest,
+            undefined,
+            {
+                providerId: session.providerId,
+                modelId: session.modelId,
+                modelParams: { maxTokens: summaryMaxTokens }
+            },
+        );
+        return summaryResponse.message.content || null;
     }
 
     /**
@@ -97,33 +151,8 @@ export class SessionCompactor {
             }
 
             const historyToCompress = history.slice(0, safeTruncateIndex);
-            const summarizeGuidance = this.promptRegistry?.get('core.prompt.summarize_guidance') || '';
+            const newSummary = await this.executeSummarize(session, historyToCompress, currentSummary);
 
-            const summaryRequest: LLMMessage[] = [
-                ...(currentSummary
-                    ? [{ role: 'system' as const, content: `先前的对话提要:\n${currentSummary}` }]
-                    : []),
-                ...historyToCompress,
-                {
-                    role: 'system',
-                    content: summarizeGuidance,
-                },
-            ];
-
-            this.logger?.info(`[SessionCompactor] 正在生成增量会话背景摘要...`);
-            const summaryMaxTokens = cmConfig.summaryMaxTokens || 150;
-            const summaryResponse = await this.llm.chat(
-                summaryRequest,
-                undefined,
-                {
-                    providerId: session.providerId,
-                    modelId: session.modelId,
-                    modelParams: {
-                        maxTokens: summaryMaxTokens
-                    }
-                },
-            );
-            const newSummary = summaryResponse.message.content;
             if (!newSummary || newSummary.trim() === '') {
                 this.logger?.warn(`[SessionCompactor] 前置压缩生成的摘要为空，放弃应用。`);
                 return { type: 'none' };
@@ -213,27 +242,9 @@ export class SessionCompactor {
             }
 
             const historyToCompress = history.slice(0, safeTruncateIndex);
-            const summarizeGuidance = this.promptRegistry?.get('core.prompt.summarize_guidance') || '';
             const currentSummary = session.summary;
-            const summaryRequest: LLMMessage[] = [
-                ...(currentSummary
-                    ? [{ role: 'system' as const, content: `先前的对话提要:\n${currentSummary}` }]
-                    : []),
-                ...historyToCompress,
-                { role: 'system', content: summarizeGuidance }
-            ];
+            const newSummary = await this.executeSummarize(session, historyToCompress, currentSummary);
 
-            const summaryMaxTokens = cmConfig.summaryMaxTokens || 150;
-            const summaryResponse = await this.llm.chat(
-                summaryRequest,
-                undefined,
-                {
-                    providerId: session.providerId,
-                    modelId: session.modelId,
-                    modelParams: { maxTokens: summaryMaxTokens }
-                }
-            );
-            const newSummary = summaryResponse.message.content;
             if (!newSummary || newSummary.trim() === '') {
                 this.logger?.warn(`[SessionCompactor] 后置压缩生成的摘要为空，放弃应用。`);
                 return null;
