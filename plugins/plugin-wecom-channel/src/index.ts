@@ -370,12 +370,23 @@ export default class FreyaWecomChannelPlugin implements ChannelPlugin {
 
         const iv = finalKey.subarray(0, 16);
         const decipher = crypto.createDecipheriv("aes-256-cbc", finalKey, iv);
-        decipher.setAutoPadding(true);
+        decipher.setAutoPadding(false);
 
-        finalBuffer = Buffer.concat([
+        const decrypted = Buffer.concat([
           decipher.update(rawBuffer),
           decipher.final()
         ]);
+
+        const padLen = decrypted[decrypted.length - 1];
+        if (padLen < 1 || padLen > 32 || padLen > decrypted.length) {
+          throw new Error(`解密失败: 不合规的填充长度 (${padLen})`);
+        }
+        for (let i = decrypted.length - padLen; i < decrypted.length; i++) {
+          if (decrypted[i] !== padLen) {
+            throw new Error("解密失败: 填充字节不匹配");
+          }
+        }
+        finalBuffer = decrypted.subarray(0, decrypted.length - padLen);
       }
 
       const downloadDir = path.resolve(ctx.paths.workspaceDir, "cache/wecom");

@@ -341,13 +341,29 @@ export default class FreyaWeixinChannelPlugin implements ChannelPlugin {
                   text = item.text_item.text;
                 } else if (item.type === 2) {
                   const imgUrl = item.image_item?.url || item.image_item?.media?.full_url || "";
-                  text = `[图片]${imgUrl ? `(${imgUrl})` : " (无法获取图片链接)"}`;
+                  const aesKey = item.image_item?.aeskey
+                    ? Buffer.from(item.image_item.aeskey, "hex").toString("base64")
+                    : (item.image_item?.media?.aes_key || "");
+                  let localPath: string | undefined;
                   if (imgUrl) {
+                    localPath = await this.downloadAndDecryptWeixinMedia(ctx, imgUrl, aesKey, "image.jpg");
+                  }
+                  if (localPath) {
+                    text = `[图片] (已保存至本地: ${localPath})`;
                     attachments.push({
                       type: "image",
                       mimeType: "image/jpeg",
-                      url: imgUrl
+                      path: localPath
                     });
+                  } else {
+                    text = `[图片]${imgUrl ? `(${imgUrl})` : " (无法获取图片链接)"}`;
+                    if (imgUrl) {
+                      attachments.push({
+                        type: "image",
+                        mimeType: "image/jpeg",
+                        url: imgUrl
+                      });
+                    }
                   }
                 } else if (item.type === 3) {
                   const voiceText = item.voice_item?.text || "";
@@ -355,23 +371,51 @@ export default class FreyaWeixinChannelPlugin implements ChannelPlugin {
                 } else if (item.type === 4 && item.file_item) {
                   const fileUrl = item.file_item.media?.full_url || "";
                   const fileName = item.file_item.file_name || "未命名文件";
-                  text = `[文件附件: ${fileName}]${fileUrl ? `(${fileUrl})` : " (无法获取下载链接)"}`;
+                  const aesKey = item.file_item.media?.aes_key || "";
+                  let localPath: string | undefined;
                   if (fileUrl) {
+                    localPath = await this.downloadAndDecryptWeixinMedia(ctx, fileUrl, aesKey, fileName);
+                  }
+                  if (localPath) {
+                    text = `[文件附件: ${fileName}] (已保存至本地: ${localPath})`;
                     attachments.push({
                       type: "file",
                       mimeType: "application/octet-stream",
-                      url: fileUrl
+                      path: localPath
                     });
+                  } else {
+                    text = `[文件附件: ${fileName}]${fileUrl ? `(${fileUrl})` : " (无法获取下载链接)"}`;
+                    if (fileUrl) {
+                      attachments.push({
+                        type: "file",
+                        mimeType: "application/octet-stream",
+                        url: fileUrl
+                      });
+                    }
                   }
                 } else if (item.type === 5) {
                   const videoUrl = item.video_item?.media?.full_url || "";
-                  text = `[视频]${videoUrl ? `(${videoUrl})` : " (无法获取视频链接)"}`;
+                  const aesKey = item.video_item?.media?.aes_key || "";
+                  let localPath: string | undefined;
                   if (videoUrl) {
+                    localPath = await this.downloadAndDecryptWeixinMedia(ctx, videoUrl, aesKey, "video.mp4");
+                  }
+                  if (localPath) {
+                    text = `[视频] (已保存至本地: ${localPath})`;
                     attachments.push({
                       type: "file",
                       mimeType: "video/mp4",
-                      url: videoUrl
+                      path: localPath
                     });
+                  } else {
+                    text = `[视频]${videoUrl ? `(${videoUrl})` : " (无法获取视频链接)"}`;
+                    if (videoUrl) {
+                      attachments.push({
+                        type: "file",
+                        mimeType: "video/mp4",
+                        url: videoUrl
+                      });
+                    }
                   }
                 }
 
@@ -523,6 +567,53 @@ export default class FreyaWeixinChannelPlugin implements ChannelPlugin {
     } catch (err: any) {
       this.contextTokens.delete(connectionId);
       this.context.logger.error(`向微信用户 [${chatId}] 发送消息失败:`, err.message);
+    }
+  }
+
+  private parseWeixinAesKey(aesKeyBase64: string): Buffer {
+    const decoded = Buffer.from(aesKeyBase64, "base64");
+    if (decoded.length === 16) {
+      return decoded;
+    }
+    if (decoded.length === 32 && /^[0-9a-fA-F]{32}$/.test(decoded.toString("ascii"))) {
+      return Buffer.from(decoded.toString("ascii"), "hex");
+    }
+    throw new Error(`无效的 AES 密钥格式`);
+  }
+
+  private async downloadAndDecryptWeixinMedia(
+    ctx: FreyaContext,
+    url: string,
+    aesKey: string,
+    fileName: string
+  ): Promise<string | undefined> {
+    try {
+      const res = await fetch(url);
+      if (!res.ok) {
+        throw new Error(`下载微信媒体文件 HTTP 状态码异常: ${res.status}`);
+      }
+      const rawBuffer = Buffer.from(await res.arrayBuffer());
+      let finalBuffer = rawBuffer;
+
+      if (aesKey) {
+        const keyBuffer = this.parseWeixinAesKey(aesKey);
+        const decipher = crypto.createDecipheriv("aes-128-ecb", keyBuffer, null);
+        finalBuffer = Buffer.concat([
+          decipher.update(rawBuffer),
+          decipher.final()
+        ]);
+      }
+
+      const downloadDir = path.resolve(ctx.paths.workspaceDir, "cache/weixin");
+      await fs.mkdir(downloadDir, { recursive: true });
+
+      const safeFileName = `${Date.now()}-${fileName.replace(/[\\/:*?"<>|]/g, "_")}`;
+      const filePath = path.join(downloadDir, safeFileName);
+      await fs.writeFile(filePath, finalBuffer);
+      return `cache/weixin/${safeFileName}`;
+    } catch (err: any) {
+      ctx.logger.error(`下载或解密微信媒体附件失败 [${fileName}]:`, err.message);
+      return undefined;
     }
   }
 }
