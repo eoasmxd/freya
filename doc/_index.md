@@ -1,7 +1,5 @@
 ---
 title: "Freya 文档库"
-date: 2026-07-21T16:25:00+08:00
-draft: false
 weight: 1
 description: "Freya 项目技术文档与开发使用指南。"
 ---
