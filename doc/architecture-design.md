@@ -1,7 +1,5 @@
 ---
 title: "Freya 架构设计说明"
-date: 2026-07-21T16:27:00+08:00
-draft: false
 weight: 10
 description: "说明项目目录结构、~/.freya 运行时存放规则、插件依赖界限、核心 ReAct 调用链路与 EventBus 异步解耦模式。"
 ---
@@ -104,7 +102,7 @@ graph TD
 ```
 
 ### 2.2 核心组件主要职责
-*   **`Channel` (频道插件)**：屏蔽物理世界不同聊天客户端（控制台 CLI、WebSocket、Telegram Bot 等）的协议差异，处理物理输入输出。
+*   **`Channel` (频道插件)**：屏蔽物理世界不同聊天客户端（控制台 CLI、WebSocket、微信、Telegram Bot 等）的协议差异，处理物理输入输出。
 *   **`Connection` (连接管理器)**：连接层中间转换器与生命周期路由器，拦截通道消息，动态映射/创建对应的逻辑 `Session`，并将消息路由至 `AgentService` 模块。
 *   **`AgentService` (智能体服务宿主)**：充当会话流与子智能体生命周期的编排宿主与控制枢纽。
 *   **`AgentExecutor` (智能体大脑推理器)**：控制智能体的思考-决策-执行 (ReAct) 闭环迭代。

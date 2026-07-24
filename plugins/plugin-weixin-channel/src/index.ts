@@ -367,7 +367,6 @@ export default class FreyaWeixinChannelPlugin implements ChannelPlugin {
                     result = await this.downloadAndDecryptWeixinMedia(ctx, imgUrl, aesKey, "image.jpg", true);
                   }
                   if (result) {
-                    text = `[图片] (已保存至本地: ${result.path})`;
                     attachments.push({
                       type: "image",
                       mimeType: result.mimeType,
@@ -395,7 +394,6 @@ export default class FreyaWeixinChannelPlugin implements ChannelPlugin {
                     result = await this.downloadAndDecryptWeixinMedia(ctx, fileUrl, aesKey, fileName, false);
                   }
                   if (result) {
-                    text = `[文件附件: ${fileName}] (已保存至本地: ${result.path})`;
                     attachments.push({
                       type: "file",
                       mimeType: result.mimeType,
@@ -419,7 +417,6 @@ export default class FreyaWeixinChannelPlugin implements ChannelPlugin {
                     result = await this.downloadAndDecryptWeixinMedia(ctx, videoUrl, aesKey, "video.mp4", false);
                   }
                   if (result) {
-                    text = `[视频] (已保存至本地: ${result.path})`;
                     attachments.push({
                       type: "file",
                       mimeType: result.mimeType,

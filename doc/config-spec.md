@@ -1,7 +1,5 @@
 ---
 title: "Freya 配置与数据隔离规范"
-date: 2026-07-21T20:55:00+08:00
-draft: false
 weight: 15
 description: "介绍 ~/.freya/ 运行时目录结构、配置/数据物理隔离及 Schema 动态合并策略。"
 ---

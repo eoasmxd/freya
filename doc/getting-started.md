@@ -1,7 +1,5 @@
 ---
 title: "Freya 快速使用指引"
-date: 2026-07-21T16:27:00+08:00
-draft: false
 weight: 30
 description: "介绍如何配置大模型 API Key、开启插件功能以及在控制台使用快捷指令。"
 ---

@@ -1,3 +1,9 @@
+---
+title: "Freya LLM 插件调用接口与参数规范"
+weight: 18
+description: "定义 Freya 统一的大模型（LLM）插件调用接口参数规范。"
+---
+
 # Freya LLM 插件调用接口与参数规范
 
 本篇文档旨在定义 Freya 统一的大模型（LLM）插件调用接口以及生成参数（`modelParams`）规范，以便开发者在扩展或实现新的 LLM 插件时有所遵循。

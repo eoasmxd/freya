@@ -48,7 +48,7 @@ export async function preprocessAudio(
           parts.push(`当前轮用户输入："${currentUserText}"`);
         }
         if (parts.length > 0) {
-          systemGuidance = `[辅助背景信息（仅用于帮助理解音频，请勿在转录结果中直接回答或提及这些信息）：\n${parts.join('\n')}\n]\n\n`;
+          systemGuidance = `[辅助背景信息]\n${parts.join('\n')}\n\n`;
         }
       }
 
@@ -60,7 +60,7 @@ export async function preprocessAudio(
           },
           {
             role: 'user',
-            content: systemGuidance.trim() || '请转录此音频。',
+            content: systemGuidance.trim(),
             attachments: [audio]
           }
         ],
@@ -129,7 +129,7 @@ export async function preprocessImages(
           parts.push(`当前轮用户输入："${currentUserText}"`);
         }
         if (parts.length > 0) {
-          systemGuidance = `[辅助背景信息（仅用于辅助理解图像，请勿在描述结果中直接回答或提及这些信息）：\n${parts.join('\n')}\n]\n\n`;
+          systemGuidance = `[辅助背景信息]\n${parts.join('\n')}\n\n`;
         }
       }
 
@@ -141,7 +141,7 @@ export async function preprocessImages(
           },
           {
             role: 'user',
-            content: systemGuidance.trim() || '请客观描述这张图片。',
+            content: systemGuidance.trim(),
             attachments: [img]
           }
         ],
