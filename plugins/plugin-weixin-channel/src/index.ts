@@ -1,4 +1,4 @@
-import type { ChannelPlugin, FreyaCommand, FreyaContext, FreyaAttachment } from "@eoasmxd/freya-sdk";
+import type { ChannelPlugin, FreyaAttachment, FreyaCommand, FreyaContext } from "@eoasmxd/freya-sdk";
 import crypto from "node:crypto";
 import fs from "node:fs/promises";
 import path from "node:path";
@@ -20,6 +20,27 @@ interface WeixinAccountState {
   baseUrl?: string;
   botId?: string;
 }
+
+const WEIXIN_MIME_MAP: Record<string, string> = {
+  ".pdf": "application/pdf",
+  ".txt": "text/plain",
+  ".html": "text/html",
+  ".htm": "text/html",
+  ".csv": "text/csv",
+  ".md": "text/markdown",
+  ".docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  ".xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  ".pptx": "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+  ".mp4": "video/mp4",
+  ".ogg": "audio/ogg",
+  ".mp3": "audio/mpeg",
+  ".wav": "audio/wav",
+  ".jpg": "image/jpeg",
+  ".jpeg": "image/jpeg",
+  ".png": "image/png",
+  ".gif": "image/gif",
+  ".webp": "image/webp"
+};
 
 /**
  * Freya 微信智能群设备 (iLink 协议) 通道插件
@@ -250,13 +271,12 @@ export default class FreyaWeixinChannelPlugin implements ChannelPlugin {
     try {
       const res = await this.callWeixinApi(config, "ilink/bot/get_bot_qrcode?bot_type=3", {}, undefined, "https://ilinkai.weixin.qq.com");
       const qrcode = res.qrcode;
-      const scanUrl = res.qrcode_img_content || qrcode;
       if (!qrcode) {
         throw new Error("获取微信登录二维码失败：服务端未返回 qrcode");
       }
 
       const matrix: number[][] = [];
-      qrcodeTerminal.generate(scanUrl, { small: false }, (code: string) => {
+      qrcodeTerminal.generate(qrcode, { small: false }, (code: string) => {
         const lines = code.split("\n");
         for (const line of lines) {
           const cleanLine = line.replace(/[\r\n]/g, "");
@@ -296,7 +316,7 @@ export default class FreyaWeixinChannelPlugin implements ChannelPlugin {
       return `⚠️ **微信账号 [${accountId}] 登录二维码已成功生成！**\n\n` +
         `**[微信扫码] 请使用微信扫描下方二维码绑定账号 [${accountId}]**：\n\n` +
         `![微信登录二维码](${qrDataUri})\n\n` +
-        `*(提示：若二维码未能正常显示，您可以直接点击 [打开微信二维码网页](${scanUrl}) 扫码绑定)*`;
+        `*(提示：若二维码未能正常显示，您可以直接点击 [打开微信二维码网页](${qrcode}) 扫码绑定)*`;
     } catch (err: any) {
       ctx.logger.error(`微信账号 [${accountId}] 拉取扫码登录失败:`, err.message);
       return `❌ 拉取微信登录二维码失败: ${err.message}`;
@@ -321,7 +341,7 @@ export default class FreyaWeixinChannelPlugin implements ChannelPlugin {
             if (res.get_updates_buf) {
               state.getUpdatesBuf = res.get_updates_buf;
             }
-            const msgs = res.msg_list || res.msgs || [];
+            const msgs = res.msgs || [];
 
             for (const weixinMsg of msgs) {
               const userId = weixinMsg.from_user_id;
@@ -340,20 +360,18 @@ export default class FreyaWeixinChannelPlugin implements ChannelPlugin {
                 if (item.type === 1 && item.text_item?.text) {
                   text = item.text_item.text;
                 } else if (item.type === 2) {
-                  const imgUrl = item.image_item?.url || item.image_item?.media?.full_url || "";
-                  const aesKey = item.image_item?.aeskey
-                    ? Buffer.from(item.image_item.aeskey, "hex").toString("base64")
-                    : (item.image_item?.media?.aes_key || "");
-                  let localPath: string | undefined;
+                  const imgUrl = item.image_item?.media?.full_url || "";
+                  const aesKey = item.image_item?.aeskey || "";
+                  let result: { path: string; mimeType: string } | undefined;
                   if (imgUrl) {
-                    localPath = await this.downloadAndDecryptWeixinMedia(ctx, imgUrl, aesKey, "image.jpg");
+                    result = await this.downloadAndDecryptWeixinMedia(ctx, imgUrl, aesKey, "image.jpg", true);
                   }
-                  if (localPath) {
-                    text = `[图片] (已保存至本地: ${localPath})`;
+                  if (result) {
+                    text = `[图片] (已保存至本地: ${result.path})`;
                     attachments.push({
                       type: "image",
-                      mimeType: "image/jpeg",
-                      path: localPath
+                      mimeType: result.mimeType,
+                      path: result.path
                     });
                   } else {
                     text = `[图片]${imgUrl ? `(${imgUrl})` : " (无法获取图片链接)"}`;
@@ -372,16 +390,16 @@ export default class FreyaWeixinChannelPlugin implements ChannelPlugin {
                   const fileUrl = item.file_item.media?.full_url || "";
                   const fileName = item.file_item.file_name || "未命名文件";
                   const aesKey = item.file_item.media?.aes_key || "";
-                  let localPath: string | undefined;
+                  let result: { path: string; mimeType: string } | undefined;
                   if (fileUrl) {
-                    localPath = await this.downloadAndDecryptWeixinMedia(ctx, fileUrl, aesKey, fileName);
+                    result = await this.downloadAndDecryptWeixinMedia(ctx, fileUrl, aesKey, fileName, false);
                   }
-                  if (localPath) {
-                    text = `[文件附件: ${fileName}] (已保存至本地: ${localPath})`;
+                  if (result) {
+                    text = `[文件附件: ${fileName}] (已保存至本地: ${result.path})`;
                     attachments.push({
                       type: "file",
-                      mimeType: "application/octet-stream",
-                      path: localPath
+                      mimeType: result.mimeType,
+                      path: result.path
                     });
                   } else {
                     text = `[文件附件: ${fileName}]${fileUrl ? `(${fileUrl})` : " (无法获取下载链接)"}`;
@@ -396,16 +414,16 @@ export default class FreyaWeixinChannelPlugin implements ChannelPlugin {
                 } else if (item.type === 5) {
                   const videoUrl = item.video_item?.media?.full_url || "";
                   const aesKey = item.video_item?.media?.aes_key || "";
-                  let localPath: string | undefined;
+                  let result: { path: string; mimeType: string } | undefined;
                   if (videoUrl) {
-                    localPath = await this.downloadAndDecryptWeixinMedia(ctx, videoUrl, aesKey, "video.mp4");
+                    result = await this.downloadAndDecryptWeixinMedia(ctx, videoUrl, aesKey, "video.mp4", false);
                   }
-                  if (localPath) {
-                    text = `[视频] (已保存至本地: ${localPath})`;
+                  if (result) {
+                    text = `[视频] (已保存至本地: ${result.path})`;
                     attachments.push({
                       type: "file",
-                      mimeType: "video/mp4",
-                      path: localPath
+                      mimeType: result.mimeType,
+                      path: result.path
                     });
                   } else {
                     text = `[视频]${videoUrl ? `(${videoUrl})` : " (无法获取视频链接)"}`;
@@ -570,8 +588,12 @@ export default class FreyaWeixinChannelPlugin implements ChannelPlugin {
     }
   }
 
-  private parseWeixinAesKey(aesKeyBase64: string): Buffer {
-    const decoded = Buffer.from(aesKeyBase64, "base64");
+  private parseWeixinAesKey(aesKey: string): Buffer {
+    const trimmed = aesKey.trim();
+    if (trimmed.length === 32 && /^[0-9a-fA-F]{32}$/.test(trimmed)) {
+      return Buffer.from(trimmed, "hex");
+    }
+    const decoded = Buffer.from(trimmed, "base64");
     if (decoded.length === 16) {
       return decoded;
     }
@@ -581,12 +603,34 @@ export default class FreyaWeixinChannelPlugin implements ChannelPlugin {
     throw new Error(`无效的 AES 密钥格式`);
   }
 
+  private detectMimeType(buffer: Buffer): { mimeType: string; ext: string } {
+    if (buffer.length > 4) {
+      if (buffer[0] === 0xff && buffer[1] === 0xd8 && buffer[2] === 0xff) {
+        return { mimeType: "image/jpeg", ext: "jpg" };
+      }
+      if (buffer[0] === 0x89 && buffer[1] === 0x50 && buffer[2] === 0x4e && buffer[3] === 0x47) {
+        return { mimeType: "image/png", ext: "png" };
+      }
+      if (buffer[0] === 0x47 && buffer[1] === 0x49 && buffer[2] === 0x46) {
+        return { mimeType: "image/gif", ext: "gif" };
+      }
+      if (buffer[0] === 0x52 && buffer[1] === 0x49 && buffer[2] === 0x46 && buffer[3] === 0x46) {
+        const webpHeader = buffer.subarray(8, 12).toString("ascii");
+        if (webpHeader === "WEBP") {
+          return { mimeType: "image/webp", ext: "webp" };
+        }
+      }
+    }
+    return { mimeType: "image/jpeg", ext: "jpg" };
+  }
+
   private async downloadAndDecryptWeixinMedia(
     ctx: FreyaContext,
     url: string,
     aesKey: string,
-    fileName: string
-  ): Promise<string | undefined> {
+    fileName: string,
+    isImage = false
+  ): Promise<{ path: string; mimeType: string } | undefined> {
     try {
       const res = await fetch(url);
       if (!res.ok) {
@@ -604,13 +648,29 @@ export default class FreyaWeixinChannelPlugin implements ChannelPlugin {
         ]);
       }
 
+      let mimeType = "application/octet-stream";
+      let finalFileName = fileName;
+
+      if (isImage) {
+        const detected = this.detectMimeType(finalBuffer);
+        mimeType = detected.mimeType;
+        finalFileName = `image.${detected.ext}`;
+      } else {
+        const ext = path.extname(fileName).toLowerCase();
+        mimeType = WEIXIN_MIME_MAP[ext] || "application/octet-stream";
+      }
+
       const downloadDir = path.resolve(ctx.paths.workspaceDir, "cache/weixin");
       await fs.mkdir(downloadDir, { recursive: true });
 
-      const safeFileName = `${Date.now()}-${fileName.replace(/[\\/:*?"<>|]/g, "_")}`;
+      const safeFileName = `${Date.now()}-${finalFileName.replace(/[\\/:*?"<>|]/g, "_")}`;
       const filePath = path.join(downloadDir, safeFileName);
       await fs.writeFile(filePath, finalBuffer);
-      return `cache/weixin/${safeFileName}`;
+
+      return {
+        path: `cache/weixin/${safeFileName}`,
+        mimeType
+      };
     } catch (err: any) {
       ctx.logger.error(`下载或解密微信媒体附件失败 [${fileName}]:`, err.message);
       return undefined;

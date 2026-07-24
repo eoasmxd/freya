@@ -1,7 +1,7 @@
 import type { FreyaContext, LLMMessage, LLMPlugin, LLMPluginOptions, LLMTokenUsage, ToolDefinition } from '@eoasmxd/freya-sdk';
+import crypto from 'node:crypto';
 import fs from 'node:fs/promises';
 import path from 'node:path';
-import crypto from 'node:crypto';
 
 export default class GeminiPlugin implements LLMPlugin {
   type = 'llm' as const;
@@ -91,14 +91,15 @@ export default class GeminiPlugin implements LLMPlugin {
           }
 
           const parts: any[] = [{ text: msg.content || '' }];
-          const imageAttachments = msg.attachments ? msg.attachments.filter((a) => a.mimeType.startsWith('image/')) : [];
-          for (const img of imageAttachments) {
-            let base64Data = img.base64;
+          const validAttachments = msg.attachments ? msg.attachments.filter((a) => a.mimeType) : [];
+          for (const att of validAttachments) {
+            let base64Data = att.base64;
 
-            if (!base64Data && !img.path && img.url) {
+            if (!base64Data && !att.path && att.url) {
               try {
-                const hash = crypto.createHash('md5').update(img.url).digest('hex');
-                const ext = img.mimeType.split('/')[1] || 'jpg';
+                const hash = crypto.createHash('md5').update(att.url).digest('hex');
+                const cleanMimeType = att.mimeType.split(';')[0].trim();
+                const ext = cleanMimeType.split('/')[1] || 'bin';
                 const cacheRelPath = `cache/gemini/${hash}.${ext}`;
                 const cacheAbsPath = path.resolve(this.context.paths.workspaceDir, cacheRelPath);
 
@@ -106,11 +107,11 @@ export default class GeminiPlugin implements LLMPlugin {
                 try {
                   await fs.access(cacheAbsPath);
                   fileExists = true;
-                } catch {}
+                } catch { }
 
                 if (!fileExists) {
-                  this.context.logger.info(`正在异步下载远程图像并写入物理缓存 [${img.url}]...`);
-                  const response = await fetch(img.url);
+                  this.context.logger.info(`正在异步下载远程附件并写入物理缓存 [${att.url}]...`);
+                  const response = await fetch(att.url);
                   if (!response.ok) {
                     throw new Error(`HTTP 错误 ${response.status}`);
                   }
@@ -121,41 +122,41 @@ export default class GeminiPlugin implements LLMPlugin {
                   await fs.writeFile(cacheAbsPath, buffer);
                 }
 
-                img.path = cacheRelPath;
+                att.path = cacheRelPath;
               } catch (err: any) {
-                this.context.logger.error(`建立远程图像本地物理缓存失败 [${img.url}]:`, err.message);
+                this.context.logger.error(`建立远程附件本地物理缓存失败 [${att.url}]:`, err.message);
               }
             }
 
-            if (!base64Data && img.path) {
+            if (!base64Data && att.path) {
               try {
-                if (path.isAbsolute(img.path)) {
+                if (path.isAbsolute(att.path)) {
                   throw new Error('安全拒绝：只能访问工作区以内的相对路径。');
                 }
                 const workspaceAbs = this.context.paths.workspaceDir;
-                const targetAbs = path.resolve(workspaceAbs, img.path);
+                const targetAbs = path.resolve(workspaceAbs, att.path);
                 const workspacePrefix = workspaceAbs.endsWith(path.sep) ? workspaceAbs : workspaceAbs + path.sep;
 
                 if (targetAbs !== workspaceAbs && !targetAbs.startsWith(workspacePrefix)) {
-                  throw new Error(`安全越界拒绝：无法访问工作区以外的相对路径 "${img.path}"。`);
+                  throw new Error(`安全越界拒绝：无法访问工作区以外的相对路径 "${att.path}"。`);
                 }
 
                 const buffer = await fs.readFile(targetAbs);
                 base64Data = buffer.toString('base64');
               } catch (err: any) {
-                this.context.logger.error(`读取本地图像附件失败 [${img.path}]:`, err.message);
+                this.context.logger.error(`读取本地附件失败 [${att.path}]:`, err.message);
               }
             }
             if (base64Data) {
               parts.push({
                 inlineData: {
-                  mimeType: img.mimeType,
+                  mimeType: att.mimeType,
                   data: base64Data
                 }
               });
             } else {
               parts.push({
-                text: `[图像附件加载失败: ${img.url || img.path || '未知'}]`
+                text: `[附件加载失败: ${att.url || att.path || '未知'}]`
               });
             }
           }

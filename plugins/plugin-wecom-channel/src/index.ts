@@ -18,6 +18,27 @@ interface WecomBotState {
   retryTimer?: NodeJS.Timeout;
 }
 
+const WECOM_MIME_MAP: Record<string, string> = {
+  ".pdf": "application/pdf",
+  ".txt": "text/plain",
+  ".html": "text/html",
+  ".htm": "text/html",
+  ".csv": "text/csv",
+  ".md": "text/markdown",
+  ".docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  ".xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  ".pptx": "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+  ".mp4": "video/mp4",
+  ".ogg": "audio/ogg",
+  ".mp3": "audio/mpeg",
+  ".wav": "audio/wav",
+  ".jpg": "image/jpeg",
+  ".jpeg": "image/jpeg",
+  ".png": "image/png",
+  ".gif": "image/gif",
+  ".webp": "image/webp"
+};
+
 /**
  * Freya 企业微信智能机器人长连接通道插件
  */
@@ -193,19 +214,19 @@ export default class FreyaWecomChannelPlugin implements ChannelPlugin {
         if (type === "image" && item.image) {
           const img = item.image;
           const mediaId = img.media_id || "";
-          const url = img.url || img.pic_url || "";
-          const aesKey = img.aeskey || img.aes_key || "";
-          let localPath: string | undefined;
+          const url = img.url || "";
+          const aesKey = img.aeskey || "";
+          let result: { path: string; mimeType: string } | undefined;
           if (url) {
             const name = mediaId || `image-${Date.now()}`;
-            localPath = await this.downloadAndDecryptMedia(ctx, url, aesKey, `${name}.jpg`);
+            result = await this.downloadAndDecryptMedia(ctx, url, aesKey, `${name}.jpg`, true);
           }
-          if (localPath) {
-            textResult = `[图片] (已保存至本地: ${localPath})`;
+          if (result) {
+            textResult = `[图片] (已保存至本地: ${result.path})`;
             attachList.push({
               type: "image",
-              mimeType: "image/jpeg",
-              path: localPath
+              mimeType: result.mimeType,
+              path: result.path
             });
           } else {
             textResult = `🤖 [收到图片] 收到用户发送的一张图片 (media_id: "${mediaId}")。由于安全加密通道限制目前无法下载解密，请用户将关键问题改用文字描述。`;
@@ -219,18 +240,18 @@ export default class FreyaWecomChannelPlugin implements ChannelPlugin {
           const voice = item.voice;
           const mediaId = voice.media_id || "";
           const url = voice.url || "";
-          const aesKey = voice.aeskey || voice.aes_key || "";
-          let localPath: string | undefined;
+          const aesKey = voice.aeskey || "";
+          let result: { path: string; mimeType: string } | undefined;
           if (url) {
             const name = mediaId || `voice-${Date.now()}`;
-            localPath = await this.downloadAndDecryptMedia(ctx, url, aesKey, `${name}.ogg`);
+            result = await this.downloadAndDecryptMedia(ctx, url, aesKey, `${name}.ogg`, false);
           }
-          if (localPath) {
-            textResult = `[语音] (已保存至本地: ${localPath})`;
+          if (result) {
+            textResult = `[语音] (已保存至本地: ${result.path})`;
             attachList.push({
               type: "file",
-              mimeType: "audio/ogg",
-              path: localPath
+              mimeType: result.mimeType,
+              path: result.path
             });
           } else {
             textResult = `🤖 [收到语音] 收到用户发送的一段语音消息 (media_id: "${mediaId}")。由于当前通道安全限制，本通道目前无法解密还原，请引导用户使用文本与您对话。`;
@@ -243,19 +264,19 @@ export default class FreyaWecomChannelPlugin implements ChannelPlugin {
         } else if (type === "file" && item.file) {
           const file = item.file;
           const mediaId = file.media_id || "";
-          const fileName = file.file_name || file.name || "未命名文件";
+          const fileName = file.file_name || "未命名文件";
           const url = file.url || "";
-          const aesKey = file.aeskey || file.aes_key || "";
-          let localPath: string | undefined;
+          const aesKey = file.aeskey || "";
+          let result: { path: string; mimeType: string } | undefined;
           if (url) {
-            localPath = await this.downloadAndDecryptMedia(ctx, url, aesKey, fileName);
+            result = await this.downloadAndDecryptMedia(ctx, url, aesKey, fileName, false);
           }
-          if (localPath) {
-            textResult = `[文件: ${fileName}] (已保存至本地: ${localPath})`;
+          if (result) {
+            textResult = `[文件: ${fileName}] (已保存至本地: ${result.path})`;
             attachList.push({
               type: "file",
-              mimeType: item.file.mime_type || "application/octet-stream",
-              path: localPath
+              mimeType: result.mimeType,
+              path: result.path
             });
           } else {
             textResult = `🤖 [收到文件: "${fileName}"] 用户发送了一份文件 (media_id: "${mediaId}")。由于 WebSocket 协议的安全隔离策略暂无法直接下载解密此临时媒体文件，请告知用户您已收到了文件事件但目前无法直接打开，礼貌引导用户直接发送文本内容。`;
@@ -269,18 +290,18 @@ export default class FreyaWecomChannelPlugin implements ChannelPlugin {
           const video = item.video;
           const mediaId = video.media_id || "";
           const url = video.url || "";
-          const aesKey = video.aeskey || video.aes_key || "";
-          let localPath: string | undefined;
+          const aesKey = video.aeskey || "";
+          let result: { path: string; mimeType: string } | undefined;
           if (url) {
             const name = mediaId || `video-${Date.now()}`;
-            localPath = await this.downloadAndDecryptMedia(ctx, url, aesKey, `${name}.mp4`);
+            result = await this.downloadAndDecryptMedia(ctx, url, aesKey, `${name}.mp4`, false);
           }
-          if (localPath) {
-            textResult = `[视频] (已保存至本地: ${localPath})`;
+          if (result) {
+            textResult = `[视频] (已保存至本地: ${result.path})`;
             attachList.push({
               type: "file",
-              mimeType: "video/mp4",
-              path: localPath
+              mimeType: result.mimeType,
+              path: result.path
             });
           } else {
             textResult = `🤖 [收到视频] 收到用户发送的一段视频消息 (media_id: "${mediaId}")。由于当前安全机制，您无法直接播放此媒体，请礼貌引导其发送文本交流。`;
@@ -339,6 +360,27 @@ export default class FreyaWecomChannelPlugin implements ChannelPlugin {
     }
   }
 
+  private detectMimeType(buffer: Buffer): { mimeType: string; ext: string } {
+    if (buffer.length > 4) {
+      if (buffer[0] === 0xff && buffer[1] === 0xd8 && buffer[2] === 0xff) {
+        return { mimeType: "image/jpeg", ext: "jpg" };
+      }
+      if (buffer[0] === 0x89 && buffer[1] === 0x50 && buffer[2] === 0x4e && buffer[3] === 0x47) {
+        return { mimeType: "image/png", ext: "png" };
+      }
+      if (buffer[0] === 0x47 && buffer[1] === 0x49 && buffer[2] === 0x46) {
+        return { mimeType: "image/gif", ext: "gif" };
+      }
+      if (buffer[0] === 0x52 && buffer[1] === 0x49 && buffer[2] === 0x46 && buffer[3] === 0x46) {
+        const webpHeader = buffer.subarray(8, 12).toString("ascii");
+        if (webpHeader === "WEBP") {
+          return { mimeType: "image/webp", ext: "webp" };
+        }
+      }
+    }
+    return { mimeType: "image/jpeg", ext: "jpg" };
+  }
+
   /**
    * 下载企业微信加密媒体文件并进行 AES-256-CBC 解密还原
    */
@@ -346,8 +388,9 @@ export default class FreyaWecomChannelPlugin implements ChannelPlugin {
     ctx: FreyaContext,
     url: string,
     aesKey: string,
-    fileName: string
-  ): Promise<string | undefined> {
+    fileName: string,
+    isImage = false
+  ): Promise<{ path: string; mimeType: string } | undefined> {
     try {
       const res = await fetch(url);
       if (!res.ok) {
@@ -389,13 +432,29 @@ export default class FreyaWecomChannelPlugin implements ChannelPlugin {
         finalBuffer = decrypted.subarray(0, decrypted.length - padLen);
       }
 
+      let mimeType = "application/octet-stream";
+      let finalFileName = fileName;
+
+      if (isImage) {
+        const detected = this.detectMimeType(finalBuffer);
+        mimeType = detected.mimeType;
+        finalFileName = `image.${detected.ext}`;
+      } else {
+        const ext = path.extname(fileName).toLowerCase();
+        mimeType = WECOM_MIME_MAP[ext] || "application/octet-stream";
+      }
+
       const downloadDir = path.resolve(ctx.paths.workspaceDir, "cache/wecom");
       await fs.mkdir(downloadDir, { recursive: true });
 
-      const safeFileName = `${Date.now()}-${fileName.replace(/[\\/:*?"<>|]/g, "_")}`;
+      const safeFileName = `${Date.now()}-${finalFileName.replace(/[\\/:*?"<>|]/g, "_")}`;
       const filePath = path.join(downloadDir, safeFileName);
       await fs.writeFile(filePath, finalBuffer);
-      return `cache/wecom/${safeFileName}`;
+
+      return {
+        path: `cache/wecom/${safeFileName}`,
+        mimeType
+      };
     } catch (err: any) {
       ctx.logger.error(`下载或解密企业微信媒体附件失败 [${fileName}]:`, err.message);
       return undefined;
