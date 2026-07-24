@@ -222,7 +222,6 @@ export default class FreyaWecomChannelPlugin implements ChannelPlugin {
             result = await this.downloadAndDecryptMedia(ctx, url, aesKey, `${name}.jpg`, true);
           }
           if (result) {
-            textResult = `[图片] (已保存至本地: ${result.path})`;
             attachList.push({
               type: "image",
               mimeType: result.mimeType,
@@ -247,7 +246,6 @@ export default class FreyaWecomChannelPlugin implements ChannelPlugin {
             result = await this.downloadAndDecryptMedia(ctx, url, aesKey, `${name}.ogg`, false);
           }
           if (result) {
-            textResult = `[语音] (已保存至本地: ${result.path})`;
             attachList.push({
               type: "file",
               mimeType: result.mimeType,
@@ -272,7 +270,6 @@ export default class FreyaWecomChannelPlugin implements ChannelPlugin {
             result = await this.downloadAndDecryptMedia(ctx, url, aesKey, fileName, false);
           }
           if (result) {
-            textResult = `[文件: ${fileName}] (已保存至本地: ${result.path})`;
             attachList.push({
               type: "file",
               mimeType: result.mimeType,
@@ -297,7 +294,6 @@ export default class FreyaWecomChannelPlugin implements ChannelPlugin {
             result = await this.downloadAndDecryptMedia(ctx, url, aesKey, `${name}.mp4`, false);
           }
           if (result) {
-            textResult = `[视频] (已保存至本地: ${result.path})`;
             attachList.push({
               type: "file",
               mimeType: result.mimeType,
