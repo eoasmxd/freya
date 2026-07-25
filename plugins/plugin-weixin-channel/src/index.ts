@@ -52,6 +52,31 @@ export default class FreyaWeixinChannelPlugin implements ChannelPlugin {
   private activeAccounts = new Map<string, WeixinAccountState>();
   private contextTokens = new Map<string, string>();
 
+  async loginAccount(accountId: string, ctx: FreyaContext): Promise<string> {
+    let state = this.activeAccounts.get(accountId);
+    if (!state) {
+      const newConfig: WeixinBotConfig = {
+        id: accountId,
+        appId: "bot"
+      };
+      const abortController = new AbortController();
+      state = {
+        config: newConfig,
+        abortController,
+        running: true,
+        getUpdatesBuf: "",
+        isLoggedIn: false
+      };
+      this.activeAccounts.set(accountId, state);
+    }
+
+    if (state.isLoggedIn) {
+      return `ℹ️ 微信账号 [${accountId}] 已经是登录在线状态。`;
+    }
+
+    return await this.triggerWeixinQrLogin(ctx, accountId, state.config);
+  }
+
   commands: FreyaCommand[] = [
     {
       name: "weixin",
@@ -84,29 +109,7 @@ export default class FreyaWeixinChannelPlugin implements ChannelPlugin {
           if (!accountId) {
             return "❌ 缺少必要参数：请指定微信账号标识 id，例如 `/weixin login my_weixin`";
           }
-
-          let state = this.activeAccounts.get(accountId);
-          if (!state) {
-            const newConfig: WeixinBotConfig = {
-              id: accountId,
-              appId: "bot"
-            };
-            const abortController = new AbortController();
-            state = {
-              config: newConfig,
-              abortController,
-              running: true,
-              getUpdatesBuf: "",
-              isLoggedIn: false
-            };
-            this.activeAccounts.set(accountId, state);
-          }
-
-          if (state.isLoggedIn) {
-            return `ℹ️ 微信账号 [${accountId}] 已经是登录在线状态。`;
-          }
-
-          return await this.triggerWeixinQrLogin(ctx, accountId, state.config);
+          return await this.loginAccount(accountId, ctx);
         }
 
         return "❌ 未知子命令：支持的子命令有 `list` 和 `login`。用法示例：\n- `/weixin list`\n- `/weixin login my_weixin`";
@@ -271,12 +274,13 @@ export default class FreyaWeixinChannelPlugin implements ChannelPlugin {
     try {
       const res = await this.callWeixinApi(config, "ilink/bot/get_bot_qrcode?bot_type=3", {}, undefined, "https://ilinkai.weixin.qq.com");
       const qrcode = res.qrcode;
+      const scanUrl = res.qrcode_img_content;
       if (!qrcode) {
         throw new Error("获取微信登录二维码失败：服务端未返回 qrcode");
       }
 
       const matrix: number[][] = [];
-      qrcodeTerminal.generate(qrcode, { small: false }, (code: string) => {
+      qrcodeTerminal.generate(scanUrl, { small: false }, (code: string) => {
         const lines = code.split("\n");
         for (const line of lines) {
           const cleanLine = line.replace(/[\r\n]/g, "");
@@ -316,7 +320,7 @@ export default class FreyaWeixinChannelPlugin implements ChannelPlugin {
       return `⚠️ **微信账号 [${accountId}] 登录二维码已成功生成！**\n\n` +
         `**[微信扫码] 请使用微信扫描下方二维码绑定账号 [${accountId}]**：\n\n` +
         `![微信登录二维码](${qrDataUri})\n\n` +
-        `*(提示：若二维码未能正常显示，您可以直接点击 [打开微信二维码网页](${qrcode}) 扫码绑定)*`;
+        `*(提示：若二维码未能正常显示，您可以直接点击 [打开微信二维码网页](${scanUrl}) 扫码绑定)*`;
     } catch (err: any) {
       ctx.logger.error(`微信账号 [${accountId}] 拉取扫码登录失败:`, err.message);
       return `❌ 拉取微信登录二维码失败: ${err.message}`;
