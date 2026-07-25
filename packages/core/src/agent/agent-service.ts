@@ -8,6 +8,8 @@ import { preprocessAudio, preprocessImages } from './agent-preprocessor.js';
 
 export class FreyaAgentService {
   private abortControllers = new Map<string, AbortController>();
+  private messageQueues = new Map<string, ChannelMessage[]>();
+  private processingSessions = new Set<string>();
   private llm: ILLMService;
 
   constructor(
@@ -22,13 +24,22 @@ export class FreyaAgentService {
   }
 
   private setupListeners(): void {
-    this.context.eventBus.on('session:input', async (message: ChannelMessage) => {
-      this.run(message).catch((err) => {
-        this.context.logger.error('AgentService 发生未捕获异常:', err);
+    this.context.eventBus.on('session:input', (message: ChannelMessage) => {
+      let queue = this.messageQueues.get(message.sessionId);
+      if (!queue) {
+        queue = [];
+        this.messageQueues.set(message.sessionId, queue);
+      }
+      queue.push(message);
+
+      this.processQueue(message.sessionId).catch((err) => {
+        this.context.logger.error('AgentService 消息队列处理异常:', err);
       });
     });
 
     this.context.eventBus.on('session:interrupt', (payload: { sessionId: string }) => {
+      this.messageQueues.delete(payload.sessionId);
+
       const controller = this.abortControllers.get(payload.sessionId);
       if (controller) {
         controller.abort();
@@ -48,17 +59,33 @@ export class FreyaAgentService {
     });
   }
 
-  async run(message: ChannelMessage): Promise<void> {
-    if (this.abortControllers.has(message.sessionId)) {
-      this.context.logger.warn(`[AgentService] 拒绝并发请求：会话 ${message.sessionId} 正在生成中。`);
-      this.context.eventBus.emit('session:reply:error', {
-        sessionId: message.sessionId,
-        message: '⚠️ 【会话繁忙】智能体正在思考或回复中，请稍后再试。'
-      });
-      this.context.eventBus.emit('session:reply:completed', { sessionId: message.sessionId });
+  private async processQueue(sessionId: string): Promise<void> {
+    if (this.processingSessions.has(sessionId)) {
       return;
     }
+    this.processingSessions.add(sessionId);
 
+    try {
+      while (true) {
+        const queue = this.messageQueues.get(sessionId);
+        if (!queue || queue.length === 0) {
+          break;
+        }
+
+        const message = queue.shift()!;
+        try {
+          await this.run(message);
+        } catch (err) {
+          this.context.logger.error(`[AgentService] 执行会话 ${sessionId} 出错:`, err);
+        }
+      }
+    } finally {
+      this.processingSessions.delete(sessionId);
+      this.messageQueues.delete(sessionId);
+    }
+  }
+
+  async run(message: ChannelMessage): Promise<void> {
     let partialResponse = '';
 
     try {

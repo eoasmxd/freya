@@ -8,7 +8,7 @@ import type { ToolDefinition } from './tool.js';
 export type PluginType = 'llm' | 'tool' | 'channel';
 
 export interface FreyaPlugin {
-  type: PluginType;
+  type: PluginType | PluginType[];
   id?: string;
   name?: string;
   version?: string;

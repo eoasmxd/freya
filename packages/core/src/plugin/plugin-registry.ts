@@ -1,4 +1,4 @@
-import type { ChannelPlugin, FreyaContext, FreyaPlugin, LLMPlugin, ToolPlugin } from '@eoasmxd/freya-sdk';
+import type { FreyaContext, FreyaPlugin, LLMPlugin, ToolPlugin } from '@eoasmxd/freya-sdk';
 import { FreyaChannelRegistry } from '../channel/channel-registry.js';
 import type { FreyaLLMRegistry } from '../llm/llm-registry.js';
 import type { FreyaToolRegistry } from '../tools/tool-registry.js';
@@ -15,44 +15,47 @@ export class FreyaPluginRegistry {
   ) { }
 
   register(plugin: FreyaPlugin, ctx: FreyaContext): void {
-    switch (plugin.type) {
-      case 'llm': {
-        const llmPlugin = plugin as LLMPlugin;
-        this.llmRegistry.register(llmPlugin);
-        break;
-      }
-      case 'tool': {
-        const tool = plugin as ToolPlugin;
-        this.toolRegistry.registerToolbox(tool);
-        break;
-      }
-      case 'channel': {
-        const channel = plugin as ChannelPlugin;
-        if (channel.id) {
-          this.channelRegistry.register({ id: channel.id });
+    const types = Array.isArray(plugin.type) ? plugin.type : [plugin.type];
+    for (const type of types) {
+      switch (type) {
+        case 'llm': {
+          this.llmRegistry.register(plugin as unknown as LLMPlugin);
+          break;
         }
-        break;
-      }
-      default: {
-        ctx.logger.warn(`未知类型的插件试图注册: ${plugin.name} (ID: ${plugin.id}, Type: ${(plugin as any).type})`);
+        case 'tool': {
+          this.toolRegistry.registerToolbox(plugin as unknown as ToolPlugin);
+          break;
+        }
+        case 'channel': {
+          if (plugin.id) {
+            this.channelRegistry.register({ id: plugin.id });
+          }
+          break;
+        }
+        default: {
+          ctx.logger.warn(`未知类型的能力试图注册: ${plugin.name} (ID: ${plugin.id}, Type: ${type})`);
+        }
       }
     }
   }
 
   unregister(plugin: FreyaPlugin): void {
     const pluginId = plugin.id || '';
-    switch (plugin.type) {
-      case 'llm':
-        this.llmRegistry.unregister(pluginId);
-        break;
-      case 'tool': {
-        const tool = plugin as ToolPlugin;
-        this.toolRegistry.unregisterToolbox(tool.getId());
-        break;
+    const types = Array.isArray(plugin.type) ? plugin.type : [plugin.type];
+    for (const type of types) {
+      switch (type) {
+        case 'llm':
+          this.llmRegistry.unregister(pluginId);
+          break;
+        case 'tool': {
+          const tool = plugin as unknown as ToolPlugin;
+          this.toolRegistry.unregisterToolbox(tool.getId());
+          break;
+        }
+        case 'channel':
+          this.channelRegistry.unregister(pluginId);
+          break;
       }
-      case 'channel':
-        this.channelRegistry.unregister(pluginId);
-        break;
     }
   }
 }
