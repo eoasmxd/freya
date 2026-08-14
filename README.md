@@ -59,11 +59,17 @@ pnpm start
 
 为了便于开发者深入了解 Freya 的底座原理与扩展机制，系统在 [doc/](doc/_index.md) 物理目录下提供了完整的技术文档库：
 
-* 🏗️ **[架构设计说明](doc/architecture-design.md)**：包含 Monorepo 物理结构、核心 ReAct 调用链路图、核心组件职责及 EventBus 异步通信机制。
-* ⚙️ **[配置与数据隔离规范](doc/config-spec.md)**：介绍 `~/.freya/` 运行时目录结构、配置/数据物理隔离及 Schema 动态合并策略。
-* 📝 **[提示词管理系统](doc/prompt-system.md)**：介绍 6 大维度提示词管理方案、动态 Prompt Composer 拼装结构与 Dual-Read 探针机制。
+### 🛠️ 技术规范与指南
+
 * 🚀 **[快速使用指引](doc/getting-started.md)**：图形化 LLM 提供商配置、插件开启控制与会话快捷指令。
 * 🛠️ **[安装与构建运行](doc/installation-guide.md)**：分步说明环境准备、安装、编译与控制台开发模式。
+* 🏗️ **[架构设计说明](doc/specifications/architecture-design.md)**：包含 Monorepo 物理结构、核心 ReAct 调用链路图、核心组件职责及 EventBus 异步通信机制。
+* ⚙️ **[配置与数据隔离规范](doc/specifications/config-spec.md)**：介绍 `~/.freya/` 运行时目录结构、配置/数据物理隔离及 Schema 动态合并策略。
+* 📝 **[提示词管理系统](doc/specifications/prompt-system.md)**：介绍 6 大维度提示词管理方案、动态 Prompt Composer 拼装结构与 Dual-Read 探针机制。
+
+### 🎓 白盒开发教程
+
+* 👉 **[智能体开发实战教程](doc/tutorials/_index.md)**：白盒解剖智能体底座，包含 13 个章节硬核教程，从 Next-Token Prediction 到底层 ReAct 循环、多轮会话以及多智能体协同协作等原理解密。
 
 ---
 
