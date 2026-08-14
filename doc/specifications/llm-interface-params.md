@@ -1,5 +1,5 @@
 ---
-title: "Freya LLM 插件调用接口与参数规范"
+title: "LLM 插件调用接口与参数规范"
 weight: 18
 description: "定义 Freya 统一的大模型（LLM）插件调用接口参数规范。"
 ---
@@ -18,7 +18,7 @@ description: "定义 Freya 统一的大模型（LLM）插件调用接口参数�
 async chat(
   messages: LLMMessage[],
   tools?: ToolDefinition[],
-  options?: LLMOptions
+  options?: LLMPluginOptions
 ): Promise<{
   message: LLMMessage;
   usage?: LLMTokenUsage;
@@ -31,7 +31,7 @@ async chat(
 
 为了屏蔽不同大模型服务商在参数命名上的差异（如 `max_tokens` 与 `maxOutputTokens`），Freya 规定了一套**驼峰命名（CamelCase）**的通用生成参数标准。
 
-在调用 `llm.chat` 时，应通过 `options.modelParams` 传递这些参数。各插件仅负责从其中提取支持的驼峰属性，并准确转换为服务商 API 要求的格式。
+在调用 `llm.chat` 时，应通过 `options.modelParams` 传递这些参数。各插件仅负责从其中提取支持的属性，并准确转换为服务商 API 要求的格式。
 
 ### 统一参数字段一览
 
@@ -87,22 +87,22 @@ if (typeof params.maxTokens === 'number' && params.maxTokens > 0) {
 
 ---
 
-## 4. 大模型消息结构与属性规范 (`LLMMessage`)
+## 5. 大模型消息结构与属性规范 (`LLMMessage`)
 
 Freya 内核通过统一的 `LLMMessage` 对象来表示对话历史中的每一个消息节点。为了兼容和抽象不同大模型服务商在多轮工具调用（Function Calling）以及推理校验上的核心流派差异，`LLMMessage` 中的主要属性字段定义及职责如下：
 
-### 4.1 基础属性
+### 5.1 基础属性
 *   **`role`** (`'user' | 'assistant' | 'system' | 'tool'`)：消息在对话中的角色。
     *   *映射规范*：对于不支持显式 `'tool'` 角色的厂商 API（如 Gemini REST 接口），插件层应当在转换对话历史时将其统一映射为 `"user"` 以符合接口的协议规范。
 *   **`content`** (`string`)：消息的文本正文。
-*   **`attachments`** (`ChannelAttachment[]`)：消息附带的多模态附件（如图像等）。
+*   **`attachments`** (`FreyaAttachment[]`)：消息附带的多模态附件（如图像等）。
 
-### 4.2 工具调用关联属性（基于 ID 关联流派）
+### 5.2 工具调用关联属性（基于 ID 关联流派）
 主要服务于以 OpenAI 协议为代表、在多轮工具调用中通过特定的**唯一 ID** 关联工具调用与工具执行结果的流派：
 *   **`toolCalls`** (`LLMToolCall[]`)：大模型在 `'assistant'` 消息中输出的工具调用指令列表。每个 `LLMToolCall` 包含 `id`、`name`（工具名）与 `arguments`（参数）。
 *   **`toolCallId`** (`string`)：在 `'tool'` 角色的消息中，用来指定该条工具执行结果所对应的工具调用 `id`。
 
-### 4.3 推理校验与工具原名属性（基于名称与签名校验流派）
+### 5.3 推理校验与工具原名属性（基于名称与签名校验流派）
 主要服务于以 Gemini 协议为代表、在多轮工具调用中通过**工具名称**关联响应，且必须回传推理状态签名的流派：
 *   **`thoughtSignature`** (`string`)：由支持 stateless 思考（Reasoning）的模型在响应中输出的加密思考签名。
     *   *插件职责*：解析响应时，将模型返回的签名捕获并挂载在 `message.thoughtSignature` 根属性上；回传历史消息时，按照厂商 API 规定的结构（如 Gemini 要求其作为同级属性嵌套在对应的 `functionCall` Part 元素中并列发送）回传。

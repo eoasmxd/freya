@@ -1,5 +1,5 @@
 ---
-title: "Freya 架构设计说明"
+title: "架构设计说明"
 weight: 10
 description: "说明项目目录结构、~/.freya 运行时存放规则、插件依赖界限、核心 ReAct 调用链路与 EventBus 异步解耦模式。"
 ---
@@ -41,15 +41,18 @@ freya/
 │   ├── sdk/                     # 插件开发标准 SDK
 │   │   ├── src/
 │   │   │   ├── index.ts         # 模块入口与集中导出
-│   │   │   └── types.ts         # 统一的接口定义
+│   │   │   └── types/           # 统一的接口定义目录
 │   │   └── package.json
 │   │
 │   └── ui/                      # 独立的前端 Web 交互页面
 │       └── package.json
 │
 ├── plugins/                     # 插件根目录
+│   ├── plugin-gemini/           # Gemini 大模型插件
 │   ├── plugin-openai/           # 对接 OpenAI 标准 API 的大模型插件
 │   ├── plugin-telegram-channel/ # Telegram 频道插件
+│   ├── plugin-wecom-channel/    # 企业微信频道插件
+│   ├── plugin-weixin-channel/   # 微信频道插件
 │   ├── plugin-tool-fs/          # 文件系统工具插件
 │   ├── plugin-tool-memory/      # 记忆工具插件
 │   └── plugin-tool-web/         # 网页工具插件
@@ -115,8 +118,8 @@ graph TD
 
 底座组件之间跨边界异步通信统一通过 **`EventBus` (事件总线)** 异步事件驱动：
 
-*   **出站路由**：`Agent` 推理产生的流式 Delta 或最终文本不会被直接投递给 `Channel`。底座仅需广播 `'connection:reply'` / `'connection:reply:delta'` 事件；各个 `Channel` 插件自行订阅事件，读取对应的 `channelId` 并各自向用户的物理长连接发送。
-*   **多方协同与计费解耦**：当大模型输出产生 `'token:consumed'` 事件时，计费服务（Billing）通过订阅该事件核算费用并广播计费结果，底座连接层再通过 `'connection:event'` 向前端 WebSocket 实时推送 Token 账单与费用通知。
+*   **出站路由**：`Agent` 推理产生的流式 Delta 或最终文本不会被直接投递给 `Channel`。底座仅需广播 `'connection:reply'` / `'connection:reply:delta'` 事件；各个 `Channel` 插件自行订阅事件，读取对应的 `connectionId`（连接 ID）过滤并各自向用户的物理长连接发送。
+*   **多方协同与计费解耦**：当大模型输出产生 `'token:consumed'` 事件时，计费服务（Billing）通过订阅该事件核算费用并触发 `'billing:session:add'`。会话管理器（SessionManager）监听该事件累加更新会话数据后广播 `'session:billing:update'`，最终底座连接层捕获此更新并通过 `'connection:event'` 向前端 WebSocket 实时推送 `server:billing` 事件。
 
 
 ---

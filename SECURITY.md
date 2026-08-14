@@ -39,7 +39,7 @@ Freya 是一个本地优先（Local-first）的微内核智能体系统。本文
 2.  **最小权限原则运行**：
     **绝对禁止**使用 `root`、`sudo` 或 `Administrator` 等管理员权限运行 Freya 服务进程。
 3.  **凭证保护**：
-    切勿在插件源码或 Skill markdown 中硬编码任何 API 密钥。所有密钥均应存放在 `config/` 目录下的配置文件（已被 `.gitignore` 过滤）中，或通过 `.env` 环境变量注入。
+    切勿在插件源码或 Skill markdown 中硬编码任何 API 密钥。所有密钥均应存放在 `config/` 目录下的配置文件中，或通过 `.env` 环境变量注入。
 
 ---
 

@@ -1,5 +1,5 @@
 ---
-title: "Freya 提示词管理系统说明"
+title: "提示词管理系统说明"
 weight: 16
 description: "介绍 6 大维度提示词管理方案、动态 Prompt Composer 拼装结构与 Dual-Read 探针机制。"
 ---

@@ -24,7 +24,7 @@ freya/
 
 ### 运行时沙箱与持久化数据结构
 ```
-~/.freya/           # 运行时主目录 (默认创建于用户主目录下，已被 .gitignore 过滤)
+~/.freya/           # 运行时主目录 (默认创建于用户主目录下)
 ├── config/         # 运行时用户配置与覆盖提示词目录 (freya.json, IDENTITY.md 等)
 ├── data/           # 运行时持久化数据目录 (sessions/, memories.json, memories/ 长期记忆)
 └── workspace/      # 宿主与大模型交互隔离的文件读写沙箱 (download/ 网页大响应保存区)
@@ -56,9 +56,9 @@ freya/
 
 ### 配置与数据分离
 
-- **Workspace（工作区）**：与宿主隔离的沙箱，默认位于 `~/.freya/workspace/`（已 gitignore）。
-- **Runtime Config（配置目录）**：用户个性化配置，默认位于 `~/.freya/config/`（已 gitignore）。
-- **Runtime Data（数据目录）**：运行时持久化数据与记忆，默认位于 `~/.freya/data/`（已 gitignore）。
+- **Workspace（工作区）**：与宿主隔离的沙箱，默认位于 `~/.freya/workspace/`
+- **Runtime Config（配置目录）**：用户个性化配置，默认位于 `~/.freya/config/`
+- **Runtime Data（数据目录）**：运行时持久化数据与记忆，默认位于 `~/.freya/data/`
 - **Runtime Skills（运行时技能卡）**：用户自定义技能卡目录，位于 `~/.freya/skills/` 下。AI 助手需注意系统在启动时，会同时扫描程序包默认目录（`APP_ROOT/skills/`）与此目录下的 Markdown 技能卡文件进行双通道动态合并加载。
 
 ### 命名规范
@@ -78,8 +78,6 @@ freya/
 ```bash
 pnpm install       # 安装依赖
 pnpm build         # 编译所有包
-pnpm dev:core      # 启动后端服务
-pnpm dev:ui        # 启动前端 Web UI
 pnpm freya         # 启动本地服务与 CLI 交互 (或使用 pnpm start)
 ```
 
