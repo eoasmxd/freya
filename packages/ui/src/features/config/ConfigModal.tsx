@@ -3,6 +3,7 @@ import { GlobalConfigPanel } from './panels/GlobalConfigPanel.jsx';
 import { ProviderConfigPanel } from './panels/ProviderConfigPanel.jsx';
 import { PromptConfigPanel } from './panels/PromptConfigPanel.jsx';
 import { PluginConfigPanel } from './panels/PluginConfigPanel.jsx';
+import { SkillConfigPanel } from './panels/SkillConfigPanel.jsx';
 
 interface ConfigModalProps {
   onClose: () => void;
@@ -13,13 +14,14 @@ export const ConfigModal: React.FC<ConfigModalProps> = ({
   onClose,
   getApiUrl
 }) => {
-  const [activeTab, setActiveTab] = useState<'global' | 'providers' | 'prompts' | 'plugins'>('global');
+  const [activeTab, setActiveTab] = useState<'global' | 'providers' | 'prompts' | 'plugins' | 'skills'>('global');
 
   const getTabTitle = () => {
     if (activeTab === 'global') return '全局参数设置';
     if (activeTab === 'providers') return '大模型提供商与模型管理';
     if (activeTab === 'prompts') return '系统提示词管理';
     if (activeTab === 'plugins') return '扩展插件管理';
+    if (activeTab === 'skills') return '技能卡管理';
     return '';
   };
 
@@ -55,6 +57,12 @@ export const ConfigModal: React.FC<ConfigModalProps> = ({
             >
               扩展插件
             </button>
+            <button
+              className={`tab-btn ${activeTab === 'skills' ? 'active' : ''}`}
+              onClick={() => setActiveTab('skills')}
+            >
+              技能卡管理
+            </button>
           </div>
         </div>
 
@@ -84,6 +92,10 @@ export const ConfigModal: React.FC<ConfigModalProps> = ({
 
             {activeTab === 'plugins' && (
               <PluginConfigPanel getApiUrl={getApiUrl} />
+            )}
+
+            {activeTab === 'skills' && (
+              <SkillConfigPanel getApiUrl={getApiUrl} />
             )}
           </div>
         </div>

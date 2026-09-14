@@ -1,0 +1,33 @@
+{
+  "name": "@eoasmxd/freya-plugin-tool-mysql",
+  "version": "0.1.0",
+  "private": false,
+  "license": "MIT",
+  "publishConfig": {
+    "access": "public"
+  },
+  "description": "Freya MySQL 数据库查询工具集插件",
+  "freya": {
+    "displayName": "MySQL 数据库查询工具集",
+    "defaultEnabled": false,
+    "schema": "./schema.json",
+    "prompts": [
+      "plugin.prompt.mysql.md",
+      "plugin.prompt.mysql.select.audit.md"
+    ]
+  },
+  "type": "module",
+  "main": "./dist/index.js",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "@eoasmxd/freya-sdk": "workspace:^",
+    "mysql2": "^3.11.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "typescript": "^5.5.0"
+  }
+}

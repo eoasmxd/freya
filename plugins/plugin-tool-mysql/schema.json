@@ -1,0 +1,83 @@
+[
+  {
+    "key": "mysql.defaultConnection",
+    "defaultValue": "default",
+    "description": "默认使用的数据库连接名称",
+    "type": "string",
+    "category": "MySQL 连接"
+  },
+  {
+    "key": "mysql.maxRows",
+    "defaultValue": 100,
+    "description": "单次查询最大返回记录条数（防止大模型上下文窗口溢出）",
+    "type": "number",
+    "min": 1,
+    "max": 1000,
+    "category": "MySQL 安全",
+    "uiHint": "slider"
+  },
+  {
+    "key": "mysql.connections",
+    "defaultValue": [],
+    "description": "MySQL 命名数据库连接配置列表",
+    "type": "array",
+    "category": "MySQL 连接",
+    "children": [
+      {
+        "key": "name",
+        "description": "连接名称 (例如 default、bi_db)",
+        "type": "string",
+        "required": true
+      },
+      {
+        "key": "host",
+        "description": "数据库主机 (例如 127.0.0.1)",
+        "type": "string",
+        "required": true
+      },
+      {
+        "key": "port",
+        "description": "数据库端口 (默认 3306)",
+        "type": "number",
+        "defaultValue": 3306,
+        "required": true
+      },
+      {
+        "key": "user",
+        "description": "数据库用户名",
+        "type": "string",
+        "required": true
+      },
+      {
+        "key": "password",
+        "description": "数据库密码",
+        "type": "string",
+        "required": true,
+        "sensitive": true,
+        "uiHint": "password"
+      },
+      {
+        "key": "database",
+        "description": "数据库名称",
+        "type": "string",
+        "required": false
+      },
+      {
+        "key": "connectionLimit",
+        "description": "连接池最大连接数 (默认 5)",
+        "type": "number",
+        "defaultValue": 5,
+        "min": 1,
+        "max": 50
+      },
+      {
+        "key": "connectTimeout",
+        "description": "连接超时时间 (毫秒，默认 10000)",
+        "type": "number",
+        "defaultValue": 10000,
+        "min": 1000,
+        "max": 60000
+      }
+    ]
+  }
+]

@@ -1,11 +1,13 @@
 import type { FreyaTool, FreyaToolbox } from '@eoasmxd/freya-sdk';
 import type { FreyaSessionManager } from '../../session/session-manager.js';
 import type { FreyaToolRegistry } from '../tool-registry.js';
+import type { FreyaSkillRegistry } from '../../skill/skill-registry.js';
 
 export class FreyaMetaToolbox implements FreyaToolbox {
   constructor(
     private sessionManager: FreyaSessionManager,
-    private toolRegistry?: FreyaToolRegistry
+    private toolRegistry?: FreyaToolRegistry,
+    private skillRegistry?: FreyaSkillRegistry
   ) {}
 
   getId(): string {
@@ -105,6 +107,12 @@ export class FreyaMetaToolbox implements FreyaToolbox {
           const sessionId = args.__sessionId;
           if (!sessionId) {
             return '❌ 错误：无法从执行上下文中提取当前会话ID。';
+          }
+          if (this.skillRegistry) {
+            const skill = this.skillRegistry.get(skillId);
+            if (!skill || !skill.enabled) {
+              return `❌ 错误：技能 [${skillId}] 不存在或已被系统管理员禁用，无法切入该模式。`;
+            }
           }
           await this.sessionManager.updateSession(sessionId, { activeSkillId: skillId });
           return `已成功切入 [${skillId}] 技能特长工作模式。`;
