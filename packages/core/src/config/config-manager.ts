@@ -4,6 +4,7 @@ import type { FreyaPluginManager } from '../plugin/plugin-manager.js';
 import type { FreyaPromptManager } from '../prompt/prompt-manager.js';
 import { FreyaConfigFileHandler } from './file-handler.js';
 import { FreyaConfigSchemaRegistry } from './schema-registry.js';
+import type { FreyaSkillRegistry, FreyaSkill } from '../skill/skill-registry.js';
 import path from 'node:path';
 import { PROJECT_ROOT } from '../utils/paths.js';
 
@@ -155,19 +156,22 @@ export class FreyaConfigManager {
   private llmRegistry: FreyaLLMRegistry;
   private pluginManager: FreyaPluginManager;
   private promptManager: FreyaPromptManager;
+  private skillRegistry?: FreyaSkillRegistry;
 
   constructor(
     context: FreyaContext,
     schemaRegistry: FreyaConfigSchemaRegistry,
     promptManager: FreyaPromptManager,
     llmRegistry: FreyaLLMRegistry,
-    pluginManager: FreyaPluginManager
+    pluginManager: FreyaPluginManager,
+    skillRegistry?: FreyaSkillRegistry
   ) {
     this.context = context;
     this.schemaRegistry = schemaRegistry;
     this.promptManager = promptManager;
     this.llmRegistry = llmRegistry;
     this.pluginManager = pluginManager;
+    this.skillRegistry = skillRegistry;
   }
 
   /** 获取全部敏感字段的 keyPath 列表 */
@@ -478,6 +482,16 @@ export class FreyaConfigManager {
   async togglePlugin(pluginId: string, enabled: boolean): Promise<string> {
     if (!this.pluginManager) return '❌ 插件服务未初始化。';
     return await this.pluginManager.togglePlugin(pluginId, enabled);
+  }
+
+  listSkills(): FreyaSkill[] {
+    if (!this.skillRegistry) return [];
+    return this.skillRegistry.getAllSkills();
+  }
+
+  async toggleSkill(skillId: string, enabled: boolean): Promise<string> {
+    if (!this.skillRegistry) return '❌ 技能注册表服务未初始化。';
+    return await this.skillRegistry.toggleSkill(skillId, enabled);
   }
 
   async readPrompt(name: string): Promise<string> {

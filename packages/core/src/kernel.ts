@@ -68,7 +68,8 @@ export class FreyaKernel {
       configSchemaRegistry,
       promptManager,
       llmRegistry,
-      this.pluginManager
+      this.pluginManager,
+      skillRegistry
     );
 
     configManager.registerCoreSchema();
@@ -96,7 +97,7 @@ export class FreyaKernel {
 
     const configToolbox = new ConfigToolbox(configManager, ctx);
     const sessionToolbox = new SessionToolbox(this.sessionManager);
-    const metaToolbox = new FreyaMetaToolbox(this.sessionManager, toolRegistry);
+    const metaToolbox = new FreyaMetaToolbox(this.sessionManager, toolRegistry, skillRegistry);
     toolRegistry.registerToolbox(configToolbox);
     toolRegistry.registerToolbox(sessionToolbox);
     toolRegistry.registerToolbox(metaToolbox);

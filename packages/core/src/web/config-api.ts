@@ -199,6 +199,26 @@ export class FreyaConfigApi {
         return true;
       }
 
+      if (pathname === '/api/config/skills' && req.method === 'GET') {
+        const skills = this.configManager.listSkills();
+        res.writeHead(200, this.headers);
+        res.end(JSON.stringify({ success: true, data: skills }));
+        return true;
+      }
+
+      if (pathname === '/api/config/skills/toggle' && req.method === 'POST') {
+        const { skillId, enabled } = await this.getBody(req);
+        if (!skillId) {
+          res.writeHead(200, this.headers);
+          res.end(JSON.stringify({ success: false, error: '缺少必要参数: skillId' }));
+          return true;
+        }
+        const msg = await this.configManager.toggleSkill(skillId, enabled);
+        res.writeHead(200, this.headers);
+        res.end(JSON.stringify({ success: !msg.startsWith('❌'), message: msg }));
+        return true;
+      }
+
       const promptMatch = pathname.match(/^\/api\/config\/prompts\/([^/]+)$/);
       if (promptMatch && req.method === 'GET') {
         const promptName = decodeURIComponent(promptMatch[1]);

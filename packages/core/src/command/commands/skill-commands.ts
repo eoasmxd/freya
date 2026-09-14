@@ -22,11 +22,12 @@ export function registerSkillCommands(deps: SkillCommandDeps): void {
     };
 
     const handleList = async (): Promise<string> => {
-        if (skills.size === 0) {
+        const activeSkills = Array.from(skills.values()).filter((s) => s.enabled !== false);
+        if (activeSkills.length === 0) {
             return '📋 暂无可用技能。';
         }
-        const lines = Array.from(skills.values()).map((s) =>
-            `- **${s.name}** — ${s.description || '无描述'}`
+        const lines = activeSkills.map((s) =>
+            `- **${s.name}** \`${s.id}\` — ${s.description || '无描述'}`
         ).join('\n');
         return `### 📋 可用技能\n\n${lines}`;
     };
@@ -36,8 +37,8 @@ export function registerSkillCommands(deps: SkillCommandDeps): void {
             return '❌ 用法：`\`/skill set <skillId>\``。';
         }
         const skill = skills.get(skillId);
-        if (!skill) {
-            return `❌ 技能 \`${skillId}\` 不存在。请使用 \`/skill list\` 查看可用技能。`;
+        if (!skill || skill.enabled === false) {
+            return `❌ 技能 \`${skillId}\` 不存在或未启用。请使用 \`/skill list\` 查看可用技能。`;
         }
         await sessionManager.updateSession(sessionId, { activeSkillId: skillId });
         return `✅ 已激活技能: **${skill.name}** \`${skillId}\`。`;
