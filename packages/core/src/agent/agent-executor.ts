@@ -216,6 +216,11 @@ export class FreyaAgentExecutor {
     const deactivatedIds: string[] = [];
 
     for (const id of activeToolboxIds) {
+      if (!this.toolRegistry.isToolboxEnabled(id)) {
+        deactivatedIds.push(id);
+        this.context.logger.info(`[FreyaAgentExecutor] 工具箱 [${id}] 已被全局禁用，自动从当前会话卸载。`);
+        continue;
+      }
       const boxTools = this.toolRegistry.getToolsInBox(id);
       const isUsed = boxTools.some((tool) => executedToolNames.has(tool.getDefinition().name));
 

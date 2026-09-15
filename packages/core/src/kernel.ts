@@ -49,11 +49,11 @@ export class FreyaKernel {
     ctx.eventBus = new FreyaEventBus();
 
     const configSchemaRegistry = new FreyaConfigSchemaRegistry();
-    const toolRegistry = new FreyaToolRegistry();
+    const toolRegistry = new FreyaToolRegistry(ctx);
     const llmRegistry = new FreyaLLMRegistry();
     const promptRegistry = new FreyaPromptRegistry();
 
-    const commandRegistry = new FreyaCommandRegistry();
+    const commandRegistry = new FreyaCommandRegistry(ctx);
     this.channelRegistry = new FreyaChannelRegistry();
     const pluginRegistry = new FreyaPluginRegistry(toolRegistry, llmRegistry, this.channelRegistry);
     const skillRegistry = new FreyaSkillRegistry();
