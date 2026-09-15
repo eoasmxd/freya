@@ -1,10 +1,44 @@
 import type { FreyaCommand, FreyaContext } from '@eoasmxd/freya-sdk';
 
+const BUILTIN_COMMAND_CATEGORY_MAP: Record<string, string> = {
+  approve: 'auth',
+  reject: 'auth',
+  session: 'session',
+  model: 'model',
+  models: 'model'
+};
+
 /** 系统指令注册表：维护主指令与别名的映射字典 */
 export class FreyaCommandRegistry {
   private commands = new Map<string, FreyaCommand>();
   private aliasMap = new Map<string, string>();
   private pluginCommandsMap = new Map<string, string[]>();
+
+  constructor(private context?: FreyaContext) {}
+
+  setContext(context: FreyaContext): void {
+    this.context = context;
+  }
+
+  /** 判断指定指令当前是否已注册且处于可用启用状态 */
+  isCommandEnabled(name: string): boolean {
+    const lowerName = name.toLowerCase();
+    const primaryName = this.aliasMap.get(lowerName) || lowerName;
+
+    if (!this.commands.has(primaryName)) {
+      return false;
+    }
+
+    const category = BUILTIN_COMMAND_CATEGORY_MAP[primaryName];
+    if (category) {
+      const commandsConfig = (this.context?.config as any)?.commands?.builtin;
+      if (commandsConfig && typeof commandsConfig[category]?.enabled === 'boolean') {
+        return commandsConfig[category].enabled;
+      }
+    }
+
+    return true;
+  }
 
   /** 注册新的系统指令并建立别名路由 */
   register(command: FreyaCommand, pluginId?: string): void {
@@ -63,6 +97,6 @@ export class FreyaCommandRegistry {
   }
 
   list(): FreyaCommand[] {
-    return Array.from(this.commands.values());
+    return Array.from(this.commands.values()).filter((cmd) => this.isCommandEnabled(cmd.name));
   }
 }

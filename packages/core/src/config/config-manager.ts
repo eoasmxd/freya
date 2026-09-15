@@ -697,6 +697,41 @@ export class FreyaConfigManager {
         min: 10,
         max: 300,
         category: '安全'
+      },
+      {
+        key: 'tools.builtin.config.enabled',
+        defaultValue: true,
+        description: '是否启用系统核心配置工具箱（允许大模型查看与修改系统配置）',
+        type: 'boolean',
+        category: '系统工具'
+      },
+      {
+        key: 'tools.builtin.session.enabled',
+        defaultValue: true,
+        description: '是否启用会话与子任务管理工具箱（允许大模型查阅会话历史与派生子任务）',
+        type: 'boolean',
+        category: '系统工具'
+      },
+      {
+        key: 'commands.builtin.auth.enabled',
+        defaultValue: true,
+        description: '是否启用敏感操作授权审批指令（/approve 与 /reject）',
+        type: 'boolean',
+        category: '系统指令'
+      },
+      {
+        key: 'commands.builtin.session.enabled',
+        defaultValue: true,
+        description: '是否启用会话管理与路由指令（/session 及其子命令）',
+        type: 'boolean',
+        category: '系统指令'
+      },
+      {
+        key: 'commands.builtin.model.enabled',
+        defaultValue: true,
+        description: '是否启用模型查看与切换指令（/model 及其子命令）',
+        type: 'boolean',
+        category: '系统指令'
       }
     ];
 

@@ -32,6 +32,14 @@ export class FreyaCommandExecutor {
       return true;
     }
 
+    if (!this.registry.isCommandEnabled(commandName)) {
+      this.context.eventBus.emit('session:reply:error', {
+        sessionId,
+        message: `❌ 权限拒绝：系统指令 "/${commandName}" 已被系统管理员全局禁用。`
+      });
+      return true;
+    }
+
     try {
       const replyContent = await cmd.execute(args, sessionId, this.context, connectionId);
       if (replyContent) {
