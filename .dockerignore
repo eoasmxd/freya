@@ -1,0 +1,13 @@
+# 核心依赖与构建输出
+**/node_modules
+**/dist
+
+# 版本控制与项目本地配置
+.git
+.github
+.agents
+.vscode
+
+# 调试日志与系统临时文件
+*.log
+.DS_Store
