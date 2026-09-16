@@ -33,9 +33,30 @@ freya --no-cli
 freya stop
 ```
 
+### 方式二：通过 Docker 运行（推荐，免环境配置）
+
+无需安装 Node.js 与包管理环境，直接通过容器一键启动（支持配置与会话数据持久化）：
+
+```bash
+# 启动并挂载持久化数据目录（宿主机 ./freya-data 映射至容器 /data）
+docker run -d \
+  --name freya \
+  -p 3000:3000 \
+  -v $(pwd)/freya-data:/data \
+  --restart unless-stopped \
+  ghcr.io/eoasmxd/freya:latest
+```
+
+或使用本地源码构建镜像运行：
+```bash
+# 本地构建并启动
+docker build -t freya .
+docker run -d --name freya -p 3000:3000 -v $(pwd)/freya-data:/data freya
+```
+
 ---
 
-### 方式二：从源码构建运行
+### 方式三：从源码构建运行
 
 运行环境要求：**Node.js** (>= 22.0.0) 和 **pnpm** (9.x)。
 
