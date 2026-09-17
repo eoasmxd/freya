@@ -54,8 +54,11 @@ export default function App() {
 
   const getApiUrl = (path: string) => {
     const isDev = import.meta.env.DEV;
-    const host = isDev ? 'http://localhost:3000' : '';
-    return `${host}${path}`;
+    if (isDev) return `http://localhost:3000${path}`;
+    const basePath = window.location.pathname.endsWith('/')
+      ? window.location.pathname.slice(0, -1)
+      : window.location.pathname;
+    return `${basePath}${path}`;
   };
 
   useEffect(() => {
@@ -67,9 +70,13 @@ export default function App() {
       if (isUnmounted) return;
 
       const isDev = import.meta.env.DEV;
+      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+      const basePath = window.location.pathname.endsWith('/')
+        ? window.location.pathname
+        : `${window.location.pathname}/`;
       const wsUrl = isDev
         ? 'ws://localhost:3000'
-        : `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}`;
+        : `${protocol}//${window.location.host}${basePath}`;
       ws = new WebSocket(wsUrl);
       wsRef.current = ws;
 
