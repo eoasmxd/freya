@@ -106,13 +106,24 @@ await checkSingleInstance();
 const cliEnabled = await getCliEnabled(process.argv);
 const isForeground = isForegroundMode(process.argv);
 
+let appRoot = __dirname;
+try {
+  const stat = await fs.stat(path.join(__dirname, 'plugins'));
+  if (!stat.isDirectory()) {
+    appRoot = path.resolve(__dirname, '..');
+  }
+} catch {
+  appRoot = path.resolve(__dirname, '..');
+}
+
 if (!cliEnabled && !isForeground) {
   const child = fork(coreIndex, process.argv.slice(2), {
     detached: true,
     stdio: 'ignore',
     env: {
       ...process.env,
-      FREYA_APP_ROOT: __dirname
+      FREYA_APP: process.env.FREYA_APP || appRoot,
+      FREYA_WORKSPACE: process.env.FREYA_WORKSPACE || process.cwd()
     }
   });
 
@@ -130,7 +141,8 @@ if (!cliEnabled && !isForeground) {
     stdio: 'inherit',
     env: {
       ...process.env,
-      FREYA_APP_ROOT: __dirname
+      FREYA_APP: process.env.FREYA_APP || appRoot,
+      FREYA_WORKSPACE: process.env.FREYA_WORKSPACE || process.cwd()
     }
   });
 

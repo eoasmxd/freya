@@ -101,8 +101,8 @@ function getFormattedDateTime(): { date: string; time: string } {
 
 function cleanPathFromError(err: any, ctx: FreyaContext): string {
   const rawMessage = err?.message || String(err);
-  const projectRoot = ctx.paths.projectRoot;
-  const escapedPath = projectRoot.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const homeDir = ctx.paths.homeDir;
+  const escapedPath = homeDir.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   const regex = new RegExp(escapedPath + '[\\\\/]?', 'g');
   return rawMessage.replace(regex, '');
 }

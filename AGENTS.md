@@ -54,12 +54,12 @@ freya/
 - 如果提示词注册表返回空，代码只能保持空字符串 `''` 或使用纯变量占位符（如 `'{text}'`），不得使用硬编码兜底文案。
 
 
-### 配置与数据分离
+### 路径体系与配置分离（三层模型）
 
-- **Workspace（工作区）**：与宿主隔离的沙箱，默认位于 `~/.freya/workspace/`
-- **Runtime Config（配置目录）**：用户个性化配置，默认位于 `~/.freya/config/`
-- **Runtime Data（数据目录）**：运行时持久化数据与记忆，默认位于 `~/.freya/data/`
-- **Runtime Skills（运行时技能卡）**：用户自定义技能卡目录，位于 `~/.freya/skills/` 下。AI 助手需注意系统在启动时，会同时扫描程序包默认目录（`APP_ROOT/skills/`）与此目录下的 Markdown 技能卡文件进行双通道动态合并加载。
+- **FREYA_APP（程序根目录）**：程序代码物理安装根目录，只读，包含引擎核心、UI 静态资源及官方内置 plugins/skills。
+- **FREYA_WORKSPACE（工作区/宿主工程目录）**：业务工程根目录或沙箱目录，默认为 `process.cwd()`。系统在启动时会扫描此目录下的 `plugins/` 与 `skills/` 进行业务层扩展。
+- **FREYA_HOME（运行时数据目录）**：用户持久化配置与运行态数据主目录，默认位于 `~/.freya/`（Docker 中为 `/data/`），包含用户个性化 `config/`、`data/`（会话与长期记忆）以及用户自建的 `skills/` 与 `plugins/`。
+- **动态扫描与合并**：系统启动时，Plugins 与 Skills 均按 `FREYA_APP`（内置） -> `FREYA_WORKSPACE`（宿主扩展） -> `FREYA_HOME`（用户自建）三层级联自动发现并载入。
 
 ### 命名规范
 
@@ -104,7 +104,7 @@ docs: 补充插件开发入门文档
 2. **包名规范**：`package.json` 中的 `name` 使用官方 NPM 包名格式（如 `@eoasmxd/freya-plugin-<name>`），作为插件的唯一全局 ID。
 3. **静态元数据规范**：插件配置与元数据统一下沉至 `package.json` 的 `"freya"` 声明块：
    - `displayName`：插件显示名称。
-   - `defaultEnabled`：默认启停策略。严格遵循安全优先原则（Security by Default），仅程序内置物理目录（`APP_ROOT/plugins`）且显式置为 `true` 的插件初始启用；其余环境及外置插件统一默认禁用 (`false`)。
+   - `defaultEnabled`：默认启停策略。严格遵循安全优先原则（Security by Default），仅程序内置物理目录（`FREYA_APP/plugins`）且显式置为 `true` 的插件初始启用；其余环境及外置插件统一默认禁用 (`false`)。
    - `schema`：静态配置 Schema 物理定义路径（如 `"./schema.json"`）。
    - `prompts`：提示词 Markdown 模板文件名数组（如 `["plugin.prompt.<name>.md"]`）。
 4. **代码纯净与严格契约**：

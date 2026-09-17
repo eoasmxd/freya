@@ -5,7 +5,7 @@ import fsSync from 'node:fs';
 import fs from 'node:fs/promises';
 import http from 'node:http';
 import path from 'node:path';
-import { APP_ROOT } from '../utils/paths.js';
+import { FREYA_APP } from '../utils/paths.js';
 
 const mimeTypes: Record<string, string> = {
     '.html': 'text/html; charset=utf-8',
@@ -43,7 +43,7 @@ export class FreyaWebContainer {
     async start(ctx: FreyaContext, configManager: FreyaConfigManager): Promise<void> {
         this.port = (ctx.config as any)?.server?.port ?? 3000;
         this.configApi = new FreyaConfigApi(configManager);
-        const uiDist = this.getUiDistPath(APP_ROOT);
+        const uiDist = this.getUiDistPath(FREYA_APP);
         const safePrefix = uiDist.endsWith(path.sep) ? uiDist : uiDist + path.sep;
 
         this.httpServer = http.createServer(async (req, res) => {
@@ -113,9 +113,9 @@ export class FreyaWebContainer {
         });
     }
 
-    private getUiDistPath(projectRoot: string): string {
-        const devPath = path.join(projectRoot, 'packages', 'ui', 'dist');
-        const prodPath = path.join(projectRoot, 'ui');
+    private getUiDistPath(appRoot: string): string {
+        const devPath = path.join(appRoot, 'packages', 'ui', 'dist');
+        const prodPath = path.join(appRoot, 'ui');
         if (fsSync.existsSync(devPath)) return devPath;
         return prodPath;
     }

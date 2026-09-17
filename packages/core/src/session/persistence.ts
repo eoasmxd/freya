@@ -1,10 +1,10 @@
 import type { FreyaContext } from '@eoasmxd/freya-sdk';
 import fs from 'node:fs/promises';
 import path from 'node:path';
-import { PROJECT_ROOT } from '../utils/paths.js';
+import { FREYA_HOME } from '../utils/paths.js';
 import type { Session, SessionData, SessionIndex, SnapFile } from './types.js';
 
-const DATA_DIR = path.resolve(PROJECT_ROOT, 'data');
+const DATA_DIR = path.resolve(FREYA_HOME, 'data');
 const SESSIONS_DIR = path.resolve(DATA_DIR, 'sessions');
 const INDEX_FILE = path.resolve(DATA_DIR, 'sessions.json');
 

@@ -1,6 +1,6 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
-import { APP_ROOT, PROJECT_ROOT } from '../utils/paths.js';
+import { FREYA_APP, FREYA_HOME } from '../utils/paths.js';
 
 export interface FreyaPrompt {
   key: string;
@@ -14,7 +14,7 @@ export class FreyaPromptRegistry {
   private prompts = new Map<string, FreyaPrompt>();
 
   private getRunFilePath(prompt: Omit<FreyaPrompt, 'content'>): string {
-    return prompt.runPath || path.join(PROJECT_ROOT, 'config', 'prompts', path.basename(prompt.defaultPath));
+    return prompt.runPath || path.join(FREYA_HOME, 'config', 'prompts', path.basename(prompt.defaultPath));
   }
 
   /** 注册提示词元数据声明并执行异步双读载入 */
@@ -60,14 +60,14 @@ export class FreyaPromptRegistry {
 
   /** 扫描并装载所有内核提示词，支持运行时提示词覆盖默认提示词 */
   async loadKernelPrompts(): Promise<void> {
-    const defaultDirPath = path.join(APP_ROOT, 'config', 'prompts');
+    const defaultDirPath = path.join(FREYA_APP, 'config', 'prompts');
     try {
       const corePrompts = ['identity', 'soul', 'tools', 'agents', 'user', 'memory'];
       for (const name of corePrompts) {
         await this.register({
           key: `core.prompt.${name}`,
           defaultPath: path.join(defaultDirPath, `core.prompt.${name}.md`),
-          runPath: path.join(PROJECT_ROOT, 'config', `${name.toUpperCase()}.md`)
+          runPath: path.join(FREYA_HOME, 'config', `${name.toUpperCase()}.md`)
         });
       }
 

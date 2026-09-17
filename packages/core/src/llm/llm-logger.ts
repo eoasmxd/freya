@@ -1,7 +1,7 @@
 import type { LLMMessage, LLMTokenUsage, ToolDefinition } from '@eoasmxd/freya-sdk';
 import fs from 'node:fs';
 import path from 'node:path';
-import { PROJECT_ROOT } from '../utils/paths.js';
+import { FREYA_HOME } from '../utils/paths.js';
 
 /** LLM 交互日志器，按日期写入 logs/llm-YYYY-MM-DD.log */
 export class FreyaLLMLogger {
@@ -9,7 +9,7 @@ export class FreyaLLMLogger {
     private _enabled: boolean;
 
     constructor(enabled: boolean) {
-        this.logsDir = path.join(PROJECT_ROOT, 'logs');
+        this.logsDir = path.join(FREYA_HOME, 'logs');
         this._enabled = enabled;
         fs.mkdirSync(this.logsDir, { recursive: true });
     }

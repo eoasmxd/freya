@@ -2,14 +2,14 @@ import type { Logger } from '@eoasmxd/freya-sdk';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { APP_ROOT, PROJECT_ROOT } from '../utils/paths.js';
+import { FREYA_APP, FREYA_HOME } from '../utils/paths.js';
 import { FreyaPromptRegistry } from './prompt-registry.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 /** 提示词物理文件管理器，负责加载、缺失拷贝与持久化覆写 */
 export class FreyaPromptManager {
-  private defaultDirPath = path.join(APP_ROOT, 'config', 'prompts');
+  private defaultDirPath = path.join(FREYA_APP, 'config', 'prompts');
 
   constructor(
     private promptRegistry: FreyaPromptRegistry,
@@ -31,7 +31,7 @@ export class FreyaPromptManager {
       throw new Error(`拒绝执行：配置管理工具仅允许管理核心提示词`);
     }
 
-    const runFilePath = path.join(PROJECT_ROOT, 'config', `${name.toUpperCase()}.md`);
+    const runFilePath = path.join(FREYA_HOME, 'config', `${name.toUpperCase()}.md`);
     await fs.mkdir(path.dirname(runFilePath), { recursive: true });
     await fs.writeFile(runFilePath, content, 'utf-8');
 
@@ -46,7 +46,7 @@ export class FreyaPromptManager {
       throw new Error(`拒绝执行：配置管理工具仅允许管理核心提示词`);
     }
 
-    const runFilePath = path.join(PROJECT_ROOT, 'config', `${name.toUpperCase()}.md`);
+    const runFilePath = path.join(FREYA_HOME, 'config', `${name.toUpperCase()}.md`);
     const registryKey = `core.prompt.${name.toLowerCase()}`;
     const currentText = this.promptRegistry.get(registryKey);
 

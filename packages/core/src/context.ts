@@ -6,7 +6,7 @@ import type {
   Logger,
 } from '@eoasmxd/freya-sdk';
 import path from 'node:path';
-import { APP_ROOT, PROJECT_ROOT } from './utils/paths.js';
+import { FREYA_APP, FREYA_HOME, FREYA_WORKSPACE } from './utils/paths.js';
 
 export class DefaultFreyaContext implements FreyaContext {
   logger!: Logger;
@@ -15,17 +15,18 @@ export class DefaultFreyaContext implements FreyaContext {
   llm!: ILLMService;
   get paths(): FreyaPaths {
     const configWorkspace = this.config?.workspace;
-    let workspaceDir = path.join(PROJECT_ROOT, 'workspace');
+    let workspaceDir = path.join(FREYA_HOME, 'workspace');
     if (configWorkspace && typeof configWorkspace === 'string') {
       workspaceDir = path.isAbsolute(configWorkspace)
         ? configWorkspace
-        : path.resolve(PROJECT_ROOT, configWorkspace);
+        : path.resolve(FREYA_HOME, configWorkspace);
     }
 
     return {
-      appRoot: APP_ROOT,
-      projectRoot: PROJECT_ROOT,
-      dataDir: path.join(PROJECT_ROOT, 'data'),
+      appRoot: FREYA_APP,
+      homeDir: FREYA_HOME,
+      workspaceRoot: FREYA_WORKSPACE,
+      dataDir: path.join(FREYA_HOME, 'data'),
       workspaceDir,
     };
   }

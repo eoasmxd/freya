@@ -5,6 +5,7 @@ interface PluginEntry {
   name: string;
   description: string;
   enabled: boolean;
+  source?: 'builtin' | 'workspace' | 'runtime' | 'npm';
 }
 
 interface PluginConfigPanelProps {
@@ -65,12 +66,27 @@ export const PluginConfigPanel: React.FC<PluginConfigPanelProps> = ({ getApiUrl 
     }
   };
 
+  const getSourceTagMeta = (source?: string) => {
+    switch (source) {
+      case 'builtin':
+        return { label: '内置', bg: 'rgba(59, 130, 246, 0.15)', color: '#60a5fa' };
+      case 'workspace':
+        return { label: '集成', bg: 'rgba(168, 85, 247, 0.15)', color: '#c084fc' };
+      case 'npm':
+        return { label: 'NPM', bg: 'rgba(245, 158, 11, 0.15)', color: '#fbbf24' };
+      case 'runtime':
+      default:
+        return { label: '自定义', bg: 'rgba(16, 185, 129, 0.15)', color: '#34d399' };
+    }
+  };
+
   return (
     <div className="plugins-list">
       {plugins.map((plugin) => {
         const displayName = plugin.name || plugin.id;
         const displayDesc = plugin.description || '未提供描述信息';
         const shouldShowIdTag = displayName !== plugin.id;
+        const tagMeta = getSourceTagMeta(plugin.source);
 
         return (
           <div key={plugin.id} className="plugin-card">
@@ -80,6 +96,20 @@ export const PluginConfigPanel: React.FC<PluginConfigPanelProps> = ({ getApiUrl 
                 {shouldShowIdTag && (
                   <span style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', fontWeight: 'normal', marginLeft: '0.5rem' }}>
                     ({plugin.id})
+                  </span>
+                )}
+                {plugin.source && (
+                  <span
+                    style={{
+                      fontSize: '0.68rem',
+                      marginLeft: '0.5rem',
+                      padding: '0.1rem 0.4rem',
+                      borderRadius: '4px',
+                      background: tagMeta.bg,
+                      color: tagMeta.color
+                    }}
+                  >
+                    {tagMeta.label}
                   </span>
                 )}
               </div>

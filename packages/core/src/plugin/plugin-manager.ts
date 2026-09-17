@@ -6,7 +6,7 @@ import { pathToFileURL } from 'node:url';
 import { FreyaCommandRegistry } from '../command/command-registry.js';
 import { FreyaConfigSchemaRegistry } from '../config/schema-registry.js';
 import { FreyaPromptRegistry } from '../prompt/prompt-registry.js';
-import { APP_ROOT, PROJECT_ROOT } from '../utils/paths.js';
+import { FREYA_APP, FREYA_HOME, FREYA_WORKSPACE } from '../utils/paths.js';
 import { FreyaPluginRegistry } from './plugin-registry.js';
 
 export interface PluginConfigEntry {
@@ -18,7 +18,7 @@ export interface PluginConfigEntry {
   displayName?: string;
   description?: string;
   version?: string;
-  source?: 'builtin' | 'runtime' | 'npm';
+  source?: 'builtin' | 'workspace' | 'runtime' | 'npm';
 }
 
 interface DiscoveredPluginInfo {
@@ -28,7 +28,7 @@ interface DiscoveredPluginInfo {
   displayName: string;
   description: string;
   version: string;
-  source: 'builtin' | 'runtime' | 'npm';
+  source: 'builtin' | 'workspace' | 'runtime' | 'npm';
   defaultEnabled?: boolean;
   prompts?: string[];
   valid: boolean;
@@ -164,7 +164,7 @@ export class FreyaPluginManager {
     entry.enabled = enabled;
     entry.status = enabled ? 'active' : 'disabled';
 
-    const configPluginsPath = path.join(PROJECT_ROOT, 'config', 'plugins.json');
+    const configPluginsPath = path.join(FREYA_HOME, 'config', 'plugins.json');
     try {
       await fs.mkdir(path.dirname(configPluginsPath), { recursive: true });
       const rawEntries = this.pluginEntries.map((e) => ({ id: e.id, enabled: e.enabled }));
@@ -232,7 +232,7 @@ export class FreyaPluginManager {
    */
   private async inspectPluginPackage(
     dirPath: string,
-    source: 'builtin' | 'runtime' | 'npm'
+    source: 'builtin' | 'workspace' | 'runtime' | 'npm'
   ): Promise<DiscoveredPluginInfo | null> {
     try {
       const pkgPath = path.join(dirPath, 'package.json');
@@ -247,7 +247,7 @@ export class FreyaPluginManager {
       const displayName = String(pkg.freya?.displayName || pkg.displayName || id);
       const description = String(pkg.description || '');
       const version = String(pkg.version || '0.1.0');
-      const defaultEnabled = (source === 'builtin' && pkg.freya?.defaultEnabled === true);
+      const defaultEnabled = ((source === 'builtin' || source === 'workspace') && pkg.freya?.defaultEnabled === true);
       const rawPrompts = pkg.freya?.prompts;
       const prompts = Array.isArray(rawPrompts) ? rawPrompts.map(String) : [];
 
@@ -354,7 +354,7 @@ export class FreyaPluginManager {
       let pkgJsonPath = '';
       try {
         pkgJsonPath = req.resolve(`${pkgName}/package.json`, {
-          paths: [path.join(PROJECT_ROOT), path.join(APP_ROOT), process.cwd()]
+          paths: [path.join(FREYA_WORKSPACE), path.join(FREYA_HOME), path.join(FREYA_APP), process.cwd()]
         });
       } catch {
         return {
@@ -407,7 +407,7 @@ export class FreyaPluginManager {
   private async scanAllChannels(configuredIds: Set<string>): Promise<DiscoveredPluginInfo[]> {
     const map = new Map<string, DiscoveredPluginInfo>();
 
-    const builtinDir = path.join(APP_ROOT, 'plugins');
+    const builtinDir = path.join(FREYA_APP, 'plugins');
     try {
       const entries = await fs.readdir(builtinDir, { withFileTypes: true });
       for (const entry of entries) {
@@ -418,13 +418,42 @@ export class FreyaPluginManager {
       }
     } catch { }
 
-    const runtimeDir = path.join(PROJECT_ROOT, 'plugins');
+    const workspaceDir = path.join(FREYA_WORKSPACE, 'plugins');
+    const resolvedBuiltin = path.resolve(builtinDir);
+    const resolvedWorkspace = path.resolve(workspaceDir);
+    const resolvedRuntime = path.resolve(path.join(FREYA_HOME, 'plugins'));
+
+    if (resolvedWorkspace !== resolvedBuiltin && resolvedWorkspace !== resolvedRuntime) {
+      try {
+        const entries = await fs.readdir(workspaceDir, { withFileTypes: true });
+        for (const entry of entries) {
+          if (entry.isDirectory()) {
+            const info = await this.inspectPluginPackage(path.join(workspaceDir, entry.name), 'workspace');
+            if (info) {
+              const existing = map.get(info.id);
+              if (existing?.source === 'builtin') {
+                info.source = 'builtin';
+              }
+              map.set(info.id, info);
+            }
+          }
+        }
+      } catch { }
+    }
+
+    const runtimeDir = path.join(FREYA_HOME, 'plugins');
     try {
       const entries = await fs.readdir(runtimeDir, { withFileTypes: true });
       for (const entry of entries) {
         if (entry.isDirectory()) {
           const info = await this.inspectPluginPackage(path.join(runtimeDir, entry.name), 'runtime');
-          if (info) map.set(info.id, info);
+          if (info) {
+            const existing = map.get(info.id);
+            if (existing?.source === 'builtin') {
+              info.source = 'builtin';
+            }
+            map.set(info.id, info);
+          }
         }
       }
     } catch { }
@@ -445,7 +474,7 @@ export class FreyaPluginManager {
   async loadConfiguredPlugins(pluginRegistry: FreyaPluginRegistry, ctx: FreyaContext): Promise<void> {
     this.ctx = ctx;
     this.pluginRegistry = pluginRegistry;
-    const configPluginsPath = path.join(PROJECT_ROOT, 'config', 'plugins.json');
+    const configPluginsPath = path.join(FREYA_HOME, 'config', 'plugins.json');
 
     let configList: Array<{ id: string; enabled: boolean }> = [];
     try {
