@@ -97,11 +97,16 @@ async function getCliEnabled(args) {
   return true;
 }
 
+function isForegroundMode(args) {
+  return args.includes('--foreground') || process.env.FREYA_FOREGROUND === 'true';
+}
+
 await checkSingleInstance();
 
 const cliEnabled = await getCliEnabled(process.argv);
+const isForeground = isForegroundMode(process.argv);
 
-if (!cliEnabled) {
+if (!cliEnabled && !isForeground) {
   const child = fork(coreIndex, process.argv.slice(2), {
     detached: true,
     stdio: 'ignore',
@@ -128,6 +133,16 @@ if (!cliEnabled) {
       FREYA_APP_ROOT: __dirname
     }
   });
+
+  const forwardSignal = (signal) => {
+    if (child.pid) {
+      try {
+        process.kill(child.pid, signal);
+      } catch { }
+    }
+  };
+  process.on('SIGTERM', () => forwardSignal('SIGTERM'));
+  process.on('SIGINT', () => forwardSignal('SIGINT'));
 
   child.on('exit', (code) => {
     process.exit(code ?? 0);
