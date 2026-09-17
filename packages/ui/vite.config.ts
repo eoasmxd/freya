@@ -3,6 +3,7 @@ import react from '@vitejs/plugin-react';
 
 // Vite 前端构建配置
 export default defineConfig({
+  base: './',
   plugins: [react()],
   server: {
     port: 5173,
