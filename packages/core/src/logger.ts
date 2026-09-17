@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import fsPromises from 'node:fs/promises';
 import path from 'node:path';
 import { inspect } from 'node:util';
-import { PROJECT_ROOT } from './utils/paths.js';
+import { FREYA_HOME } from './utils/paths.js';
 
 /** 双轨日志器：按日期滚动写入文件，按配置输出至控制台 */
 export class FreyaLogger implements Logger {
@@ -19,7 +19,7 @@ export class FreyaLogger implements Logger {
   private currentLogFilePath = '';
 
   constructor() {
-    this.logsDir = path.join(PROJECT_ROOT, 'logs');
+    this.logsDir = path.join(FREYA_HOME, 'logs');
     fs.mkdirSync(this.logsDir, { recursive: true });
   }
 

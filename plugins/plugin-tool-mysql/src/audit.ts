@@ -19,7 +19,7 @@ export class SqlAuditService {
     }
 
     const promptFileName = 'plugin.prompt.mysql.select.audit.md';
-    const runtimeOverridePath = path.join(ctx.paths.projectRoot, 'config', 'prompts', promptFileName);
+    const runtimeOverridePath = path.join(ctx.paths.homeDir, 'config', 'prompts', promptFileName);
 
     try {
       const content = await fs.readFile(runtimeOverridePath, 'utf-8');

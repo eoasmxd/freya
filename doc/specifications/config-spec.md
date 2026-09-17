@@ -46,7 +46,7 @@ Freya 规范在项目运行根目录下划分了四个功能性区域：
 1.  **Workspace（工作区）**：与宿主隔离的沙箱目录，默认 FS 工具只能读写此目录（`~/.freya/workspace/`）下的文件。
 2.  **Runtime Config（配置目录）**：存放用户的个性化配置，统一保存在运行时目录的 `~/.freya/config/` 下。
 3.  **Runtime Data（数据目录）**：存放运行时持久化的业务状态、历史记录及数据库文件，统一保存在运行时目录的 `~/.freya/data/` 下。
-4.  **Runtime Skills（运行时技能卡）**：存放用户自定义技能卡的目录，位于 `~/.freya/skills/` 下。系统在启动时，会同时扫描程序包内置技能目录（`APP_ROOT/skills/`）与此目录下的 Markdown 文件进行双通道动态合并加载。
+4.  **Runtime Skills（运行时技能卡）**：存放用户自定义技能卡的目录，位于 `~/.freya/skills/` 下。系统在启动时，会同时扫描程序包内置技能目录（`FREYA_APP/skills/`）与此目录下的 Markdown 文件进行双通道动态合并加载。
 
 ---
 

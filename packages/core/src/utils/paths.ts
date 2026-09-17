@@ -5,13 +5,10 @@ import { fileURLToPath } from 'node:url';
 import fs from 'node:fs';
 
 const customHome = process.env.FREYA_HOME;
+const customApp = process.env.FREYA_APP;
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 function resolveAppRoot(): string {
-  if (process.env.FREYA_APP_ROOT) {
-    return path.resolve(process.env.FREYA_APP_ROOT);
-  }
-
   let current = __dirname;
   let coreDir = current;
 
@@ -36,10 +33,17 @@ function resolveAppRoot(): string {
   return coreDir;
 }
 
-/** 运行态下的项目根目录（数据与配置存放区） */
-export const PROJECT_ROOT = customHome
+/** 运行态持久化主目录（数据与配置存放区） */
+export const FREYA_HOME = customHome
   ? path.resolve(customHome)
   : path.join(os.homedir(), '.freya');
 
 /** 程序代码物理安装根目录（只读代码与包内默认资源区） */
-export const APP_ROOT = resolveAppRoot();
+export const FREYA_APP = customApp
+  ? path.resolve(customApp)
+  : resolveAppRoot();
+
+/** 宿主工程/工作区根目录（业务工程代码与定制资源区） */
+export const FREYA_WORKSPACE = process.env.FREYA_WORKSPACE
+  ? path.resolve(process.env.FREYA_WORKSPACE)
+  : process.cwd();

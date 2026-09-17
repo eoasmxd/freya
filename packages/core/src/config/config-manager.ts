@@ -6,7 +6,7 @@ import { FreyaConfigFileHandler } from './file-handler.js';
 import { FreyaConfigSchemaRegistry } from './schema-registry.js';
 import type { FreyaSkillRegistry, FreyaSkill } from '../skill/skill-registry.js';
 import path from 'node:path';
-import { PROJECT_ROOT } from '../utils/paths.js';
+import { FREYA_HOME } from '../utils/paths.js';
 
 function cleanPathFromError(err: any): string {
   const rawMessage = err?.message || String(err);
@@ -226,10 +226,10 @@ export class FreyaConfigManager {
     const cloned = JSON.parse(JSON.stringify(config));
     if (cloned.workspace && typeof cloned.workspace === 'string') {
       if (!path.isAbsolute(cloned.workspace)) {
-        cloned.workspace = path.resolve(PROJECT_ROOT, cloned.workspace);
+        cloned.workspace = path.resolve(FREYA_HOME, cloned.workspace);
       }
     } else {
-      cloned.workspace = path.join(PROJECT_ROOT, 'workspace');
+      cloned.workspace = path.join(FREYA_HOME, 'workspace');
     }
     (this.context as any).config = deepFreeze(cloned);
   }

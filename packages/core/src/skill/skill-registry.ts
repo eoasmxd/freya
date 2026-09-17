@@ -1,7 +1,7 @@
 import type { FreyaContext } from '@eoasmxd/freya-sdk';
 import fs from 'node:fs/promises';
 import path from 'node:path';
-import { APP_ROOT, PROJECT_ROOT } from '../utils/paths.js';
+import { FREYA_APP, FREYA_HOME, FREYA_WORKSPACE } from '../utils/paths.js';
 
 export interface FreyaSkill {
   id: string;
@@ -9,7 +9,7 @@ export interface FreyaSkill {
   description: string;
   content: string;
   enabled: boolean;
-  source: 'builtin' | 'runtime';
+  source: 'builtin' | 'workspace' | 'runtime';
 }
 
 /** 技能注册表，从 skills/ 目录加载 Markdown 格式技能并管理软开关状态 */
@@ -19,13 +19,23 @@ export class FreyaSkillRegistry {
 
   async loadSkills(context: FreyaContext): Promise<void> {
     this.context = context;
-    const runtimeSkillsDir = path.join(PROJECT_ROOT, 'skills');
-    const defaultSkillsDir = path.join(APP_ROOT, 'skills');
-    const configSkillsPath = path.join(PROJECT_ROOT, 'config', 'skills.json');
+    const defaultSkillsDir = path.join(FREYA_APP, 'skills');
+    const workspaceSkillsDir = path.join(FREYA_WORKSPACE, 'skills');
+    const runtimeSkillsDir = path.join(FREYA_HOME, 'skills');
+    const configSkillsPath = path.join(FREYA_HOME, 'config', 'skills.json');
 
     try {
       await fs.mkdir(runtimeSkillsDir, { recursive: true });
       await this.loadSkillsFromDirectory(defaultSkillsDir, 'builtin', context);
+
+      const resolvedDefault = path.resolve(defaultSkillsDir);
+      const resolvedWorkspace = path.resolve(workspaceSkillsDir);
+      const resolvedRuntime = path.resolve(runtimeSkillsDir);
+
+      if (resolvedWorkspace !== resolvedDefault && resolvedWorkspace !== resolvedRuntime) {
+        await this.loadSkillsFromDirectory(workspaceSkillsDir, 'workspace', context);
+      }
+
       await this.loadSkillsFromDirectory(runtimeSkillsDir, 'runtime', context);
 
       let configList: Array<{ id: string; enabled: boolean }> = [];
@@ -67,7 +77,7 @@ export class FreyaSkillRegistry {
   }
 
   /** 从指定目录加载技能到内存注册表中 */
-  private async loadSkillsFromDirectory(dirPath: string, source: 'builtin' | 'runtime', context: FreyaContext): Promise<void> {
+  private async loadSkillsFromDirectory(dirPath: string, source: 'builtin' | 'workspace' | 'runtime', context: FreyaContext): Promise<void> {
     try {
       const files = await fs.readdir(dirPath);
       for (const file of files) {
@@ -77,15 +87,19 @@ export class FreyaSkillRegistry {
           if (metadata.id) {
             const defaultEnabled = metadata.defaultEnabled !== undefined
               ? metadata.defaultEnabled !== 'false'
-              : source === 'builtin';
+              : source !== 'runtime';
+
+            const existing = this.skills.get(metadata.id);
+            const finalSource = existing?.source === 'builtin' ? 'builtin' : source;
+            const finalEnabled = existing !== undefined ? existing.enabled : defaultEnabled;
 
             this.skills.set(metadata.id, {
               id: metadata.id,
               name: metadata.name || file.replace('.md', ''),
               description: metadata.description || '',
               content: content.trim(),
-              enabled: defaultEnabled,
-              source
+              enabled: finalEnabled,
+              source: finalSource
             });
           }
         }
@@ -126,7 +140,7 @@ export class FreyaSkillRegistry {
     }
 
     skill.enabled = enabled;
-    const configSkillsPath = path.join(PROJECT_ROOT, 'config', 'skills.json');
+    const configSkillsPath = path.join(FREYA_HOME, 'config', 'skills.json');
     try {
       await this.persistSkillsConfig(configSkillsPath);
       this.context?.logger.info(`技能 "${skill.name || skillId}" 已切换为: ${enabled ? '启用' : '禁用'}`);

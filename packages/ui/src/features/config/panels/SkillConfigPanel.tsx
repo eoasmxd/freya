@@ -5,7 +5,7 @@ interface SkillEntry {
   name: string;
   description: string;
   enabled: boolean;
-  source: 'builtin' | 'runtime';
+  source: 'builtin' | 'workspace' | 'runtime';
 }
 
 interface SkillConfigPanelProps {
@@ -79,12 +79,24 @@ export const SkillConfigPanel: React.FC<SkillConfigPanelProps> = ({ getApiUrl })
     );
   }
 
+  const getSourceTagMeta = (source?: string) => {
+    switch (source) {
+      case 'builtin':
+        return { label: '内置', bg: 'rgba(59, 130, 246, 0.15)', color: '#60a5fa' };
+      case 'workspace':
+        return { label: '集成', bg: 'rgba(168, 85, 247, 0.15)', color: '#c084fc' };
+      case 'runtime':
+      default:
+        return { label: '自定义', bg: 'rgba(16, 185, 129, 0.15)', color: '#34d399' };
+    }
+  };
+
   return (
     <div className="plugins-list">
       {skills.map((skill) => {
         const displayName = skill.name || skill.id;
         const displayDesc = skill.description || '未提供描述信息';
-        const isBuiltin = skill.source === 'builtin';
+        const tagMeta = getSourceTagMeta(skill.source);
 
         return (
           <div key={skill.id} className="plugin-card">
@@ -100,11 +112,11 @@ export const SkillConfigPanel: React.FC<SkillConfigPanelProps> = ({ getApiUrl })
                     marginLeft: '0.5rem',
                     padding: '0.1rem 0.4rem',
                     borderRadius: '4px',
-                    background: isBuiltin ? 'rgba(59, 130, 246, 0.15)' : 'rgba(16, 185, 129, 0.15)',
-                    color: isBuiltin ? '#60a5fa' : '#34d399'
+                    background: tagMeta.bg,
+                    color: tagMeta.color
                   }}
                 >
-                  {isBuiltin ? '内置' : '自定义'}
+                  {tagMeta.label}
                 </span>
               </div>
               <div className="plugin-desc">{displayDesc}</div>
