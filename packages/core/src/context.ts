@@ -6,7 +6,7 @@ import type {
   Logger,
 } from '@eoasmxd/freya-sdk';
 import path from 'node:path';
-import { FREYA_APP, FREYA_HOME, FREYA_WORKSPACE } from './utils/paths.js';
+import { FREYA_APP, FREYA_HOME, FREYA_LAUNCH } from './utils/paths.js';
 
 export class DefaultFreyaContext implements FreyaContext {
   logger!: Logger;
@@ -25,7 +25,7 @@ export class DefaultFreyaContext implements FreyaContext {
     return {
       appRoot: FREYA_APP,
       homeDir: FREYA_HOME,
-      workspaceRoot: FREYA_WORKSPACE,
+      launchDir: FREYA_LAUNCH,
       dataDir: path.join(FREYA_HOME, 'data'),
       workspaceDir,
     };

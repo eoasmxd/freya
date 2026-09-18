@@ -16,7 +16,7 @@ WORKDIR /app
 ENV NODE_ENV=production \
     FREYA_HOME=/data \
     FREYA_APP=/app \
-    FREYA_WORKSPACE=/app
+    FREYA_LAUNCH=/app
 
 RUN mkdir -p /data
 
