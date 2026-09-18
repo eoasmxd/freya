@@ -1,7 +1,7 @@
 import type { FreyaContext } from '@eoasmxd/freya-sdk';
 import fs from 'node:fs/promises';
 import path from 'node:path';
-import { FREYA_APP, FREYA_HOME, FREYA_WORKSPACE } from '../utils/paths.js';
+import { FREYA_APP, FREYA_HOME, FREYA_LAUNCH } from '../utils/paths.js';
 
 export interface FreyaSkill {
   id: string;
@@ -9,7 +9,7 @@ export interface FreyaSkill {
   description: string;
   content: string;
   enabled: boolean;
-  source: 'builtin' | 'workspace' | 'runtime';
+  source: 'builtin' | 'launch' | 'runtime';
 }
 
 /** 技能注册表，从 skills/ 目录加载 Markdown 格式技能并管理软开关状态 */
@@ -20,7 +20,7 @@ export class FreyaSkillRegistry {
   async loadSkills(context: FreyaContext): Promise<void> {
     this.context = context;
     const defaultSkillsDir = path.join(FREYA_APP, 'skills');
-    const workspaceSkillsDir = path.join(FREYA_WORKSPACE, 'skills');
+    const launchSkillsDir = path.join(FREYA_LAUNCH, 'skills');
     const runtimeSkillsDir = path.join(FREYA_HOME, 'skills');
     const configSkillsPath = path.join(FREYA_HOME, 'config', 'skills.json');
 
@@ -29,11 +29,11 @@ export class FreyaSkillRegistry {
       await this.loadSkillsFromDirectory(defaultSkillsDir, 'builtin', context);
 
       const resolvedDefault = path.resolve(defaultSkillsDir);
-      const resolvedWorkspace = path.resolve(workspaceSkillsDir);
+      const resolvedLaunch = path.resolve(launchSkillsDir);
       const resolvedRuntime = path.resolve(runtimeSkillsDir);
 
-      if (resolvedWorkspace !== resolvedDefault && resolvedWorkspace !== resolvedRuntime) {
-        await this.loadSkillsFromDirectory(workspaceSkillsDir, 'workspace', context);
+      if (resolvedLaunch !== resolvedDefault && resolvedLaunch !== resolvedRuntime) {
+        await this.loadSkillsFromDirectory(launchSkillsDir, 'launch', context);
       }
 
       await this.loadSkillsFromDirectory(runtimeSkillsDir, 'runtime', context);
@@ -77,7 +77,7 @@ export class FreyaSkillRegistry {
   }
 
   /** 从指定目录加载技能到内存注册表中 */
-  private async loadSkillsFromDirectory(dirPath: string, source: 'builtin' | 'workspace' | 'runtime', context: FreyaContext): Promise<void> {
+  private async loadSkillsFromDirectory(dirPath: string, source: 'builtin' | 'launch' | 'runtime', context: FreyaContext): Promise<void> {
     try {
       const files = await fs.readdir(dirPath);
       for (const file of files) {

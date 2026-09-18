@@ -123,7 +123,7 @@ if (!cliEnabled && !isForeground) {
     env: {
       ...process.env,
       FREYA_APP: process.env.FREYA_APP || appRoot,
-      FREYA_WORKSPACE: process.env.FREYA_WORKSPACE || process.cwd()
+      FREYA_LAUNCH: process.env.FREYA_LAUNCH || process.cwd()
     }
   });
 
@@ -142,7 +142,7 @@ if (!cliEnabled && !isForeground) {
     env: {
       ...process.env,
       FREYA_APP: process.env.FREYA_APP || appRoot,
-      FREYA_WORKSPACE: process.env.FREYA_WORKSPACE || process.cwd()
+      FREYA_LAUNCH: process.env.FREYA_LAUNCH || process.cwd()
     }
   });
 

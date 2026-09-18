@@ -1,6 +1,6 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
-import { FREYA_APP, FREYA_HOME, FREYA_WORKSPACE } from '../utils/paths.js';
+import { FREYA_APP, FREYA_HOME, FREYA_LAUNCH } from '../utils/paths.js';
 
 export interface FreyaPrompt {
   key: string;
@@ -19,11 +19,11 @@ export class FreyaPromptRegistry {
 
     if (prompt.configFileName) {
       rawPaths.push(path.join(FREYA_HOME, 'config', prompt.configFileName));
-      rawPaths.push(path.join(FREYA_WORKSPACE, 'config', prompt.configFileName));
+      rawPaths.push(path.join(FREYA_LAUNCH, 'config', prompt.configFileName));
     }
 
     rawPaths.push(path.join(FREYA_HOME, 'config', 'prompts', baseName));
-    rawPaths.push(path.join(FREYA_WORKSPACE, 'config', 'prompts', baseName));
+    rawPaths.push(path.join(FREYA_LAUNCH, 'config', 'prompts', baseName));
     rawPaths.push(prompt.defaultPath);
 
     const candidates: string[] = [];

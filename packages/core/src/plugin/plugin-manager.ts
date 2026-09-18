@@ -6,7 +6,7 @@ import { pathToFileURL } from 'node:url';
 import { FreyaCommandRegistry } from '../command/command-registry.js';
 import { FreyaConfigSchemaRegistry } from '../config/schema-registry.js';
 import { FreyaPromptRegistry } from '../prompt/prompt-registry.js';
-import { FREYA_APP, FREYA_HOME, FREYA_WORKSPACE } from '../utils/paths.js';
+import { FREYA_APP, FREYA_HOME, FREYA_LAUNCH } from '../utils/paths.js';
 import { FreyaPluginRegistry } from './plugin-registry.js';
 
 export interface PluginConfigEntry {
@@ -18,7 +18,7 @@ export interface PluginConfigEntry {
   displayName?: string;
   description?: string;
   version?: string;
-  source?: 'builtin' | 'workspace' | 'runtime' | 'npm';
+  source?: 'builtin' | 'launch' | 'runtime' | 'npm';
 }
 
 interface DiscoveredPluginInfo {
@@ -28,7 +28,7 @@ interface DiscoveredPluginInfo {
   displayName: string;
   description: string;
   version: string;
-  source: 'builtin' | 'workspace' | 'runtime' | 'npm';
+  source: 'builtin' | 'launch' | 'runtime' | 'npm';
   defaultEnabled?: boolean;
   prompts?: string[];
   valid: boolean;
@@ -232,7 +232,7 @@ export class FreyaPluginManager {
    */
   private async inspectPluginPackage(
     dirPath: string,
-    source: 'builtin' | 'workspace' | 'runtime' | 'npm'
+    source: 'builtin' | 'launch' | 'runtime' | 'npm'
   ): Promise<DiscoveredPluginInfo | null> {
     try {
       const pkgPath = path.join(dirPath, 'package.json');
@@ -247,7 +247,7 @@ export class FreyaPluginManager {
       const displayName = String(pkg.freya?.displayName || pkg.displayName || id);
       const description = String(pkg.description || '');
       const version = String(pkg.version || '0.1.0');
-      const defaultEnabled = ((source === 'builtin' || source === 'workspace') && pkg.freya?.defaultEnabled === true);
+      const defaultEnabled = ((source === 'builtin' || source === 'launch') && pkg.freya?.defaultEnabled === true);
       const rawPrompts = pkg.freya?.prompts;
       const prompts = Array.isArray(rawPrompts) ? rawPrompts.map(String) : [];
 
@@ -354,7 +354,7 @@ export class FreyaPluginManager {
       let pkgJsonPath = '';
       try {
         pkgJsonPath = req.resolve(`${pkgName}/package.json`, {
-          paths: [path.join(FREYA_WORKSPACE), path.join(FREYA_HOME), path.join(FREYA_APP), process.cwd()]
+          paths: [path.join(FREYA_LAUNCH), path.join(FREYA_HOME), path.join(FREYA_APP), process.cwd()]
         });
       } catch {
         return {
@@ -418,17 +418,17 @@ export class FreyaPluginManager {
       }
     } catch { }
 
-    const workspaceDir = path.join(FREYA_WORKSPACE, 'plugins');
+    const launchPluginsDir = path.join(FREYA_LAUNCH, 'plugins');
     const resolvedBuiltin = path.resolve(builtinDir);
-    const resolvedWorkspace = path.resolve(workspaceDir);
+    const resolvedLaunch = path.resolve(launchPluginsDir);
     const resolvedRuntime = path.resolve(path.join(FREYA_HOME, 'plugins'));
 
-    if (resolvedWorkspace !== resolvedBuiltin && resolvedWorkspace !== resolvedRuntime) {
+    if (resolvedLaunch !== resolvedBuiltin && resolvedLaunch !== resolvedRuntime) {
       try {
-        const entries = await fs.readdir(workspaceDir, { withFileTypes: true });
+        const entries = await fs.readdir(launchPluginsDir, { withFileTypes: true });
         for (const entry of entries) {
           if (entry.isDirectory()) {
-            const info = await this.inspectPluginPackage(path.join(workspaceDir, entry.name), 'workspace');
+            const info = await this.inspectPluginPackage(path.join(launchPluginsDir, entry.name), 'launch');
             if (info) {
               const existing = map.get(info.id);
               if (existing?.source === 'builtin') {

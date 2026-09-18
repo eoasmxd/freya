@@ -2,13 +2,56 @@ import type { FreyaContext, ToolDefinition, FreyaTool } from '@eoasmxd/freya-sdk
 import fs from 'node:fs/promises';
 import path from 'node:path';
 
-/** 安全工作区路径获取 (支持指定 scope 作用域) */
+/** 解析作用域实际物理路径，返回 null 表示显式禁用 */
+function resolveScopeBase(envValue: string | undefined, defaultPath: string, launchDir: string): string | null {
+  if (envValue === undefined) {
+    return defaultPath;
+  }
+  const trimmed = envValue.trim();
+  if (trimmed === '' || trimmed.toLowerCase() === 'false') {
+    return null;
+  }
+  return path.isAbsolute(trimmed) ? trimmed : path.resolve(launchDir, trimmed);
+}
+
+/** 获取当前激活的作用域列表与描述文本 */
+function getActiveScopesInfo(): { scopes: string[]; description: string } {
+  const scopes = ['workspace'];
+  const descParts = ['默认为 "workspace" 沙箱'];
+
+  const srcVal = process.env.FREYA_FS_SRC;
+  const isSrcDisabled = srcVal !== undefined && (srcVal.trim() === '' || srcVal.trim().toLowerCase() === 'false');
+  if (!isSrcDisabled) {
+    scopes.push('src');
+    descParts.push('支持指定 "src" 源码区');
+  }
+
+  const docVal = process.env.FREYA_FS_DOC;
+  const isDocDisabled = docVal !== undefined && (docVal.trim() === '' || docVal.trim().toLowerCase() === 'false');
+  if (!isDocDisabled) {
+    scopes.push('doc');
+    descParts.push('指定 "doc" 文档区');
+  }
+
+  const description = `读取作用域（可选，${descParts.join('，')}）`;
+  return { scopes, description };
+}
+
+/** 获取经过安全边界校验的绝对路径 */
 export function getSafePath(ctx: FreyaContext, relativePath: string, scope?: string): { targetAbs: string; baseAbs: string } {
-  let baseAbs = ctx.paths.workspaceDir;
-  if (scope === 'src') {
-    baseAbs = path.join(ctx.paths.appRoot, 'src');
-  } else if (scope === 'doc') {
-    baseAbs = path.join(ctx.paths.appRoot, 'doc');
+  const targetScope = scope || 'workspace';
+  let baseAbs: string | null = null;
+
+  if (targetScope === 'workspace') {
+    baseAbs = ctx.paths.workspaceDir;
+  } else if (targetScope === 'src') {
+    baseAbs = resolveScopeBase(process.env.FREYA_FS_SRC, path.join(ctx.paths.appRoot, 'src'), ctx.paths.launchDir);
+  } else if (targetScope === 'doc') {
+    baseAbs = resolveScopeBase(process.env.FREYA_FS_DOC, path.join(ctx.paths.appRoot, 'doc'), ctx.paths.launchDir);
+  }
+
+  if (!baseAbs) {
+    throw new Error(`安全拒绝：作用域 "${targetScope}" 未开放或已被禁用。`);
   }
 
   if (relativePath && path.isAbsolute(relativePath)) {
@@ -51,6 +94,7 @@ function formatBytes(bytes: number): string {
 export class ListDirTool implements FreyaTool {
 
   getDefinition(): ToolDefinition {
+    const { scopes, description } = getActiveScopesInfo();
     return {
       name: 'list_dir',
       description: '列出指定目录下的文件和子文件夹列表。注意：仅允许访问相对路径，不可传绝对路径或向上越级 escape 路径。',
@@ -63,8 +107,8 @@ export class ListDirTool implements FreyaTool {
           },
           scope: {
             type: 'string',
-            enum: ['workspace', 'src', 'doc'],
-            description: '读取作用域（可选，默认为 "workspace" 沙箱，支持指定 "src" 源码区或 "doc" 文档区）'
+            enum: scopes,
+            description
           }
         }
       }
@@ -114,6 +158,7 @@ export class ListDirTool implements FreyaTool {
 export class ReadFileTool implements FreyaTool {
 
   getDefinition(): ToolDefinition {
+    const { scopes, description } = getActiveScopesInfo();
     return {
       name: 'read_file',
       description: '读取指定文件的文本内容。支持指定行号起止区间切片读取，防范大文件上下文超限。',
@@ -126,8 +171,8 @@ export class ReadFileTool implements FreyaTool {
           },
           scope: {
             type: 'string',
-            enum: ['workspace', 'src', 'doc'],
-            description: '读取作用域（可选，默认为 "workspace" 沙箱，支持指定 "src" 源码区或 "doc" 文档区）'
+            enum: scopes,
+            description
           },
           startLine: {
             type: 'integer',
@@ -215,7 +260,7 @@ export class WriteFileTool implements FreyaTool {
       return '❌ 参数错误：必须指定目标路径与写入内容。';
     }
     if (args.scope && args.scope !== 'workspace') {
-      return `❌ 安全拒绝：物理源码区 (src) 与文档区 (doc) 为只读保护区，严禁写入或修改。`;
+      return '❌ 安全拒绝：仅允许在工作区 (workspace) 进行写入操作，其它区域均为只读保护区。';
     }
     try {
       const { targetAbs, baseAbs } = getSafePath(ctx, args.path);
@@ -263,7 +308,7 @@ export class EditFileTool implements FreyaTool {
       return '❌ 参数错误：必须指定目标路径、查找目标与替换文本。';
     }
     if (args.scope && args.scope !== 'workspace') {
-      return `❌ 安全拒绝：物理源码区 (src) 与文档区 (doc) 为只读保护区，严禁写入或修改。`;
+      return '❌ 安全拒绝：仅允许在工作区 (workspace) 进行修改操作，其它区域均为只读保护区。';
     }
     try {
       const { targetAbs, baseAbs } = getSafePath(ctx, args.path);
@@ -273,12 +318,17 @@ export class EditFileTool implements FreyaTool {
       }
 
       const content = await fs.readFile(targetAbs, 'utf-8');
-      const index = content.indexOf(args.target);
-      if (index === -1) {
+      const firstIndex = content.indexOf(args.target);
+      if (firstIndex === -1) {
         return `❌ 修改失败：在文件 "${args.path}" 中未找到指定的 target 文本。请确保 target 在大小写、缩进和换行上与文件内完全一致。`;
       }
 
-      const newContent = content.slice(0, index) + args.replacement + content.slice(index + args.target.length);
+      const secondIndex = content.indexOf(args.target, firstIndex + args.target.length);
+      if (secondIndex !== -1) {
+        return `❌ 修改拒绝：在文件 "${args.path}" 中匹配到多处相同的目标文本。请扩大 target 文本段以包含更多上下文行确保唯一性。`;
+      }
+
+      const newContent = content.slice(0, firstIndex) + args.replacement + content.slice(firstIndex + args.target.length);
       await fs.writeFile(targetAbs, newContent, 'utf-8');
 
       return `ℹ️ 已成功修改文件 "${args.path}" 的指定部分。`;

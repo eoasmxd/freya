@@ -5,7 +5,7 @@ interface PluginEntry {
   name: string;
   description: string;
   enabled: boolean;
-  source?: 'builtin' | 'workspace' | 'runtime' | 'npm';
+  source?: 'builtin' | 'launch' | 'runtime' | 'npm';
 }
 
 interface PluginConfigPanelProps {
@@ -70,7 +70,7 @@ export const PluginConfigPanel: React.FC<PluginConfigPanelProps> = ({ getApiUrl 
     switch (source) {
       case 'builtin':
         return { label: '内置', bg: 'rgba(59, 130, 246, 0.15)', color: '#60a5fa' };
-      case 'workspace':
+      case 'launch':
         return { label: '集成', bg: 'rgba(168, 85, 247, 0.15)', color: '#c084fc' };
       case 'npm':
         return { label: 'NPM', bg: 'rgba(245, 158, 11, 0.15)', color: '#fbbf24' };
