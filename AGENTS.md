@@ -49,7 +49,7 @@ freya/
 
 - `packages/core` 及任何插件的 TypeScript 源码中，**绝对不允许**硬编码中文自然语言提示词或兜底文本。
 - 所有提示词模板必须放在物理 Markdown 文件中（如 `packages/core/config/prompts/`）。
-- 提示词模板在启动时通过内存双通道探针机制（Dual-Read）优先读取运行时 `config/` 目录，若不存在则回退加载包内默认配置入内存，仅在用户显式编辑保存时落盘写入 `config/` 目录。
+- 提示词模板在启动时通过三层级联探针机制（Cascading Read: FREYA_HOME -> FREYA_WORKSPACE -> FREYA_APP）优先读取运行时与工程工作区 `config/` 目录，若不存在则回退加载包内默认配置入内存，仅在用户显式编辑保存时落盘写入 `FREYA_HOME/config/` 目录。
 - 其它配置文件（`freya.json`、`plugins.json`、`providers.json`）不走拷贝机制，而是分别通过 Schema 声明合并、目录扫描合并、空初始化生成。
 - 如果提示词注册表返回空，代码只能保持空字符串 `''` 或使用纯变量占位符（如 `'{text}'`），不得使用硬编码兜底文案。
 

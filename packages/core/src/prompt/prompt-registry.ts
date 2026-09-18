@@ -1,39 +1,63 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
-import { FREYA_APP, FREYA_HOME } from '../utils/paths.js';
+import { FREYA_APP, FREYA_HOME, FREYA_WORKSPACE } from '../utils/paths.js';
 
 export interface FreyaPrompt {
   key: string;
   content: string;
   defaultPath: string;
-  runPath?: string;
+  configFileName?: string;
 }
 
 /** 提示词内存注册表，管理所有系统及插件级提示词的分类检索 */
 export class FreyaPromptRegistry {
   private prompts = new Map<string, FreyaPrompt>();
 
-  private getRunFilePath(prompt: Omit<FreyaPrompt, 'content'>): string {
-    return prompt.runPath || path.join(FREYA_HOME, 'config', 'prompts', path.basename(prompt.defaultPath));
+  private resolveProbePaths(prompt: Omit<FreyaPrompt, 'content'>): string[] {
+    const baseName = path.basename(prompt.defaultPath);
+    const rawPaths: string[] = [];
+
+    if (prompt.configFileName) {
+      rawPaths.push(path.join(FREYA_HOME, 'config', prompt.configFileName));
+      rawPaths.push(path.join(FREYA_WORKSPACE, 'config', prompt.configFileName));
+    }
+
+    rawPaths.push(path.join(FREYA_HOME, 'config', 'prompts', baseName));
+    rawPaths.push(path.join(FREYA_WORKSPACE, 'config', 'prompts', baseName));
+    rawPaths.push(prompt.defaultPath);
+
+    const candidates: string[] = [];
+    const seen = new Set<string>();
+    for (const rawPath of rawPaths) {
+      const normalized = path.resolve(rawPath);
+      if (!seen.has(normalized)) {
+        seen.add(normalized);
+        candidates.push(normalized);
+      }
+    }
+    return candidates;
   }
 
-  /** 注册提示词元数据声明并执行异步双读载入 */
+  /** 注册提示词元数据声明并执行三层级联探针载入 */
   async register(prompt: Omit<FreyaPrompt, 'content'>): Promise<void> {
-    const runFilePath = this.getRunFilePath(prompt);
+    const probePaths = this.resolveProbePaths(prompt);
     let content = '';
-    try {
+
+    for (const filePath of probePaths) {
       try {
-        content = await fs.readFile(runFilePath, 'utf-8');
-      } catch {
-        content = await fs.readFile(prompt.defaultPath, 'utf-8');
-      }
-    } catch {}
+        const text = await fs.readFile(filePath, 'utf-8');
+        if (text.trim().length > 0) {
+          content = text;
+          break;
+        }
+      } catch {}
+    }
 
     this.prompts.set(prompt.key, {
       key: prompt.key,
       content: content.trim(),
       defaultPath: prompt.defaultPath,
-      runPath: prompt.runPath
+      configFileName: prompt.configFileName
     });
   }
 
@@ -58,7 +82,7 @@ export class FreyaPromptRegistry {
     return this.prompts;
   }
 
-  /** 扫描并装载所有内核提示词，支持运行时提示词覆盖默认提示词 */
+  /** 扫描并装载所有内核提示词 */
   async loadKernelPrompts(): Promise<void> {
     const defaultDirPath = path.join(FREYA_APP, 'config', 'prompts');
     try {
@@ -67,7 +91,7 @@ export class FreyaPromptRegistry {
         await this.register({
           key: `core.prompt.${name}`,
           defaultPath: path.join(defaultDirPath, `core.prompt.${name}.md`),
-          runPath: path.join(FREYA_HOME, 'config', `${name.toUpperCase()}.md`)
+          configFileName: `${name.toUpperCase()}.md`
         });
       }
 
