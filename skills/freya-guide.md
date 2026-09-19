@@ -42,7 +42,7 @@ description: 当回答 Freya 系统使用疑问、查阅物理设计文档，或
   - `contextManagement.historyLimit` (number): 上下文历史消息条数上限 (10~500)。
   - `contextManagement.keepRecentTurns` (number): 压缩时保留的最近轮数 (1~50)。
   - `contextManagement.summarizeEnabled` (boolean): 是否启用上下文摘要压缩。
-  - `contextManagement.summaryMaxTokens` (number): 控制摘要生成的最大 Token 长度 (50~1000)。
+  - `contextManagement.summaryMaxTokens` (number): 控制摘要生成的最大 Token 长度 (50~4096，默认 512)。
   - `log.console.error` | `warn` | `info` | `debug` (boolean): 细粒度控制台日志级别开关。
   - `log.llm` (boolean): 是否记录大模型交互日志报文。
   - `models.default` (Array<{ provider: string, model: string, name: string }>): 默认模型降级链列表【⚠️ 高危配置：修改前必须确认列表中至少包含一个有效可用的主模型，防止 AI 失去通信能力】。
@@ -58,8 +58,8 @@ description: 当回答 Freya 系统使用疑问、查阅物理设计文档，或
   - `remove_provider` 参数：`providerId` (必填)（⚠️ 操作前须确认不破坏正在响应的主模型）
 - **`list_model`** / **`add_model`** / **`edit_model`** / **`remove_model`**
   - `list_model` 参数：`providerId` (可选)
-  - `add_model` 参数：`providerId` (必填), `id` (必填), `name` (必填), `inputPrice`, `outputPrice`, `cachedInputPrice`, `contextWindow`, `maxTokens`, `capabilities`
-  - `edit_model` 参数：`providerId` (必填), `modelId` (必填), `name`, `inputPrice`, `outputPrice`, `cachedInputPrice`, `contextWindow`, `maxTokens`, `capabilities`
+  - `add_model` 参数：`providerId` (必填), `id` (必填), `name` (必填), `inputPrice`, `outputPrice`, `cachedInputPrice`, `contextWindow` (模型限制, 默认128000), `contextTokens` (智能体输入限制, 默认128000), `maxTokens` (智能体输出限制, 默认4096), `capabilities`
+  - `edit_model` 参数：`providerId` (必填), `modelId` (必填), `name`, `inputPrice`, `outputPrice`, `cachedInputPrice`, `contextWindow`, `contextTokens`, `maxTokens`, `capabilities`
   - `remove_model` 参数：`providerId` (必填), `modelId` (必填)（⚠️ 删除前须校验非唯一在用主模型）
 
 ### 3. 插件管理工具 (Plugins)

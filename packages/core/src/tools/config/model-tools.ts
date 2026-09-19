@@ -57,8 +57,9 @@ export class AddModelTool implements FreyaTool {
           outputPrice: { type: 'number', description: '输出价格（/ 1M Tokens，可选）' },
           cachedInputPrice: { type: 'number', description: '缓存输入价格（/ 1M Tokens，可选）' },
 
-          contextWindow: { type: 'number', description: '上下文最大窗口 Token 数（可选）' },
-          maxTokens: { type: 'number', description: '单次输出最大 Token 数（可选）' },
+          contextWindow: { type: 'number', description: '模型原生上下文物理窗口 Token 数（模型物理限制，默认 128000，可选）' },
+          contextTokens: { type: 'number', description: '智能体控制的上下文 Token 上限（智能体输入控制，超限主动压缩，默认 128000，可选）' },
+          maxTokens: { type: 'number', description: '智能体控制的单次回复最大输出 Token 数（智能体输出控制，默认 4096，可选）' },
           capabilities: {
             type: 'array',
             items: { type: 'string' },
@@ -81,6 +82,7 @@ export class AddModelTool implements FreyaTool {
           outputPrice: args.outputPrice,
           cachedInputPrice: args.cachedInputPrice,
           contextWindow: args.contextWindow,
+          contextTokens: args.contextTokens,
           maxTokens: args.maxTokens,
           capabilities: args.capabilities
         }
@@ -98,7 +100,7 @@ export class EditModelTool implements FreyaTool {
   getDefinition(): ToolDefinition {
     return {
       name: 'edit_model',
-      description: '修改指定提供商下某个模型的属性（name、价格、上下文窗口、能力集等）。',
+      description: '修改指定提供商下某个模型的属性（name、价格、上下文窗口、上下文上限、最大输出限制、能力集等）。',
       parameters: {
         type: 'object',
         properties: {
@@ -108,8 +110,9 @@ export class EditModelTool implements FreyaTool {
           inputPrice: { type: 'number', description: '新的输入价格（可选）' },
           outputPrice: { type: 'number', description: '新的输出价格（可选）' },
           cachedInputPrice: { type: 'number', description: '新的缓存输入价格（可选）' },
-          contextWindow: { type: 'number', description: '新的上下文窗口 Token 数（可选）' },
-          maxTokens: { type: 'number', description: '新的单次输出最大 Token 数（可选）' },
+          contextWindow: { type: 'number', description: '模型原生上下文物理窗口 Token 数（模型物理限制，可选）' },
+          contextTokens: { type: 'number', description: '智能体控制的上下文 Token 上限（智能体输入控制，可选）' },
+          maxTokens: { type: 'number', description: '智能体控制的单次输出最大 Token 数（智能体输出控制，可选）' },
           capabilities: {
             type: 'array',
             items: { type: 'string' },
@@ -129,6 +132,7 @@ export class EditModelTool implements FreyaTool {
       if (args.outputPrice !== undefined) updates.outputPrice = args.outputPrice;
       if (args.cachedInputPrice !== undefined) updates.cachedInputPrice = args.cachedInputPrice;
       if (args.contextWindow !== undefined) updates.contextWindow = args.contextWindow;
+      if (args.contextTokens !== undefined) updates.contextTokens = args.contextTokens;
       if (args.maxTokens !== undefined) updates.maxTokens = args.maxTokens;
       if (args.capabilities !== undefined) updates.capabilities = args.capabilities;
 

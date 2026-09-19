@@ -83,7 +83,7 @@ export class SessionCompactor {
 
         this.logger?.info(`[SessionCompactor] 正在生成增量会话背景摘要...`);
         const cmConfig = this.context?.config.contextManagement || {};
-        const summaryMaxTokens = cmConfig.summaryMaxTokens || 150;
+        const summaryMaxTokens = cmConfig.summaryMaxTokens || 512;
         const summaryResponse = await this.llm.chat(
             summaryRequest,
             undefined,
@@ -134,8 +134,13 @@ export class SessionCompactor {
             return { type: 'none' };
         }
 
+        const reasons: string[] = [];
+        if (shouldCompressByToken) reasons.push(`预估 Token 达到水位 (${totalEstimatedTokens}/${contextWindow} >= ${(preThreshold * 100).toFixed(0)}%)`);
+        if (shouldCompressByTurns) reasons.push(`历史消息条数超限 (${history.length} > ${limitTurns * 2}条/${limitTurns}轮)`);
+        if (shouldTruncateByLimit) reasons.push(`历史总消息条数超限 (${history.length} > ${historyLimit}条)`);
+
         this.logger?.info(
-            `[SessionCompactor] 触发前置同步历史压缩 (当前预估 Token: ${totalEstimatedTokens}/${contextWindow}, 触发水位: ${preThreshold})`
+            `[SessionCompactor] 触发前置同步历史压缩 [原因: ${reasons.join(', ')}]`
         );
 
         try {
@@ -154,8 +159,9 @@ export class SessionCompactor {
             const newSummary = await this.executeSummarize(session, historyToCompress, currentSummary);
 
             if (!newSummary || newSummary.trim() === '') {
-                this.logger?.warn(`[SessionCompactor] 前置压缩生成的摘要为空，放弃应用。`);
-                return { type: 'none' };
+                this.logger?.warn(`[SessionCompactor] 前置压缩生成的摘要为空，降级执行滑动窗口截断保留最新消息。`);
+                this.truncateHistory(history, safeTruncateIndex);
+                return { type: 'truncated' };
             }
 
             this.logger?.info(`[SessionCompactor] 上下文摘要压缩生成完成: "${newSummary}"`);
@@ -246,8 +252,11 @@ export class SessionCompactor {
             const newSummary = await this.executeSummarize(session, historyToCompress, currentSummary);
 
             if (!newSummary || newSummary.trim() === '') {
-                this.logger?.warn(`[SessionCompactor] 后置压缩生成的摘要为空，放弃应用。`);
-                return null;
+                this.logger?.warn(`[SessionCompactor] 后置压缩生成的摘要为空，降级为滑动窗口截断。`);
+                return {
+                    type: 'truncated',
+                    safeTruncateIndex
+                };
             }
 
             const snapFile = this.buildSnapshot(session, newSummary, historyToCompress);
