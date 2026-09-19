@@ -379,6 +379,12 @@
   gap: 0.85rem;
 }
 
+.crud-form-row-3 {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.85rem;
+}
+
 .btn-action {
   background: transparent;
   border: none;
@@ -548,7 +554,8 @@ input:checked+.slider:before {
     white-space: nowrap;
   }
 
-  .crud-form-row {
+  .crud-form-row,
+  .crud-form-row-3 {
     grid-template-columns: 1fr;
     gap: 0.5rem;
   }

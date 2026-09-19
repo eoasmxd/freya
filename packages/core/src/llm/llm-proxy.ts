@@ -304,10 +304,10 @@ export class FreyaLLMProxy implements ILLMService {
     for (const p of providers) {
       if (p.models) {
         const model = p.models.find((m: any) => m.id === effectiveModelId);
-        if (model) return model.contextTokens ?? model.contextWindow ?? 16000;
+        if (model) return model.contextTokens ?? model.contextWindow ?? 128000;
       }
     }
-    return 16000;
+    return 128000;
   }
 
   /**

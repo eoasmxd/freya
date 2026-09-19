@@ -407,9 +407,9 @@ export class FreyaConfigManager {
       inputPrice: Number(data.inputPrice) || 0,
       outputPrice: Number(data.outputPrice) || 0,
       cachedInputPrice: Number(data.cachedInputPrice) || 0,
-      contextWindow: Number(data.contextWindow) || 0,
-      contextTokens: data.contextTokens !== undefined ? Number(data.contextTokens) : undefined,
-      maxTokens: data.maxTokens !== undefined ? Number(data.maxTokens) : undefined,
+      contextWindow: Number(data.contextWindow) || 128000,
+      contextTokens: data.contextTokens !== undefined && data.contextTokens !== null && String(data.contextTokens).trim() !== '' ? Number(data.contextTokens) : 128000,
+      maxTokens: data.maxTokens !== undefined && data.maxTokens !== null && String(data.maxTokens).trim() !== '' ? Number(data.maxTokens) : 4096,
       capabilities: Array.isArray(data.capabilities) ? data.capabilities : ['text']
     });
 
@@ -618,7 +618,7 @@ export class FreyaConfigManager {
         description: '上下文摘要压缩时，控制摘要生成的最大 Token 长度',
         type: 'number',
         min: 50,
-        max: 1000,
+        max: 4096,
         category: '上下文管理'
       },
       {

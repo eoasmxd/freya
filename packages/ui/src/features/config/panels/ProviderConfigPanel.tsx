@@ -41,20 +41,20 @@ export const ProviderConfigPanel: React.FC<ProviderConfigPanelProps> = ({ getApi
   const [showAddModelForm, setShowAddModelForm] = useState(false);
   const [newModelId, setNewModelId] = useState('');
   const [newModelName, setNewModelName] = useState('');
-  const [newModelInputPrice, setNewModelInputPrice] = useState(0);
-  const [newModelOutputPrice, setNewModelOutputPrice] = useState(0);
-  const [newModelCachedInputPrice, setNewModelCachedInputPrice] = useState(0);
-  const [newModelContextWindow, setNewModelContextWindow] = useState(4096);
-  const [newModelContextTokens, setNewModelContextTokens] = useState('');
-  const [newModelMaxTokens, setNewModelMaxTokens] = useState('');
+  const [newModelInputPrice, setNewModelInputPrice] = useState('0');
+  const [newModelCachedInputPrice, setNewModelCachedInputPrice] = useState('0');
+  const [newModelOutputPrice, setNewModelOutputPrice] = useState('0');
+  const [newModelContextWindow, setNewModelContextWindow] = useState('128000');
+  const [newModelContextTokens, setNewModelContextTokens] = useState('128000');
+  const [newModelMaxTokens, setNewModelMaxTokens] = useState('4096');
   const [newModelCapabilities, setNewModelCapabilities] = useState<string[]>(['text']);
 
   const [editingModelId, setEditingModelId] = useState('');
   const [editModelName, setEditModelName] = useState('');
-  const [editModelInputPrice, setEditModelInputPrice] = useState(0);
-  const [editModelOutputPrice, setEditModelOutputPrice] = useState(0);
-  const [editModelCachedInputPrice, setEditModelCachedInputPrice] = useState(0);
-  const [editModelContextWindow, setEditModelContextWindow] = useState(4096);
+  const [editModelInputPrice, setEditModelInputPrice] = useState('0');
+  const [editModelCachedInputPrice, setEditModelCachedInputPrice] = useState('0');
+  const [editModelOutputPrice, setEditModelOutputPrice] = useState('0');
+  const [editModelContextWindow, setEditModelContextWindow] = useState('128000');
   const [editModelContextTokens, setEditModelContextTokens] = useState('');
   const [editModelMaxTokens, setEditModelMaxTokens] = useState('');
   const [editModelCapabilities, setEditModelCapabilities] = useState<string[]>([]);
@@ -213,10 +213,10 @@ export const ProviderConfigPanel: React.FC<ProviderConfigPanelProps> = ({ getApi
       const body: any = {
         id: newModelId.trim(),
         name: newModelName.trim(),
-        inputPrice: Number(newModelInputPrice),
-        outputPrice: Number(newModelOutputPrice),
-        cachedInputPrice: Number(newModelCachedInputPrice),
-        contextWindow: Number(newModelContextWindow),
+        inputPrice: Number(newModelInputPrice) || 0,
+        outputPrice: Number(newModelOutputPrice) || 0,
+        cachedInputPrice: Number(newModelCachedInputPrice) || 0,
+        contextWindow: Number(newModelContextWindow) || 128000,
         capabilities: newModelCapabilities
       };
       if (newModelContextTokens.trim() !== '') {
@@ -236,12 +236,12 @@ export const ProviderConfigPanel: React.FC<ProviderConfigPanelProps> = ({ getApi
         showToast('模型关联已添加', 'success');
         setNewModelId('');
         setNewModelName('');
-        setNewModelInputPrice(0);
-        setNewModelOutputPrice(0);
-        setNewModelCachedInputPrice(0);
-        setNewModelContextWindow(4096);
-        setNewModelContextTokens('');
-        setNewModelMaxTokens('');
+        setNewModelInputPrice('0');
+        setNewModelOutputPrice('0');
+        setNewModelCachedInputPrice('0');
+        setNewModelContextWindow('128000');
+        setNewModelContextTokens('128000');
+        setNewModelMaxTokens('4096');
         setNewModelCapabilities(['text']);
         setShowAddModelForm(false);
         loadProviders();
@@ -256,10 +256,10 @@ export const ProviderConfigPanel: React.FC<ProviderConfigPanelProps> = ({ getApi
   const startEditModel = (model: Model) => {
     setEditingModelId(model.id);
     setEditModelName(model.name || '');
-    setEditModelInputPrice(model.inputPrice || 0);
-    setEditModelOutputPrice(model.outputPrice || 0);
-    setEditModelCachedInputPrice(model.cachedInputPrice || 0);
-    setEditModelContextWindow(model.contextWindow || 4096);
+    setEditModelInputPrice(model.inputPrice !== undefined && model.inputPrice !== null ? String(model.inputPrice) : '0');
+    setEditModelOutputPrice(model.outputPrice !== undefined && model.outputPrice !== null ? String(model.outputPrice) : '0');
+    setEditModelCachedInputPrice(model.cachedInputPrice !== undefined && model.cachedInputPrice !== null ? String(model.cachedInputPrice) : '0');
+    setEditModelContextWindow(model.contextWindow !== undefined && model.contextWindow !== null ? String(model.contextWindow) : '128000');
     setEditModelContextTokens(model.contextTokens !== undefined && model.contextTokens !== null ? String(model.contextTokens) : '');
     setEditModelMaxTokens(model.maxTokens !== undefined && model.maxTokens !== null ? String(model.maxTokens) : '');
     setEditModelCapabilities(Array.isArray(model.capabilities) ? model.capabilities : ['text']);
@@ -270,10 +270,10 @@ export const ProviderConfigPanel: React.FC<ProviderConfigPanelProps> = ({ getApi
     try {
       const body: any = {
         name: editModelName.trim(),
-        inputPrice: Number(editModelInputPrice),
-        outputPrice: Number(editModelOutputPrice),
-        cachedInputPrice: Number(editModelCachedInputPrice),
-        contextWindow: Number(editModelContextWindow),
+        inputPrice: Number(editModelInputPrice) || 0,
+        outputPrice: Number(editModelOutputPrice) || 0,
+        cachedInputPrice: Number(editModelCachedInputPrice) || 0,
+        contextWindow: Number(editModelContextWindow) || 128000,
         capabilities: editModelCapabilities
       };
       if (editModelContextTokens.trim() !== '') {
@@ -506,65 +506,67 @@ export const ProviderConfigPanel: React.FC<ProviderConfigPanelProps> = ({ getApi
                       />
                     </div>
                   </div>
-                  <div className="crud-form-row">
+                  <div className="crud-form-row-3">
                     <div className="config-group">
-                      <label className="config-label" style={{ fontSize: '0.74rem' }}>输入单价 (/ 1M Tokens)</label>
+                      <label className="config-label" style={{ fontSize: '0.74rem' }}>输入单价 (/ 1M)</label>
                       <input
                         type="number"
                         step="0.0001"
+                        placeholder="0"
                         className="config-input"
                         value={newModelInputPrice}
-                        onChange={(e) => setNewModelInputPrice(Number(e.target.value))}
+                        onChange={(e) => setNewModelInputPrice(e.target.value)}
                       />
                     </div>
                     <div className="config-group">
-                      <label className="config-label" style={{ fontSize: '0.74rem' }}>缓存输入单价 (/ 1M Tokens)</label>
+                      <label className="config-label" style={{ fontSize: '0.74rem' }}>缓存输入单价 (/ 1M)</label>
                       <input
                         type="number"
                         step="0.0001"
+                        placeholder="0"
                         className="config-input"
                         value={newModelCachedInputPrice}
-                        onChange={(e) => setNewModelCachedInputPrice(Number(e.target.value))}
+                        onChange={(e) => setNewModelCachedInputPrice(e.target.value)}
                       />
                     </div>
-                  </div>
-                  <div className="crud-form-row">
                     <div className="config-group">
-                      <label className="config-label" style={{ fontSize: '0.74rem' }}>输出单价 (/ 1M Tokens)</label>
+                      <label className="config-label" style={{ fontSize: '0.74rem' }}>输出单价 (/ 1M)</label>
                       <input
                         type="number"
                         step="0.0001"
+                        placeholder="0"
                         className="config-input"
                         value={newModelOutputPrice}
-                        onChange={(e) => setNewModelOutputPrice(Number(e.target.value))}
-                      />
-                    </div>
-                    <div className="config-group">
-                      <label className="config-label" style={{ fontSize: '0.74rem' }}>上下文窗口 (Context Window)</label>
-                      <input
-                        type="number"
-                        className="config-input"
-                        value={newModelContextWindow}
-                        onChange={(e) => setNewModelContextWindow(Number(e.target.value))}
+                        onChange={(e) => setNewModelOutputPrice(e.target.value)}
                       />
                     </div>
                   </div>
-                  <div className="crud-form-row">
+                  <div className="crud-form-row-3">
                     <div className="config-group">
-                      <label className="config-label" style={{ fontSize: '0.74rem' }}>上下文上限 Token (可选)</label>
+                      <label className="config-label" style={{ fontSize: '0.74rem' }}>模型上下文窗口 (模型物理限制)</label>
                       <input
                         type="number"
-                        placeholder="留空表示不限制"
+                        className="config-input"
+                        placeholder="默认 128000"
+                        value={newModelContextWindow}
+                        onChange={(e) => setNewModelContextWindow(e.target.value)}
+                      />
+                    </div>
+                    <div className="config-group">
+                      <label className="config-label" style={{ fontSize: '0.74rem' }}>上下文上限 Token (智能体输入控制)</label>
+                      <input
+                        type="number"
+                        placeholder="默认 128000 (超限触发压缩)"
                         className="config-input"
                         value={newModelContextTokens}
                         onChange={(e) => setNewModelContextTokens(e.target.value)}
                       />
                     </div>
                     <div className="config-group">
-                      <label className="config-label" style={{ fontSize: '0.74rem' }}>最大输出限制 Token (可选)</label>
+                      <label className="config-label" style={{ fontSize: '0.74rem' }}>最大输出限制 Token (智能体输出控制)</label>
                       <input
                         type="number"
-                        placeholder="留空表示不限制"
+                        placeholder="默认 4096 (单次回复限制)"
                         className="config-input"
                         value={newModelMaxTokens}
                         onChange={(e) => setNewModelMaxTokens(e.target.value)}
@@ -613,35 +615,26 @@ export const ProviderConfigPanel: React.FC<ProviderConfigPanelProps> = ({ getApi
                   <div key={m.id} className="model-item">
                     {editingModelId === m.id ? (
                       <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                        <div className="crud-form-row">
-                          <div className="config-group" style={{ margin: 0 }}>
-                            <label className="config-label" style={{ fontSize: '0.72rem' }}>模型名称</label>
-                            <input
-                              type="text"
-                              className="config-input"
-                              value={editModelName}
-                              onChange={(e) => setEditModelName(e.target.value)}
-                            />
-                          </div>
-                          <div className="config-group" style={{ margin: 0 }}>
-                            <label className="config-label" style={{ fontSize: '0.72rem' }}>窗口容量</label>
-                            <input
-                              type="number"
-                              className="config-input"
-                              value={editModelContextWindow}
-                              onChange={(e) => setEditModelContextWindow(Number(e.target.value))}
-                            />
-                          </div>
+                        <div className="config-group" style={{ margin: 0 }}>
+                          <label className="config-label" style={{ fontSize: '0.72rem' }}>模型名称</label>
+                          <input
+                            type="text"
+                            className="config-input"
+                            value={editModelName}
+                            onChange={(e) => setEditModelName(e.target.value)}
+                          />
                         </div>
-                        <div className="crud-form-row">
+
+                        <div className="crud-form-row-3">
                           <div className="config-group" style={{ margin: 0 }}>
                             <label className="config-label" style={{ fontSize: '0.72rem' }}>输入单价 (/ 1M)</label>
                             <input
                               type="number"
                               step="0.0001"
+                              placeholder="0"
                               className="config-input"
                               value={editModelInputPrice}
-                              onChange={(e) => setEditModelInputPrice(Number(e.target.value))}
+                              onChange={(e) => setEditModelInputPrice(e.target.value)}
                             />
                           </div>
                           <div className="config-group" style={{ margin: 0 }}>
@@ -649,43 +642,56 @@ export const ProviderConfigPanel: React.FC<ProviderConfigPanelProps> = ({ getApi
                             <input
                               type="number"
                               step="0.0001"
+                              placeholder="0"
                               className="config-input"
                               value={editModelCachedInputPrice}
-                              onChange={(e) => setEditModelCachedInputPrice(Number(e.target.value))}
+                              onChange={(e) => setEditModelCachedInputPrice(e.target.value)}
                             />
                           </div>
-                        </div>
-                        <div className="crud-form-row">
                           <div className="config-group" style={{ margin: 0 }}>
                             <label className="config-label" style={{ fontSize: '0.72rem' }}>输出单价 (/ 1M)</label>
                             <input
                               type="number"
                               step="0.0001"
+                              placeholder="0"
                               className="config-input"
                               value={editModelOutputPrice}
-                              onChange={(e) => setEditModelOutputPrice(Number(e.target.value))}
+                              onChange={(e) => setEditModelOutputPrice(e.target.value)}
                             />
                           </div>
+                        </div>
+
+                        <div className="crud-form-row-3">
                           <div className="config-group" style={{ margin: 0 }}>
-                            <label className="config-label" style={{ fontSize: '0.72rem' }}>最大输出限制 (可选)</label>
+                            <label className="config-label" style={{ fontSize: '0.72rem' }}>模型上下文窗口 (模型物理限制)</label>
                             <input
                               type="number"
                               className="config-input"
-                              placeholder="无限制"
+                              placeholder="默认 128000"
+                              value={editModelContextWindow}
+                              onChange={(e) => setEditModelContextWindow(e.target.value)}
+                            />
+                          </div>
+                          <div className="config-group" style={{ margin: 0 }}>
+                            <label className="config-label" style={{ fontSize: '0.72rem' }}>上下文上限 Token (智能体输入控制)</label>
+                            <input
+                              type="number"
+                              className="config-input"
+                              placeholder="默认 128000 (超限触发压缩)"
+                              value={editModelContextTokens}
+                              onChange={(e) => setEditModelContextTokens(e.target.value)}
+                            />
+                          </div>
+                          <div className="config-group" style={{ margin: 0 }}>
+                            <label className="config-label" style={{ fontSize: '0.72rem' }}>最大输出限制 Token (智能体输出控制)</label>
+                            <input
+                              type="number"
+                              className="config-input"
+                              placeholder="默认 4096"
                               value={editModelMaxTokens}
                               onChange={(e) => setEditModelMaxTokens(e.target.value)}
                             />
                           </div>
-                        </div>
-                        <div className="config-group" style={{ margin: 0 }}>
-                          <label className="config-label" style={{ fontSize: '0.72rem' }}>上下文 Token 限制 (可选)</label>
-                          <input
-                            type="number"
-                            className="config-input"
-                            placeholder="无限制"
-                            value={editModelContextTokens}
-                            onChange={(e) => setEditModelContextTokens(e.target.value)}
-                          />
                         </div>
                         <div className="config-group" style={{ margin: 0 }}>
                           <label className="config-label" style={{ fontSize: '0.72rem' }}>支持的能力类型 (Capabilities)</label>
@@ -716,12 +722,20 @@ export const ProviderConfigPanel: React.FC<ProviderConfigPanelProps> = ({ getApi
                             </label>
                           </div>
                         </div>
-                        <div className="tab-actions">
-                          <button className="btn-secondary" style={{ height: '30px', padding: '0 0.8rem' }} onClick={() => setEditingModelId('')}>
-                            取消
+                        <div className="tab-actions" style={{ justifyContent: 'flex-end', marginTop: '0.25rem' }}>
+                          <button
+                            className="btn-primary"
+                            style={{ padding: '0.35rem 0.8rem', fontSize: '0.75rem' }}
+                            onClick={() => handleSaveModel(m.id)}
+                          >
+                            保存
                           </button>
-                          <button className="btn-primary" style={{ height: '30px', padding: '0 0.8rem' }} onClick={() => handleSaveModel(m.id)}>
-                            保存修改
+                          <button
+                            className="btn-secondary"
+                            style={{ padding: '0.35rem 0.8rem', fontSize: '0.75rem' }}
+                            onClick={() => setEditingModelId('')}
+                          >
+                            取消
                           </button>
                         </div>
                       </div>
@@ -735,12 +749,12 @@ export const ProviderConfigPanel: React.FC<ProviderConfigPanelProps> = ({ getApi
                             </span>
                           </div>
                           <div className="model-details" style={{ marginTop: '0.25rem', lineHeight: '1.4' }}>
-                            <span>窗口: {m.contextWindow || '未指定'}</span>
-                            {m.contextTokens && <span> (限制: {m.contextTokens})</span>}
+                            <span>物理窗口: {m.contextWindow || 128000}</span>
+                            {m.contextTokens && <span> (输入控制: {m.contextTokens})</span>}
                             <span> | 输入: {m.inputPrice} (1M)</span>
                             {m.cachedInputPrice > 0 && <span> (缓存: {m.cachedInputPrice} (1M))</span>}
                             <span> | 输出: {m.outputPrice} (1M)</span>
-                            {m.maxTokens && <span> | 最大输出: {m.maxTokens}</span>}
+                            {m.maxTokens && <span> | 输出控制: {m.maxTokens}</span>}
                             <div style={{ marginTop: '0.15rem', color: '#888' }}>
                               能力类型: {Array.isArray(m.capabilities) && m.capabilities.length > 0 ? m.capabilities.join(', ') : '无'}
                             </div>
