@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useI18n } from '../../../i18n/index.js';
 
 interface SkillEntry {
   id: string;
@@ -13,6 +14,7 @@ interface SkillConfigPanelProps {
 }
 
 export const SkillConfigPanel: React.FC<SkillConfigPanelProps> = ({ getApiUrl }) => {
+  const { t } = useI18n();
   const [skills, setSkills] = useState<SkillEntry[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [toasts, setToasts] = useState<{ id: string; message: string; type: 'success' | 'error' | 'info' }[]>([]);
@@ -36,8 +38,8 @@ export const SkillConfigPanel: React.FC<SkillConfigPanelProps> = ({ getApiUrl })
         setSkills(json.data);
       }
     } catch (err) {
-      console.error('加载技能列表失败:', err);
-      showToast('加载技能列表失败', 'error');
+      console.error('Failed to load skills list:', err);
+      showToast(t('skill.loadFailed', 'Failed to load skills list'), 'error');
     } finally {
       setLoading(false);
     }
@@ -56,25 +58,26 @@ export const SkillConfigPanel: React.FC<SkillConfigPanelProps> = ({ getApiUrl })
       });
       const json = await res.json();
       if (json.success) {
-        showToast(`技能 "${skillId}" 已${enabled ? '启用' : '禁用'}`, 'success');
+        const statusText = enabled ? t('skill.enabled', 'enabled') : t('skill.disabled', 'disabled');
+        showToast(t('skill.toggleSuccess', 'Skill "{id}" {status}', { id: skillId, status: statusText }), 'success');
         loadSkills();
       } else {
-        showToast(`切换技能状态失败: ${json.message || json.error}`, 'error');
+        showToast(t('skill.toggleFailed', 'Failed to change skill status: {error}', { error: json.message || json.error }), 'error');
       }
     } catch (err) {
-      console.error('切换技能状态失败:', err);
-      showToast('切换技能状态失败', 'error');
+      console.error('Failed to toggle skill status:', err);
+      showToast(t('skill.toggleError', 'Failed to change skill status'), 'error');
     }
   };
 
   if (loading && skills.length === 0) {
-    return <div style={{ padding: '1rem', color: 'var(--text-secondary)', fontSize: '0.85rem' }}>正在加载技能卡配置...</div>;
+    return <div style={{ padding: '1rem', color: 'var(--text-secondary)', fontSize: '0.85rem' }}>{t('skill.loading', 'Loading skills configuration...')}</div>;
   }
 
   if (!loading && skills.length === 0) {
     return (
       <div style={{ padding: '2rem 1rem', textAlign: 'center', color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
-        暂未扫描到任何技能卡。可在 <code>~/.freya/skills/</code> 目录下添加 <code>*.md</code> 技能卡文件。
+        {t('skill.emptyHint', 'No skill cards found. You can add *.md files under ~/.freya/skills/.')}
       </div>
     );
   }
@@ -82,12 +85,12 @@ export const SkillConfigPanel: React.FC<SkillConfigPanelProps> = ({ getApiUrl })
   const getSourceTagMeta = (source?: string) => {
     switch (source) {
       case 'builtin':
-        return { label: '内置', bg: 'rgba(59, 130, 246, 0.15)', color: '#60a5fa' };
+        return { label: t('skill.sourceBuiltin', 'Builtin'), bg: 'rgba(59, 130, 246, 0.15)', color: '#60a5fa' };
       case 'launch':
-        return { label: '集成', bg: 'rgba(168, 85, 247, 0.15)', color: '#c084fc' };
+        return { label: t('skill.sourceLaunch', 'Packaged'), bg: 'rgba(168, 85, 247, 0.15)', color: '#c084fc' };
       case 'runtime':
       default:
-        return { label: '自定义', bg: 'rgba(16, 185, 129, 0.15)', color: '#34d399' };
+        return { label: t('skill.sourceCustom', 'Custom'), bg: 'rgba(16, 185, 129, 0.15)', color: '#34d399' };
     }
   };
 
@@ -95,7 +98,7 @@ export const SkillConfigPanel: React.FC<SkillConfigPanelProps> = ({ getApiUrl })
     <div className="plugins-list">
       {skills.map((skill) => {
         const displayName = skill.name || skill.id;
-        const displayDesc = skill.description || '未提供描述信息';
+        const displayDesc = skill.description || t('skill.noDesc', 'No description provided');
         const tagMeta = getSourceTagMeta(skill.source);
 
         return (

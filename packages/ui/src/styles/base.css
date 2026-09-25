@@ -8,10 +8,12 @@
   --text-secondary: #64748b;
 
   /* 黄金视口布局 Tokens */
+  /* Golden viewport layout tokens */
   --chat-max-width: 900px;
   --viewport-padding-x: 1.5rem;
 
   /* 状态与角色语义色彩 Tokens */
+  /* Status and role semantic color tokens */
   --color-success: #10b981;
   --color-success-rgb: 16, 185, 129;
   --color-danger: #f43f5e;
@@ -22,6 +24,7 @@
   --color-assistant-border: #cbd5e1;
 
   /* 控制台与表单元素 Tokens */
+  /* Console and form element tokens */
   --color-panel-bg: #0d0d0d;
   --color-sidebar-bg: rgba(0, 0, 0, 0.3);
   --color-card-bg: rgba(255, 255, 255, 0.005);
@@ -72,6 +75,7 @@ body {
 }
 
 /* 移动端响应式布局变量适配 */
+/* Mobile responsive layout tokens */
 @media (max-width: 768px) {
   :root {
     --viewport-padding-x: 0.75rem;

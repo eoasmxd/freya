@@ -1,5 +1,6 @@
 {
   // packages/ui 前端项目的 TypeScript 配置
+  // TypeScript configuration for packages/ui
   "extends": "../../tsconfig.json",
   "compilerOptions": {
     "types": ["vite/client"],

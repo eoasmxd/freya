@@ -1,15 +1,23 @@
-import React from 'react';
+import React, { useState } from 'react';
+import { useI18n } from '../../i18n/index.js';
 
 const CodeBlockContainer: React.FC<{ code: string; lang: string; index: number }> = ({ code, lang, index }) => {
+  const { t } = useI18n();
+  const [copied, setCopied] = useState(false);
+
   const copyCode = () => {
     navigator.clipboard.writeText(code);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
   };
 
   return (
     <div key={`code-${index}`} className="md-code-block-container">
       <div className="md-code-block-header">
         <span className="lang">{lang || 'text'}</span>
-        <button className="copy-btn" onClick={copyCode}>📋 复制</button>
+        <button className="copy-btn" onClick={copyCode}>
+          {copied ? `✓ ${t('common.copied', 'Copied')}` : `📋 ${t('common.copy', 'Copy')}`}
+        </button>
       </div>
       <pre className="md-code-block">
         <code>

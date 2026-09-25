@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useI18n } from '../../../i18n';
 
 interface GlobalConfigPanelProps {
   getApiUrl: (path: string) => string;
@@ -31,6 +32,7 @@ interface ConfigFieldSchema {
 }
 
 export const GlobalConfigPanel: React.FC<GlobalConfigPanelProps> = ({ getApiUrl }) => {
+  const { t } = useI18n();
   const [availableModels, setAvailableModels] = useState<AvailableModel[]>([]);
   const [schemas, setSchemas] = useState<Record<string, ConfigFieldSchema[]>>({});
   const [dynamicValues, setDynamicValues] = useState<Record<string, any>>({});
@@ -215,7 +217,7 @@ export const GlobalConfigPanel: React.FC<GlobalConfigPanelProps> = ({ getApiUrl 
       });
       const json = await res.json();
       if (json.success) {
-        showToast('配置保存成功', 'success');
+        showToast(t('global.saveSuccess', 'Configuration saved successfully'), 'success');
         setTempAliases({});
         setTempChildInputs({});
         setEditingChild(null);
@@ -225,11 +227,11 @@ export const GlobalConfigPanel: React.FC<GlobalConfigPanelProps> = ({ getApiUrl 
         setIsDirty(false);
         loadGlobalConfig();
       } else {
-        showToast(`保存失败: ${json.error || json.message}`, 'error');
+        showToast(t('global.saveFailed', 'Failed to save configuration: {error}', { error: json.error || json.message }), 'error');
       }
     } catch (err) {
       console.error(err);
-      showToast('保存配置失败', 'error');
+      showToast(t('global.saveError', 'Failed to save configuration'), 'error');
     }
   };
 
@@ -245,7 +247,7 @@ export const GlobalConfigPanel: React.FC<GlobalConfigPanelProps> = ({ getApiUrl 
 
   const handleAddBinding = (fieldKey: string, sourceStr: string, alias: string) => {
     if (!sourceStr) {
-      showToast('请选择有效的模型源', 'error');
+      showToast(t('global.selectValidSource', 'Please select a valid model source'), 'error');
       return;
     }
     const [pId, mId] = sourceStr.split(':::');
@@ -263,7 +265,7 @@ export const GlobalConfigPanel: React.FC<GlobalConfigPanelProps> = ({ getApiUrl 
     });
 
     setTempAliases(prev => ({ ...prev, [fieldKey]: '' }));
-    showToast('模型绑定已添加', 'success');
+    showToast(t('global.bindingAdded', 'Model binding added'), 'success');
   };
 
   const handleRemoveBinding = (fieldKey: string, index: number) => {
@@ -271,7 +273,7 @@ export const GlobalConfigPanel: React.FC<GlobalConfigPanelProps> = ({ getApiUrl 
       const list = Array.isArray(prev[fieldKey]) ? prev[fieldKey] : [];
       return { ...prev, [fieldKey]: list.filter((_, idx) => idx !== index) };
     });
-    showToast('模型绑定已移除', 'success');
+    showToast(t('global.bindingRemoved', 'Model binding removed'), 'success');
   };
 
   const handleMoveBinding = (fieldKey: string, index: number, direction: 'up' | 'down') => {
@@ -321,7 +323,7 @@ export const GlobalConfigPanel: React.FC<GlobalConfigPanelProps> = ({ getApiUrl 
     const inputs = tempChildInputs[fieldKey] || {};
     for (const child of childrenSchemas) {
       if (child.required && (inputs[child.key] === undefined || String(inputs[child.key]).trim() === '')) {
-        showToast(`请填写必填项: ${child.description || child.key}`, 'error');
+        showToast(t('global.requiredField', 'Please fill in required field: {field}', { field: child.description || child.key }), 'error');
         return;
       }
     }
@@ -350,7 +352,7 @@ export const GlobalConfigPanel: React.FC<GlobalConfigPanelProps> = ({ getApiUrl 
       [fieldKey]: {}
     }));
     setAddingChildFieldKey(null);
-    showToast('已添加新项，请点击右上角保存配置', 'info');
+    showToast(t('global.itemAddedHint', 'New item added, click save to persist changes'), 'info');
   };
 
   const handleRemoveChildItem = (fieldKey: string, index: number) => {
@@ -358,7 +360,7 @@ export const GlobalConfigPanel: React.FC<GlobalConfigPanelProps> = ({ getApiUrl 
       const list = Array.isArray(prev[fieldKey]) ? prev[fieldKey] : [];
       return { ...prev, [fieldKey]: list.filter((_, idx) => idx !== index) };
     });
-    showToast('项目已移除', 'success');
+    showToast(t('global.itemRemoved', 'Item removed'), 'success');
   };
 
   const handleStartEditChild = (fieldKey: string, index: number, item: any) => {
@@ -370,7 +372,7 @@ export const GlobalConfigPanel: React.FC<GlobalConfigPanelProps> = ({ getApiUrl 
   const handleSaveChildItem = (fieldKey: string, index: number, childrenSchemas: ConfigFieldSchema[]) => {
     for (const child of childrenSchemas) {
       if (child.required && (!editingChildInputs[child.key] || String(editingChildInputs[child.key]).trim() === '')) {
-        showToast(`请填写必填项: ${child.description || child.key}`, 'error');
+        showToast(t('global.requiredField', 'Please fill in required field: {field}', { field: child.description || child.key }), 'error');
         return;
       }
     }
@@ -398,7 +400,7 @@ export const GlobalConfigPanel: React.FC<GlobalConfigPanelProps> = ({ getApiUrl 
 
     setEditingChild(null);
     setEditingChildInputs({});
-    showToast('修改已保存', 'success');
+    showToast(t('global.itemSaved', 'Changes saved'), 'success');
   };
 
   const sortedNamespaces = Object.keys(schemas).sort((a, b) => {
@@ -414,7 +416,7 @@ export const GlobalConfigPanel: React.FC<GlobalConfigPanelProps> = ({ getApiUrl 
 
         const fieldsByCategory: Record<string, ConfigFieldSchema[]> = {};
         for (const field of fields) {
-          const cat = field.category || '通用设置';
+          const cat = field.category || t('global.defaultCategory', 'General Settings');
           if (!fieldsByCategory[cat]) fieldsByCategory[cat] = [];
           fieldsByCategory[cat].push(field);
         }
@@ -422,10 +424,10 @@ export const GlobalConfigPanel: React.FC<GlobalConfigPanelProps> = ({ getApiUrl 
         if (Object.keys(fieldsByCategory).length === 0) return null;
 
         const friendlyNsName = ns === 'core'
-          ? '核心系统参数'
+          ? t('global.coreNsName', 'Core System Parameters')
           : ns.startsWith('@eoasmxd/freya-plugin-')
-            ? `插件专属配置: ${ns.replace('@eoasmxd/freya-plugin-', '')}`
-            : `扩展模块配置: ${ns}`;
+            ? t('global.pluginNsPrefix', 'Plugin Config: {name}', { name: ns.replace('@eoasmxd/freya-plugin-', '') })
+            : t('global.extNsPrefix', 'Extension Config: {name}', { name: ns });
 
         return (
           <div key={ns} className="config-group" style={{ marginBottom: '1.8rem', borderBottom: '1px solid rgba(255,255,255,0.02)', paddingBottom: '1.2rem' }}>
@@ -454,13 +456,13 @@ export const GlobalConfigPanel: React.FC<GlobalConfigPanelProps> = ({ getApiUrl 
                               <label className="config-label" style={{ fontSize: '0.82rem', color: 'rgba(255, 255, 255, 0.85)', fontWeight: 500, margin: 0 }}>
                                 {field.description || field.key}
                               </label>
-                              <span style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>降级 Fallback 链 (越靠上优先级越高)</span>
+                              <span style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>{t('global.fallbackChainHint', 'Fallback Chain (Higher has greater priority)')}</span>
                             </div>
 
                             <div className="models-list" style={{ margin: '0.4rem 0', marginLeft: '0.6rem', paddingLeft: '0.85rem', borderLeft: '2px solid rgba(255, 255, 255, 0.08)', display: 'flex', flexDirection: 'column', gap: '0.45rem' }}>
                               {bindings.length === 0 ? (
                                 <div style={{ fontSize: '0.76rem', color: 'var(--text-secondary)', padding: '0.4rem 0', fontStyle: 'italic' }}>
-                                  当前场景未绑定任何运行时模型。系统将使用默认路由。
+                                  {t('global.noModelBound', 'No runtime model bound. System will use default routing.')}
                                 </div>
                               ) : (
                                 bindings.map((b, idx) => (
@@ -475,7 +477,7 @@ export const GlobalConfigPanel: React.FC<GlobalConfigPanelProps> = ({ getApiUrl 
                                     <div style={{ display: 'flex', gap: '0.4rem' }}>
                                       <button
                                         className="btn-action edit"
-                                        title="提高优先级"
+                                        title={t('global.moveUp', 'Move up')}
                                         disabled={idx === 0}
                                         onClick={() => handleMoveBinding(field.key, idx, 'up')}
                                       >
@@ -483,7 +485,7 @@ export const GlobalConfigPanel: React.FC<GlobalConfigPanelProps> = ({ getApiUrl 
                                       </button>
                                       <button
                                         className="btn-action edit"
-                                        title="降低优先级"
+                                        title={t('global.moveDown', 'Move down')}
                                         disabled={idx === bindings.length - 1}
                                         onClick={() => handleMoveBinding(field.key, idx, 'down')}
                                       >
@@ -491,10 +493,10 @@ export const GlobalConfigPanel: React.FC<GlobalConfigPanelProps> = ({ getApiUrl 
                                       </button>
                                       <button
                                         className="btn-action delete"
-                                        title="移除"
+                                        title={t('common.remove', 'Remove')}
                                         onClick={() => handleRemoveBinding(field.key, idx)}
                                       >
-                                        移除
+                                        {t('common.remove', 'Remove')}
                                       </button>
                                     </div>
                                   </div>
@@ -517,7 +519,7 @@ export const GlobalConfigPanel: React.FC<GlobalConfigPanelProps> = ({ getApiUrl 
                               </select>
                               <input
                                 type="text"
-                                placeholder="自定义别名 (选填)"
+                                placeholder={t('global.aliasPlaceholder', 'Custom alias (optional)')}
                                 className="config-input"
                                 style={{ width: '160px', fontSize: '0.78rem', padding: '0.4rem 0.6rem', height: '32px', boxSizing: 'border-box' }}
                                 value={alias}
@@ -528,7 +530,7 @@ export const GlobalConfigPanel: React.FC<GlobalConfigPanelProps> = ({ getApiUrl 
                                 style={{ padding: '0.4rem 1rem', fontSize: '0.78rem', height: '32px' }}
                                 onClick={() => handleAddBinding(field.key, selectedSource, alias)}
                               >
-                                绑定
+                                {t('global.btnBind', 'Bind')}
                               </button>
                             </div>
                           </div>
@@ -548,13 +550,13 @@ export const GlobalConfigPanel: React.FC<GlobalConfigPanelProps> = ({ getApiUrl 
                               <label className="config-label" style={{ fontSize: '0.84rem', color: 'rgba(255, 255, 255, 0.9)', fontWeight: 600, margin: 0 }}>
                                 {field.description || field.key}
                               </label>
-                              <span style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>已配置 {itemsList.length} 项</span>
+                              <span style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>{t('global.configuredItemsCount', '{count} items configured', { count: itemsList.length })}</span>
                             </div>
 
                             <div className="models-list" style={{ margin: '0.6rem 0', marginLeft: '1.2rem', paddingLeft: '1rem', borderLeft: '2px solid rgba(255, 255, 255, 0.1)', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
                               {itemsList.length === 0 && !isAddingThisField ? (
                                 <div style={{ fontSize: '0.76rem', color: 'var(--text-secondary)', padding: '0.4rem 0', fontStyle: 'italic' }}>
-                                  当前列表为空。请点击下方“+ 添加配置项”录入新项目。
+                                  {t('global.emptyChildList', 'List is empty. Click "+ Add Item" below to create one.')}
                                 </div>
                               ) : (
                                 itemsList.map((item: any, idx) => {
@@ -565,41 +567,41 @@ export const GlobalConfigPanel: React.FC<GlobalConfigPanelProps> = ({ getApiUrl 
                                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(255,255,255,0.03)', paddingBottom: '0.35rem' }}>
                                         <div style={{ fontSize: '0.75rem', fontWeight: 600, color: 'rgba(255, 255, 255, 0.65)', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
                                           <span style={{ background: 'rgba(255,255,255,0.08)', padding: '0.1rem 0.35rem', borderRadius: '4px', fontSize: '0.7rem' }}>#{idx + 1}</span>
-                                          <span>{item[field.children![0].key] ? String(item[field.children![0].key]) : '配置项'}</span>
+                                          <span>{item[field.children![0].key] ? String(item[field.children![0].key]) : t('global.defaultItemLabel', 'Item')}</span>
                                         </div>
                                         <div style={{ display: 'flex', gap: '0.5rem', flexShrink: 0 }}>
                                           {isEditing ? (
                                             <>
                                               <button
                                                 className="btn-action edit"
-                                                title="保存修改"
+                                                title={t('common.save', 'Save')}
                                                 onClick={() => handleSaveChildItem(field.key, idx, field.children || [])}
                                               >
-                                                保存
+                                                {t('common.save', 'Save')}
                                               </button>
                                               <button
                                                 className="btn-action delete"
-                                                title="取消修改"
+                                                title={t('common.cancel', 'Cancel')}
                                                 onClick={() => { setEditingChild(null); setEditingChildInputs({}); }}
                                               >
-                                                取消
+                                                {t('common.cancel', 'Cancel')}
                                               </button>
                                             </>
                                           ) : (
                                             <>
                                               <button
                                                 className="btn-action edit"
-                                                title="编辑"
+                                                title={t('common.edit', 'Edit')}
                                                 onClick={() => handleStartEditChild(field.key, idx, item)}
                                               >
-                                                编辑
+                                                {t('common.edit', 'Edit')}
                                               </button>
                                               <button
                                                 className="btn-action delete"
-                                                title="删除"
+                                                title={t('common.delete', 'Delete')}
                                                 onClick={() => handleRemoveChildItem(field.key, idx)}
                                               >
-                                                删除
+                                                {t('common.delete', 'Delete')}
                                               </button>
                                             </>
                                           )}
@@ -669,23 +671,23 @@ export const GlobalConfigPanel: React.FC<GlobalConfigPanelProps> = ({ getApiUrl 
                                 <div className="model-item" style={{ padding: '0.85rem 1.1rem', background: 'rgba(59, 130, 246, 0.04)', borderRadius: '8px', border: '1px dashed rgba(59, 130, 246, 0.35)', display: 'flex', flexDirection: 'column', alignItems: 'stretch', gap: '0.65rem', boxSizing: 'border-box', width: '100%' }}>
                                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(255,255,255,0.04)', paddingBottom: '0.35rem' }}>
                                     <div style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--color-primary, #3b82f6)', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                                      <span style={{ background: 'rgba(59, 130, 246, 0.15)', padding: '0.1rem 0.35rem', borderRadius: '4px', fontSize: '0.7rem' }}>+ 新建</span>
-                                      <span>录入新配置项</span>
+                                      <span style={{ background: 'rgba(59, 130, 246, 0.15)', padding: '0.1rem 0.35rem', borderRadius: '4px', fontSize: '0.7rem' }}>+ {t('common.new', 'New')}</span>
+                                      <span>{t('global.enterNewItem', 'Enter New Item')}</span>
                                     </div>
                                     <div style={{ display: 'flex', gap: '0.5rem', flexShrink: 0 }}>
                                       <button
                                         className="btn-action edit"
-                                        title="确定添加"
+                                        title={t('common.confirm', 'Confirm')}
                                         onClick={() => handleConfirmAddChild(field.key, field.children || [])}
                                       >
-                                        确定
+                                        {t('common.confirm', 'Confirm')}
                                       </button>
                                       <button
                                         className="btn-action delete"
-                                        title="取消添加"
+                                        title={t('common.cancel', 'Cancel')}
                                         onClick={() => handleCancelAddChild(field.key)}
                                       >
-                                        取消
+                                        {t('common.cancel', 'Cancel')}
                                       </button>
                                     </div>
                                   </div>
@@ -694,7 +696,7 @@ export const GlobalConfigPanel: React.FC<GlobalConfigPanelProps> = ({ getApiUrl 
                                     {field.children.map(child => {
                                       const isPassword = child.uiHint === 'password' || child.sensitive;
                                       const childVal = childInputs[child.key] ?? '';
-                                      const placeholderText = child.required ? `${child.description || child.key} (必填)` : (child.description || child.key);
+                                      const placeholderText = child.required ? `${child.description || child.key} (${t('common.required', 'Required')})` : (child.description || child.key);
 
                                       return (
                                         <div key={child.key} style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', width: '100%' }}>
@@ -749,7 +751,7 @@ export const GlobalConfigPanel: React.FC<GlobalConfigPanelProps> = ({ getApiUrl 
                                   style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', padding: '0.4rem 0.85rem', fontSize: '0.76rem', background: 'rgba(255, 255, 255, 0.04)', border: '1px dashed rgba(255, 255, 255, 0.15)', borderRadius: '6px', cursor: 'pointer', color: 'var(--text-secondary)' }}
                                   onClick={() => handleStartAddChild(field.key, field.children || [])}
                                 >
-                                  <span>+ 添加配置项</span>
+                                  <span>+ {t('global.btnAddItem', 'Add Item')}</span>
                                 </button>
                               </div>
                             )}
@@ -827,10 +829,10 @@ export const GlobalConfigPanel: React.FC<GlobalConfigPanelProps> = ({ getApiUrl 
         className={`floating-save-btn ${isDirty ? 'dirty' : 'clean'}`}
         onClick={saveGlobalConfig}
         disabled={!isDirty}
-        title={isDirty ? '有未保存的修改，点击保存' : '配置无改变'}
+        title={isDirty ? t('global.dirtyHint', 'Unsaved changes, click to save') : t('global.cleanHint', 'No changes')}
       >
         <span style={{ fontSize: '1.1rem' }}>{isDirty ? '💾' : '✓'}</span>
-        {isDirty ? '保存配置' : '无修改'}
+        {isDirty ? t('global.btnSaveConfig', 'Save Config') : t('global.btnCleanConfig', 'No Changes')}
       </button>
 
       {toasts.length > 0 && (

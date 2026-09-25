@@ -31,7 +31,7 @@ function rootIconPlugin(): Plugin {
           source: data,
         });
       } catch (err: any) {
-        console.warn('[Vite] 复制根目录 icon.png 失败:', err.message);
+        console.warn('[Vite] Failed to copy root icon.png:', err.message);
       }
     },
   };

@@ -3,6 +3,7 @@ import { ChatHeader } from './features/chat/ChatHeader.jsx';
 import { ChatArea } from './features/chat/ChatArea.jsx';
 import { ChatFooter } from './features/chat/ChatFooter.jsx';
 import { ConfigModal } from './features/config/ConfigModal.jsx';
+import { I18nProvider, useI18n } from './i18n/index.js';
 
 interface Message {
   id: string;
@@ -26,7 +27,8 @@ const generateId = () => {
     : Math.random().toString(36).substring(2, 15);
 };
 
-export default function App() {
+function ChatApp() {
+  const { t, setLocale } = useI18n();
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [isConnected, setIsConnected] = useState(false);
@@ -51,6 +53,10 @@ export default function App() {
       chatPanelRef.current.scrollTop = chatPanelRef.current.scrollHeight;
     }
   }, [messages]);
+
+  useEffect(() => {
+    document.title = t('header.title', 'Freya Console');
+  }, [t]);
 
   const getApiUrl = (path: string) => {
     const isDev = import.meta.env.DEV;
@@ -96,6 +102,9 @@ export default function App() {
           const { event: eventName, data } = payload;
 
           if (eventName === 'server:connected') {
+            if (data?.language) {
+              setLocale(data.language);
+            }
             setMessages((prev) => {
               if (prev.length > 0) return prev;
               return [{
@@ -104,6 +113,10 @@ export default function App() {
                 content: data.message
               }];
             });
+          } else if (eventName === 'server:language_changed') {
+            if (data?.language) {
+              setLocale(data.language);
+            }
           } else if (eventName === 'server:reply') {
             setMessages((prev) => [
               ...prev,
@@ -163,11 +176,11 @@ export default function App() {
               }
               const existingIndex = prev.findIndex((m) => m.id === id);
 
-              let statusText = '正在执行...';
+              let statusText = t('chat.toolStatusRunning', 'Executing...');
               if (status === 'completed') {
-                statusText = '执行成功';
+                statusText = t('chat.toolStatusSuccess', 'Succeeded');
               } else if (status === 'failed') {
-                statusText = `执行失败: ${result || ''}`;
+                statusText = t('chat.toolStatusFailed', 'Failed: {error}', { error: String(result || '') });
               }
 
               let safeResult = result;
@@ -285,7 +298,7 @@ export default function App() {
       if (lastMsg && lastMsg.role === 'assistant' && lastMsg.isTyping) {
         return [
           ...prev.slice(0, -1),
-          { ...lastMsg, content: lastMsg.content + ' [生成已中断]', isTyping: false }
+          { ...lastMsg, content: lastMsg.content + t('app.interrupted', ' [Interrupted]'), isTyping: false }
         ];
       }
       return prev;
@@ -294,8 +307,8 @@ export default function App() {
 
   const handleClear = () => {
     setConfirmModal({
-      title: '重置当前会话',
-      message: '确定要清空当前对话历史并重置会话吗？该操作不可撤销。',
+      title: t('app.resetTitle', 'Reset Current Session'),
+      message: t('app.resetConfirmMessage', 'Are you sure you want to clear conversation history and reset the session? This cannot be undone.'),
       onConfirm: () => {
         setConfirmModal(null);
         setMessages([]);
@@ -362,15 +375,23 @@ export default function App() {
             </div>
             <div className="confirm-modal-actions">
               <button className="btn-secondary" style={{ height: '32px', padding: '0 1rem' }} onClick={() => setConfirmModal(null)}>
-                取消
+                {t('app.cancel', 'Cancel')}
               </button>
               <button className="btn-primary" style={{ height: '32px', padding: '0 1rem', background: '#f43f5e', borderColor: '#f43f5e' }} onClick={confirmModal.onConfirm}>
-                确定重置
+                {t('app.confirmReset', 'Confirm Reset')}
               </button>
             </div>
           </div>
         </div>
       )}
     </div>
+  );
+}
+
+export default function App() {
+  return (
+    <I18nProvider>
+      <ChatApp />
+    </I18nProvider>
   );
 }

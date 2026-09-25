@@ -1,4 +1,5 @@
 import React, { useRef } from 'react';
+import { useI18n } from '../../i18n/index.js';
 
 interface BillingInfo {
   promptTokens: number;
@@ -27,6 +28,7 @@ export const ChatFooter: React.FC<ChatFooterProps> = ({
   onSend,
   onInterrupt
 }) => {
+  const { t } = useI18n();
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
 
   const handleTextareaChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
@@ -51,12 +53,18 @@ export const ChatFooter: React.FC<ChatFooterProps> = ({
     <footer className="footer">
       <div className="billing-bar">
         <div>
-          Token 消耗: <span>{billing.totalTokens} Tokens</span> (输入: {billing.promptTokens} | 缓存: {billing.cachedPromptTokens} | 输出: {billing.completionTokens})
+          {t('footer.tokenUsage', 'Tokens: {total} (Prompt: {prompt} | Cached: {cached} | Output: {completion})', {
+            total: billing.totalTokens,
+            prompt: billing.promptTokens,
+            cached: billing.cachedPromptTokens,
+            completion: billing.completionTokens
+          })}
         </div>
         <div>
-          估算账单: <span className="billing-cost">{billing.cost.toFixed(6)}</span>
+          {t('footer.estimatedCost', 'Estimated Cost: {cost}', {
+            cost: billing.cost.toFixed(6)
+          })}
         </div>
-
       </div>
 
       <div className="input-container">
@@ -64,7 +72,7 @@ export const ChatFooter: React.FC<ChatFooterProps> = ({
           ref={textareaRef}
           rows={1}
           className="chat-textarea"
-          placeholder={isConnected ? "输入消息，与 Freya 对话..." : "正在连接服务器，请稍候..."}
+          placeholder={isConnected ? t('footer.placeholderConnected', 'Type a message to chat with Freya...') : t('footer.placeholderDisconnected', 'Connecting to server, please wait...')}
           value={input}
           disabled={!isConnected}
           onChange={handleTextareaChange}
@@ -72,7 +80,7 @@ export const ChatFooter: React.FC<ChatFooterProps> = ({
         />
         {isGenerating ? (
           <button className="btn btn-interrupt" onClick={onInterrupt}>
-            中断
+            {t('footer.interrupt', 'Stop')}
           </button>
         ) : (
           <button
@@ -80,7 +88,7 @@ export const ChatFooter: React.FC<ChatFooterProps> = ({
             onClick={onSend}
             disabled={!isConnected || !input.trim()}
           >
-            发送
+            {t('footer.send', 'Send')}
           </button>
         )}
       </div>
