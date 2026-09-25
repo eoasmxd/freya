@@ -107,7 +107,10 @@ function cleanPathFromError(err: any, ctx: FreyaContext): string {
   return rawMessage.replace(regex, '');
 }
 
-/** 统一记忆错误处理与物理路径脱敏 */
+/**
+ * 统一记忆错误处理与物理路径脱敏
+ * Unified memory error handling and physical path sanitization
+ */
 export function handleMemoryError(action: string, err: any, ctx: FreyaContext): string {
   return `❌ ${action}失败: ${cleanPathFromError(err, ctx)}`;
 }

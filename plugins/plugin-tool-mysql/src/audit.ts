@@ -8,11 +8,17 @@ export interface AuditResult {
   reason: string;
 }
 
-/** 前置 SQL 安全与完整性审查审计服务 */
+/**
+ * 前置 SQL 安全与完整性审查审计服务
+ * Pre-execution SQL security and integrity audit service
+ */
 export class SqlAuditService {
   private cachedPrompt: string | null = null;
 
-  /** 双通道探针加载审计提示词模板 */
+  /**
+   * 双通道探针加载审计提示词模板
+   * Dual-channel probe loading for audit prompt template
+   */
   private async loadAuditPrompt(ctx: FreyaContext): Promise<string> {
     if (this.cachedPrompt) {
       return this.cachedPrompt;
@@ -29,6 +35,7 @@ export class SqlAuditService {
       }
     } catch {
       // 运行时覆盖不存在，继续降级读取内置模板
+      // Runtime override not found, fallback to built-in template
     }
 
     const currentDir = path.dirname(fileURLToPath(import.meta.url));
@@ -44,7 +51,10 @@ export class SqlAuditService {
     }
   }
 
-  /** 执行前置独立 LLM 分析审查 */
+  /**
+   * 执行前置独立 LLM 分析审查
+   * Perform pre-execution independent LLM analysis and review
+   */
   public async audit(sql: string, connectionName: string, ctx: FreyaContext): Promise<AuditResult> {
     const trimmedSql = sql.trim();
     if (!trimmedSql) {

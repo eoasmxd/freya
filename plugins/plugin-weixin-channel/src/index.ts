@@ -43,6 +43,7 @@ const WEIXIN_MIME_MAP: Record<string, string> = {
 
 /**
  * Freya 微信智能群设备 (iLink 协议) 通道插件
+ * Freya WeChat intelligent group device (iLink protocol) channel plugin
  */
 export default class FreyaWeixinChannelPlugin implements ChannelPlugin {
   readonly type = "channel" as const;
@@ -122,6 +123,7 @@ export default class FreyaWeixinChannelPlugin implements ChannelPlugin {
 
   /**
    * 从本地物理路径加载微信会话缓存数据
+   * Load WeChat session cache data from local physical path
    */
   private async loadWeixinSessions(ctx: FreyaContext): Promise<Record<string, any>> {
     const filePath = path.join(ctx.paths.dataDir, "weixin_sessions.json");
@@ -135,6 +137,7 @@ export default class FreyaWeixinChannelPlugin implements ChannelPlugin {
 
   /**
    * 将微信会话缓存持久化保存至本地物理路径中
+   * Persist WeChat session cache to local physical path
    */
   private async saveWeixinSessions(ctx: FreyaContext, sessions: Record<string, any>): Promise<void> {
     const filePath = path.join(ctx.paths.dataDir, "weixin_sessions.json");
@@ -166,6 +169,7 @@ export default class FreyaWeixinChannelPlugin implements ChannelPlugin {
 
   /**
    * 调用微信官方 iLink 服务端 HTTP API 接口
+   * Call official WeChat iLink server HTTP API endpoint
    */
   private async callWeixinApi(
     config: WeixinBotConfig,
@@ -268,6 +272,7 @@ export default class FreyaWeixinChannelPlugin implements ChannelPlugin {
 
   /**
    * 拉取并生成微信登录绑定二维码，启动后台监听轮询
+   * Fetch and generate WeChat login binding QR code, start background polling
    */
   private async triggerWeixinQrLogin(ctx: FreyaContext, accountId: string, config: WeixinBotConfig): Promise<string> {
     try {

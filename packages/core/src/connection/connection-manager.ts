@@ -10,7 +10,10 @@ interface ConnectionRecord {
   language?: string;
 }
 
-/** 物理连接与逻辑会话映射管理器 */
+/**
+ * 物理连接与逻辑会话映射管理器
+ * Manager for physical connection and logical session mappings
+ */
 export class FreyaConnectionManager {
   private connections = new Map<string, ConnectionRecord>();
   private sweepInterval?: ReturnType<typeof setInterval>;

@@ -1,7 +1,10 @@
 import type { FreyaContext } from '@eoasmxd/freya-sdk';
 import type { FreyaCommandRegistry } from './command-registry.js';
 
-/** 指令执行器：解析控制台/网络消息行并调度执行注册的系统指令 */
+/**
+ * 指令执行器：解析控制台/网络消息行并调度执行注册的系统指令
+ * Command executor: parses terminal/network message lines and dispatches registered system commands
+ */
 export class FreyaCommandExecutor {
   constructor(
     private context: FreyaContext,

@@ -12,7 +12,10 @@ export interface FreyaSkill {
   source: 'builtin' | 'launch' | 'runtime';
 }
 
-/** 技能注册表，从 skills/ 目录加载 Markdown 格式技能并管理软开关状态 */
+/**
+ * 技能注册表，从 skills/ 目录加载 Markdown 格式技能并管理软开关状态
+ * Skill registry that loads Markdown skills from skills/ directory and manages toggle states
+ */
 export class FreyaSkillRegistry {
   private skills = new Map<string, FreyaSkill>();
   private context?: FreyaContext;
@@ -76,7 +79,10 @@ export class FreyaSkillRegistry {
     }
   }
 
-  /** 从指定目录加载技能到内存注册表中 */
+  /**
+   * 从指定目录加载技能到内存注册表中
+   * Load skills from specified directory into in-memory registry
+   */
   private async loadSkillsFromDirectory(dirPath: string, source: 'builtin' | 'launch' | 'runtime', context: FreyaContext): Promise<void> {
     try {
       const files = await fs.readdir(dirPath);
@@ -109,7 +115,10 @@ export class FreyaSkillRegistry {
     }
   }
 
-  /** 获取技能列表（默认只返回启用状态的技能） */
+  /**
+   * 获取技能列表（默认只返回启用状态的技能）
+   * Get skill list (returns only enabled skills by default)
+   */
   getSkills(onlyEnabled: boolean = true): Map<string, FreyaSkill> {
     if (!onlyEnabled) {
       return this.skills;
@@ -123,12 +132,18 @@ export class FreyaSkillRegistry {
     return filtered;
   }
 
-  /** 获取全量技能数组（供管理控制台使用） */
+  /**
+   * 获取全量技能数组（供管理控制台使用）
+   * Get all skills array (for management console)
+   */
   getAllSkills(): FreyaSkill[] {
     return Array.from(this.skills.values());
   }
 
-  /** 切换技能的启用/禁用状态并持久化 */
+  /**
+   * 切换技能的启用/禁用状态并持久化
+   * Toggle skill enabled/disabled status and persist
+   */
   async toggleSkill(skillId: string, enabled: boolean): Promise<string> {
     const skill = this.skills.get(skillId);
     if (!skill) {
@@ -150,7 +165,10 @@ export class FreyaSkillRegistry {
     }
   }
 
-  /** 持久化当前所有技能启停状态至 skills.json */
+  /**
+   * 持久化当前所有技能启停状态至 skills.json
+   * Persist current enabled states of all skills to skills.json
+   */
   private async persistSkillsConfig(configSkillsPath: string): Promise<void> {
     await fs.mkdir(path.dirname(configSkillsPath), { recursive: true });
     const payload = Array.from(this.skills.values()).map((s) => ({
@@ -168,7 +186,10 @@ export class FreyaSkillRegistry {
     return this.skills.has(id);
   }
 
-  /** 解析技能文件的 YAML Frontmatter */
+  /**
+   * 解析技能文件的 YAML Frontmatter
+   * Parse YAML Frontmatter of skill files
+   */
   private parseFrontmatter(rawContent: string): { metadata: Record<string, string>; content: string } {
     const metadata: Record<string, string> = {};
     let content = rawContent;

@@ -3,7 +3,9 @@ import type http from 'node:http';
 
 /**
  * 核心配置 REST API 路由器
+ * Core configuration REST API router
  * 拦截并分发以 /api/config 开头的管理请求，复用 ConfigManager 的现有实现
+ * Intercepts and dispatches /api/config management requests, reusing ConfigManager implementation
  */
 export class FreyaConfigApi {
   private readonly headers = {

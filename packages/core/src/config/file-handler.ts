@@ -2,7 +2,10 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import { FREYA_HOME } from '../utils/paths.js';
 
-/** 配置文件底层 IO 处理器 */
+/**
+ * 配置文件底层 IO 处理器
+ * Low-level configuration file I/O handler
+ */
 export class FreyaConfigFileHandler {
   async readFreyaConfig(): Promise<Record<string, any>> {
     const filePath = path.join(FREYA_HOME, 'config', 'freya.json');

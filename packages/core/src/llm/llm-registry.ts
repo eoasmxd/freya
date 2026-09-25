@@ -38,7 +38,10 @@ export class FreyaLLMRegistry {
     }
   }
 
-  /** 注销大模型插件实例 */
+  /**
+   * 注销大模型插件实例
+   * Unregister LLM plugin instance
+   */
   unregister(pluginId: string): void {
     this.llmPlugins.delete(pluginId);
     if (this.defaultLLMPlugin?.id === pluginId) {
@@ -46,22 +49,34 @@ export class FreyaLLMRegistry {
     }
   }
 
-  /** 获取全局默认的大模型插件实例 */
+  /**
+   * 获取全局默认的大模型插件实例
+   * Get global default LLM plugin instance
+   */
   getDefault(): LLMPlugin | undefined {
     return this.defaultLLMPlugin;
   }
 
-  /** 手动强制覆盖设置默认大模型插件实例 */
+  /**
+   * 手动强制覆盖设置默认大模型插件实例
+   * Manually override default LLM plugin instance
+   */
   setDefault(plugin: LLMPlugin): void {
     this.defaultLLMPlugin = plugin;
   }
 
-  /** 获取当前登记的所有 LLM 插件实例 Map */
+  /**
+   * 获取当前登记的所有 LLM 插件实例 Map
+   * Get Map of all currently registered LLM plugin instances
+   */
   getPlugins(): Map<string, LLMPlugin> {
     return this.llmPlugins;
   }
 
-  /** 根据指定的 ProviderID 与 providers 物理配置，动态路由并匹配最契合的大模型插件实例 */
+  /**
+   * 根据指定的 ProviderID 与 providers 物理配置，动态路由并匹配最契合的大模型插件实例
+   * Dynamically route and match the best-fit LLM plugin instance based on ProviderID and providers config
+   */
   getPluginForProvider(providerId?: string): LLMPlugin {
     if (!this.defaultLLMPlugin) {
       throw new Error('未加载到任何有效的大模型插件。');

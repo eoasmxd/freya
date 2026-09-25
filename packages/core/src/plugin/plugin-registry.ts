@@ -5,7 +5,9 @@ import type { FreyaToolRegistry } from '../tools/tool-registry.js';
 
 /**
  * 内部插件注册表。
+ * Internal plugin registry.
  * 负责发现、解析和检索内核已装载的插件实例，并将工具类与大模型类插件分别委托给各自的注册中心。
+ * Discovers, parses, and retrieves kernel plugin instances, delegating tools and LLMs to registries.
  */
 export class FreyaPluginRegistry {
   constructor(

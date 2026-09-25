@@ -1,5 +1,6 @@
 {
   // plugins/plugin-tool-memory 的 TypeScript 编译配置
+  // TypeScript compilation configuration for plugins/plugin-tool-memory
   "extends": "../../tsconfig.json",
   "compilerOptions": {
     "rootDir": "src",

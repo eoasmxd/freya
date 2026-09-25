@@ -190,7 +190,9 @@ export default class TelegramChannelPlugin implements ChannelPlugin {
     ): void {
         (async () => {
             let offset = 0;
-            let retryDelay = 5000; // 初始重试间隔为 5 秒
+            // 初始重试间隔为 5 秒
+            // Initial retry delay is 5 seconds
+            let retryDelay = 5000;
             while (state.running) {
                 try {
                     const signal = state.abortController.signal;
@@ -200,6 +202,7 @@ export default class TelegramChannelPlugin implements ChannelPlugin {
                     }, signal);
 
                     // 轮询成功，立即重置退避时间为 5 秒
+                    // Polling succeeded, reset backoff delay to 5 seconds
                     retryDelay = 5000;
 
                     for (const update of updates) {
@@ -289,6 +292,7 @@ export default class TelegramChannelPlugin implements ChannelPlugin {
                     await new Promise((resolve) => setTimeout(resolve, retryDelay));
 
                     // 指数退避：每次失败翻倍，最大为 5 分钟 (300,000 毫秒)
+                    // Exponential backoff: double on failure, maximum 5 minutes (300,000 ms)
                     retryDelay = Math.min(retryDelay * 2, 5 * 60 * 1000);
                 }
             }

@@ -7,7 +7,10 @@ import { FreyaPromptRegistry } from './prompt-registry.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-/** 提示词物理文件管理器，负责加载、缺失拷贝与持久化覆写 */
+/**
+ * 提示词物理文件管理器，负责加载、缺失拷贝与持久化覆写
+ * Physical prompt file manager responsible for loading, fallback copying, and persistent overwriting
+ */
 export class FreyaPromptManager {
   private defaultDirPath = path.join(FREYA_APP, 'config', 'prompts');
 

@@ -1,7 +1,10 @@
 import type { FreyaContext, FreyaTool, ToolDefinition } from '@eoasmxd/freya-sdk';
 import { FreyaConfigManager } from '../../config/config-manager.js';
 
-/** 发起用户授权请求，在敏感操作前进行二级鉴权 */
+/**
+ * 发起用户授权请求，在敏感操作前进行二级鉴权
+ * Initiate user authorization request for secondary authentication before sensitive operations
+ */
 function requestUserAuthorization(
   ctx: FreyaContext,
   action: 'read' | 'write',

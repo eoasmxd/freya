@@ -36,7 +36,10 @@ function injectLanguageToHtml(html: string, lang: string): string {
     return tag + html;
 }
 
-/** HTTP 服务容器，托管前端 UI 静态资源 */
+/**
+ * HTTP 服务容器，托管前端 UI 静态资源
+ * HTTP service container hosting front-end UI static assets
+ */
 export class FreyaWebContainer {
     private httpServer?: http.Server;
     private port: number = 3000;
@@ -46,6 +49,7 @@ export class FreyaWebContainer {
 
     /**
      * 获取当前托管的底层 HTTP 服务实例
+     * Get underlying HTTP server instance currently hosted
      */
     getServer(): http.Server {
         if (!this.httpServer) {
@@ -56,6 +60,7 @@ export class FreyaWebContainer {
 
     /**
      * 启动 Web 静态容器托管服务
+     * Start Web static container hosting service
      */
     async start(ctx: FreyaContext, configManager: FreyaConfigManager): Promise<void> {
         this.port = (ctx.config as any)?.server?.port ?? 3000;
@@ -125,6 +130,7 @@ export class FreyaWebContainer {
 
     /**
      * 关停 Web 静态容器服务，并强行阻断释放所有活跃连接
+     * Stop Web static container service and force termination of all active connections
      */
     async stop(): Promise<void> {
         return new Promise((resolve) => {

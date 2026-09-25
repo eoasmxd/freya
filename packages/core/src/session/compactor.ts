@@ -41,7 +41,10 @@ export class SessionCompactor {
         }
     }
 
-    /** 仅在内存中组装并返回快照文件实体，无写盘副作用 */
+    /**
+     * 仅在内存中组装并返回快照文件实体，无写盘副作用
+     * Assemble and return snapshot file entity in memory only, without disk write side effects
+     */
     buildSnapshot(
         session: Session,
         summary: string,
@@ -98,6 +101,7 @@ export class SessionCompactor {
 
     /**
      * 【前置安全拦截】在发送前基于本地估算做硬拦截限制（默认 85% 窗口），防止大模型 API 溢出崩溃
+     * [Pre-guard] Hard intercept based on local estimation (default 85% window) before sending, preventing LLM API overflow crashes
      */
     async compressIfNeeded(
         session: Session,
@@ -202,7 +206,9 @@ export class SessionCompactor {
 
     /**
      * 【后置异步静默整理】在大模型回复追加后，利用本地估算在后台异步执行压缩整理（默认 65% 水位）
+     * [Post-chat Silent Compaction] Asynchronously perform background compaction after LLM reply appended (default 65% watermark)
      * 如果实际执行了压缩，返回 true；否则返回 false
+     * Returns true if compaction actually executed; otherwise false
      */
     async compressPostChat(
         session: Session,
@@ -273,7 +279,10 @@ export class SessionCompactor {
     }
 }
 
-/** 估算单条消息的 Token 数 */
+/**
+ * 估算单条消息的 Token 数
+ * Estimate token count of a single message
+ */
 export function estimateMessageTokens(msg: LLMMessage): number {
     let tokens = 0;
     if (msg.content) {

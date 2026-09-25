@@ -1,7 +1,10 @@
 import type { EventBus } from '@eoasmxd/freya-sdk';
 import { EventEmitter } from 'node:events';
 
-/** 基于 Node EventEmitter 的进程内事件总线，支持注册类事件缓冲区重播 */
+/**
+ * 基于 Node EventEmitter 的进程内事件总线，支持注册类事件缓冲区重播
+ * In-process event bus based on Node EventEmitter, supporting replay buffers for registration events
+ */
 export class FreyaEventBus implements EventBus {
   private emitter = new EventEmitter();
   private replayBuffers = new Map<string, any[][]>();

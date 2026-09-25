@@ -1,7 +1,10 @@
 import mysql from 'mysql2/promise';
 import type { FreyaContext } from '@eoasmxd/freya-sdk';
 
-/** MySQL 连接配置契约 */
+/**
+ * MySQL 连接配置契约
+ * MySQL connection configuration contract
+ */
 export interface MysqlConnectionConfig {
   name: string;
   host?: string;
@@ -13,7 +16,10 @@ export interface MysqlConnectionConfig {
   connectTimeout?: number;
 }
 
-/** 安全解算嵌套或扁平配置值 */
+/**
+ * 安全解算嵌套或扁平配置值
+ * Safely resolve nested or flat configuration values
+ */
 function getNestedConfig(config: Record<string, any>, keyPath: string): any {
   if (!config) return undefined;
   if (keyPath in config) return config[keyPath];
@@ -29,7 +35,10 @@ function getNestedConfig(config: Record<string, any>, keyPath: string): any {
   return current;
 }
 
-/** MySQL 多命名连接池管理器 */
+/**
+ * MySQL 多命名连接池管理器
+ * Multi-named MySQL connection pool manager
+ */
 export class MysqlPoolManager {
   private pools = new Map<string, mysql.Pool>();
   private connectionConfigs = new Map<string, MysqlConnectionConfig>();
@@ -39,7 +48,10 @@ export class MysqlPoolManager {
     this.reloadConfigs();
   }
 
-  /** 加载与同步配置 */
+  /**
+   * 加载与同步配置
+   * Load and synchronize configuration
+   */
   public reloadConfigs(): void {
     this.connectionConfigs.clear();
     const config = this.ctx.config || {};
@@ -80,7 +92,10 @@ export class MysqlPoolManager {
     }
   }
 
-  /** 获取指定名称的数据库连接池 */
+  /**
+   * 获取指定名称的数据库连接池
+   * Get database connection pool with specified name
+   */
   public getPool(targetName?: string): { pool: mysql.Pool; config: MysqlConnectionConfig } {
     this.reloadConfigs();
     const connectionName = targetName || this.defaultConnectionName;
@@ -112,12 +127,18 @@ export class MysqlPoolManager {
     return { pool, config: conf };
   }
 
-  /** 获取所有可用连接名称 */
+  /**
+   * 获取所有可用连接名称
+   * Get all available connection names
+   */
   public getAvailableConnectionNames(): string[] {
     return Array.from(this.connectionConfigs.keys());
   }
 
-  /** 释放所有已建立的连接池资源 */
+  /**
+   * 释放所有已建立的连接池资源
+   * Release all established connection pool resources
+   */
   public async closeAll(): Promise<void> {
     for (const [name, pool] of this.pools.entries()) {
       try {

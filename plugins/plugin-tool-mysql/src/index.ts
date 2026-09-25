@@ -3,7 +3,10 @@ import { MysqlPoolManager } from './pool-manager.js';
 import { SqlAuditService } from './audit.js';
 import { MysqlQueryTool } from './tools.js';
 
-/** MySQL 数据库查询工具箱插件 */
+/**
+ * MySQL 数据库查询工具箱插件
+ * MySQL database query toolbox plugin
+ */
 export default class MysqlToolsPlugin implements ToolPlugin {
   type = 'tool' as const;
 

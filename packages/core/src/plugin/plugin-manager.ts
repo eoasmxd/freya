@@ -38,6 +38,7 @@ interface DiscoveredPluginInfo {
 
 /**
  * Freya 插件生命周期与模块管理器
+ * Freya plugin lifecycle and module manager
  */
 export class FreyaPluginManager {
   private plugins = new Map<string, FreyaPlugin>();
@@ -56,6 +57,7 @@ export class FreyaPluginManager {
 
   /**
    * 加载指定路径的插件模块并挂载所属 Command 与 Prompt 声明
+   * Load plugin module from specified path and mount associated Command and Prompt declarations
    */
   async loadPlugin(
     pluginPath: string,
@@ -74,6 +76,7 @@ export class FreyaPluginManager {
     const plugin: FreyaPlugin = new PluginClass();
 
     // 自动补全后写入静态元数据
+    // Write static metadata after autocomplete
     plugin.id = plugin.id || meta.id;
     plugin.name = plugin.name || meta.displayName || meta.id;
     plugin.version = plugin.version || meta.version || '0.1.0';
@@ -101,6 +104,7 @@ export class FreyaPluginManager {
 
   /**
    * 启动已载入内存的所有插件实例
+   * Initialize and start all plugin instances loaded in memory
    */
   async setupAndStartAll(ctx: FreyaContext): Promise<void> {
     for (const plugin of this.plugins.values()) {
@@ -117,6 +121,7 @@ export class FreyaPluginManager {
 
   /**
    * 停止所有运行中的插件实例
+   * Stop all running plugin instances
    */
   async stopAll(ctx: FreyaContext): Promise<void> {
     for (const plugin of this.plugins.values()) {
@@ -146,6 +151,7 @@ export class FreyaPluginManager {
 
   /**
    * 切换插件的启停状态并同步物理配置
+   * Toggle plugin enabled/disabled status and synchronize physical configuration
    */
   async togglePlugin(pluginId: string, enabled: boolean): Promise<string> {
     const entry = this.pluginEntries.find((e: PluginConfigEntry) => e.id === pluginId);
@@ -229,6 +235,7 @@ export class FreyaPluginManager {
 
   /**
    * 检验与分析指定物理目录下的插件包
+   * Inspect and analyze plugin package under specified physical directory
    */
   private async inspectPluginPackage(
     dirPath: string,
@@ -347,6 +354,7 @@ export class FreyaPluginManager {
 
   /**
    * 解析系统中指定 NPM 包名的插件模块
+   * Resolve plugin module with specified NPM package name in system
    */
   private async resolveNpmPlugin(pkgName: string): Promise<DiscoveredPluginInfo> {
     try {
@@ -403,6 +411,7 @@ export class FreyaPluginManager {
 
   /**
    * 收集并检索应用内置、运行环境及配置所指定的全部插件来源
+   * Scan and collect all plugin sources from built-in, runtime, and configuration
    */
   private async scanAllChannels(configuredIds: Set<string>): Promise<DiscoveredPluginInfo[]> {
     const map = new Map<string, DiscoveredPluginInfo>();
@@ -470,6 +479,7 @@ export class FreyaPluginManager {
 
   /**
    * 根据配置文件加载与激活目标插件
+   * Load and activate target plugins according to configuration files
    */
   async loadConfiguredPlugins(pluginRegistry: FreyaPluginRegistry, ctx: FreyaContext): Promise<void> {
     this.ctx = ctx;

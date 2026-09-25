@@ -42,7 +42,10 @@ function resolveAbsoluteUrl(href: string, baseUrl?: string): string {
     }
 }
 
-/** HTML 内容净化与结构提取 */
+/**
+ * HTML 内容净化与结构提取
+ * HTML content sanitization and structural extraction
+ */
 export function cleanHtmlContent(html: string, mode: 'auto' | 'text', baseUrl?: string): string {
     let content = html;
 
@@ -153,7 +156,10 @@ function isPrivateIPv4(hostname: string): boolean {
     return false;
 }
 
-/** 校验 URL 安全性 */
+/**
+ * 校验 URL 安全性
+ * Validate URL security
+ */
 export function validateUrl(rawUrl: string): URL {
     let url: URL;
     try {
@@ -185,7 +191,10 @@ export function validateUrl(rawUrl: string): URL {
 
 const DEFAULT_MAX_LENGTH = 100 * 1024;
 
-/** 截断响应文本 */
+/**
+ * 截断响应文本
+ * Truncate response text
+ */
 export function truncateContent(content: string, maxLength?: number): string {
     const limit = maxLength && maxLength > 0 ? maxLength : DEFAULT_MAX_LENGTH;
 
@@ -202,7 +211,10 @@ export function truncateContent(content: string, maxLength?: number): string {
 
 export const DEFAULT_TIMEOUT_MS = 30_000;
 
-/** 解析请求 Headers 参数 */
+/**
+ * 解析请求 Headers 参数
+ * Parse request Headers parameters
+ */
 export function parseHeaders(rawHeaders: unknown): Record<string, string> {
     if (!rawHeaders) return {};
 
@@ -234,7 +246,10 @@ function ensureStringValues(obj: Record<string, unknown>): Record<string, string
     return result;
 }
 
-/** 获取工作区绝对路径 */
+/**
+ * 获取工作区绝对路径
+ * Get workspace absolute directory path
+ */
 export function getWorkspaceDir(ctx: FreyaContext): string {
     return ctx.paths.workspaceDir;
 }
@@ -244,7 +259,10 @@ function isBinaryContentType(contentType: string): boolean {
     return BINARY_CONTENT_TYPES.some((prefix) => lower.startsWith(prefix));
 }
 
-/** 智能判定是否自动落盘 */
+/**
+ * 智能判定是否自动落盘
+ * Intelligently determine whether to automatically save to disk
+ */
 export function shouldAutoSave(
     args: Record<string, any>,
     bodyLength: number,
@@ -278,7 +296,10 @@ function inferExtension(contentType: string): string {
     return '.txt';
 }
 
-/** 将响应内容保存到工作区文件 */
+/**
+ * 将响应内容保存到工作区文件
+ * Save response content to workspace file
+ */
 export async function saveToWorkspace(
     workspaceDir: string,
     url: string,
@@ -309,7 +330,10 @@ export async function saveToWorkspace(
     return relativePath;
 }
 
-/** 格式化文件大小 */
+/**
+ * 格式化文件大小
+ * Format file size in bytes
+ */
 export function formatBytes(bytes: number): string {
     if (bytes === 0) return '0 B';
     const k = 1024;

@@ -34,17 +34,26 @@ function resolveAppRoot(): string {
   return coreDir;
 }
 
-/** 运行态持久化主目录（数据与配置存放区） */
+/**
+ * 运行态持久化主目录（数据与配置存放区）
+ * Runtime persistent home directory (data and config storage)
+ */
 export const FREYA_HOME = customHome
   ? path.resolve(customHome)
   : path.join(os.homedir(), '.freya');
 
-/** 程序代码物理安装根目录（只读代码与包内默认资源区） */
+/**
+ * 程序代码物理安装根目录（只读代码与包内默认资源区）
+ * Application physical installation root directory (read-only code and built-in assets)
+ */
 export const FREYA_APP = customApp
   ? path.resolve(customApp)
   : resolveAppRoot();
 
-/** 宿主命令启动执行根目录（默认当前工作目录 process.cwd()） */
+/**
+ * 宿主命令启动执行根目录（默认当前工作目录 process.cwd()）
+ * Host launch execution root directory (defaults to process.cwd())
+ */
 export const FREYA_LAUNCH = customLaunch
   ? path.resolve(customLaunch)
   : process.cwd();

@@ -2,7 +2,10 @@ import type { FreyaContext, LLMMessage, LLMPlugin, LLMPluginOptions, LLMTokenUsa
 import path from 'node:path';
 import fs from 'node:fs/promises';
 
-/** OpenAI 兼容模型插件，支持流式传输与 Abort 中断 */
+/**
+ * OpenAI 兼容模型插件，支持流式传输与 Abort 中断
+ * OpenAI compatible model plugin supporting streaming and Abort interruption
+ */
 export default class OpenAICompatiblePlugin implements LLMPlugin {
   type = 'llm' as const;
   providerTypes = ['openai'];

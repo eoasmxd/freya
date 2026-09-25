@@ -1,5 +1,6 @@
 {
   // packages/sdk 的 TypeScript 编译配置
+  // TypeScript compilation configuration for packages/sdk
   "extends": "../../tsconfig.json",
   "compilerOptions": {
     "rootDir": "src",

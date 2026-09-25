@@ -8,8 +8,9 @@ export type { Session, SessionIndex, SnapFile } from './types.js';
 
 /**
  * SessionManager — 会话管理器。
- *
+ * SessionManager — Session manager.
  * 职责：内存缓存调度、持久化读写中转、自动上下文压缩。
+ * Responsibility: In-memory cache scheduling, persistence I/O dispatch, and automatic context compaction.
  */
 export class FreyaSessionManager {
     private persistence = new FreyaSessionPersistence();
@@ -35,6 +36,7 @@ export class FreyaSessionManager {
 
     /**
      * 初始化会话系统。
+     * Initialize the session system.
      */
     async load(context: FreyaContext, promptRegistry: FreyaPromptRegistry): Promise<void> {
         this.context = context;
@@ -355,6 +357,7 @@ export class FreyaSessionManager {
 
     /**
      * 读取指定会话中的单个物理快照。
+     * Read a single physical snapshot from the specified session.
      */
     async getSnapshot(id: string, snapId: string): Promise<any | null> {
         const session = await this.getOrCreate(id);

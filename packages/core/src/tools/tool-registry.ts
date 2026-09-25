@@ -3,7 +3,9 @@ import type { FreyaPromptRegistry } from '../prompt/prompt-registry.js';
 
 /**
  * 内核工具注册表。
+ * Kernel tool registry.
  * 统一聚合内置工具箱与来自插件体系的外部工具箱。
+ * Aggregates built-in toolboxes and external toolboxes from plugins.
  */
 export class FreyaToolRegistry {
   private toolboxes: FreyaToolbox[] = [];
@@ -14,7 +16,10 @@ export class FreyaToolRegistry {
     this.context = context;
   }
 
-  /** 判断指定工具箱当前是否已注册且处于可用启用状态 */
+  /**
+   * 判断指定工具箱当前是否已注册且处于可用启用状态
+   * Determine whether specified toolbox is registered and enabled
+   */
   isToolboxEnabled(toolboxId: string): boolean {
     if (toolboxId === 'meta') {
       return true;
@@ -33,7 +38,10 @@ export class FreyaToolRegistry {
     return true;
   }
 
-  /** 注册工具箱 */
+  /**
+   * 注册工具箱
+   * Register toolbox
+   */
   registerToolbox(toolbox: FreyaToolbox): void {
     const newId = toolbox.getId();
     const existingIndex = this.toolboxes.findIndex((tb) => tb.getId() === newId || tb === toolbox);
@@ -45,12 +53,18 @@ export class FreyaToolRegistry {
     }
   }
 
-  /** 注销工具箱 */
+  /**
+   * 注销工具箱
+   * Unregister toolbox
+   */
   unregisterToolbox(id: string): void {
     this.toolboxes = this.toolboxes.filter((tb) => tb.getId() !== id);
   }
 
-  /** 获取指定 ID 的工具箱中的所有原子工具 */
+  /**
+   * 获取指定 ID 的工具箱中的所有原子工具
+   * Get all atomic tools in toolbox with specified ID
+   */
   getToolsInBox(id: string): FreyaTool[] {
     if (!this.isToolboxEnabled(id)) {
       return [];
@@ -59,7 +73,10 @@ export class FreyaToolRegistry {
     return tb ? tb.getTools() : [];
   }
 
-  /** 聚合所有来源的已启用工具 */
+  /**
+   * 聚合所有来源的已启用工具
+   * Aggregate all enabled tools from all sources
+   */
   getAllTools(): Map<string, FreyaTool> {
     const tools = new Map<string, FreyaTool>();
     for (const toolbox of this.toolboxes) {
@@ -73,7 +90,10 @@ export class FreyaToolRegistry {
     return tools;
   }
 
-  /** 根据当前会话已激活的工具箱列表，过滤获取所需的工具字典 */
+  /**
+   * 根据当前会话已激活的工具箱列表，过滤获取所需的工具字典
+   * Filter and retrieve required tools dictionary based on active toolboxes in current session
+   */
   getFilteredTools(activeToolboxIds: string[]): Map<string, FreyaTool> {
     const activeSet = new Set(activeToolboxIds || []);
     const tools = new Map<string, FreyaTool>();
@@ -92,7 +112,10 @@ export class FreyaToolRegistry {
     return tools;
   }
 
-  /** 聚合所有已启用的工具箱提示词引导说明 */
+  /**
+   * 聚合所有已启用的工具箱提示词引导说明
+   * Aggregate instruction prompt guides for all enabled toolboxes
+   */
   getToolInstructions(promptRegistry: FreyaPromptRegistry): string[] {
     const instructions: string[] = [];
     for (const toolbox of this.toolboxes) {

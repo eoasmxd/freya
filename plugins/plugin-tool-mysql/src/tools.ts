@@ -2,7 +2,10 @@ import type { FreyaContext, ToolDefinition, FreyaTool } from '@eoasmxd/freya-sdk
 import type { MysqlPoolManager } from './pool-manager.js';
 import type { SqlAuditService } from './audit.js';
 
-/** 脱敏错误信息中的敏感凭据 */
+/**
+ * 脱敏错误信息中的敏感凭据
+ * Sanitize sensitive credentials in error messages
+ */
 function sanitizeErrorMessage(err: any, password?: string): string {
   let message = err?.message || String(err);
   if (password) {
@@ -11,7 +14,10 @@ function sanitizeErrorMessage(err: any, password?: string): string {
   return message;
 }
 
-/** MySQL 数据库查询执行工具 */
+/**
+ * MySQL 数据库查询执行工具
+ * MySQL database query execution tool
+ */
 export class MysqlQueryTool implements FreyaTool {
   constructor(
     private poolManager: MysqlPoolManager,

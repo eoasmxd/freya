@@ -2,7 +2,10 @@ import type { FreyaContext, ToolDefinition, FreyaTool } from '@eoasmxd/freya-sdk
 import fs from 'node:fs/promises';
 import path from 'node:path';
 
-/** 解析作用域实际物理路径，返回 null 表示显式禁用 */
+/**
+ * 解析作用域实际物理路径，返回 null 表示显式禁用
+ * Resolve actual physical path of scope; returns null if explicitly disabled
+ */
 function resolveScopeBase(envValue: string | undefined, defaultPath: string, launchDir: string): string | null {
   if (envValue === undefined) {
     return defaultPath;
@@ -14,7 +17,10 @@ function resolveScopeBase(envValue: string | undefined, defaultPath: string, lau
   return path.isAbsolute(trimmed) ? trimmed : path.resolve(launchDir, trimmed);
 }
 
-/** 获取当前激活的作用域列表与描述文本 */
+/**
+ * 获取当前激活的作用域列表与描述文本
+ * Get list of currently active scopes and description text
+ */
 function getActiveScopesInfo(): { scopes: string[]; description: string } {
   const scopes = ['workspace'];
   const descParts = ['默认为 "workspace" 沙箱'];
@@ -37,7 +43,10 @@ function getActiveScopesInfo(): { scopes: string[]; description: string } {
   return { scopes, description };
 }
 
-/** 获取经过安全边界校验的绝对路径 */
+/**
+ * 获取经过安全边界校验的绝对路径
+ * Get absolute path validated against security boundaries
+ */
 export function getSafePath(ctx: FreyaContext, relativePath: string, scope?: string): { targetAbs: string; baseAbs: string } {
   const targetScope = scope || 'workspace';
   let baseAbs: string | null = null;
@@ -68,7 +77,10 @@ export function getSafePath(ctx: FreyaContext, relativePath: string, scope?: str
   return { targetAbs, baseAbs };
 }
 
-/** 屏蔽底层文件系统异常中携带的真实宿主机绝对路径 */
+/**
+ * 屏蔽底层文件系统异常中携带的真实宿主机绝对路径
+ * Mask real host absolute paths in underlying filesystem exceptions
+ */
 export function sanitizeError(err: any, baseAbs: string): string {
   const rawMessage = err?.message || String(err);
   const escapedWorkspace = baseAbs.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -76,13 +88,19 @@ export function sanitizeError(err: any, baseAbs: string): string {
   return rawMessage.replace(regex, '');
 }
 
-/** 统一文件系统错误处理与物理路径脱敏 */
+/**
+ * 统一文件系统错误处理与物理路径脱敏
+ * Unified filesystem error handling and physical path sanitization
+ */
 export function handleFsError(ctx: FreyaContext, action: string, err: any, baseAbs?: string): string {
   const targetBase = baseAbs || ctx.paths.workspaceDir;
   return `❌ ${action}失败: ${sanitizeError(err, targetBase)}`;
 }
 
-/** 格式化文件大小 */
+/**
+ * 格式化文件大小
+ * Format file size in bytes
+ */
 function formatBytes(bytes: number): string {
   if (bytes === 0) return '0 B';
   const k = 1024;

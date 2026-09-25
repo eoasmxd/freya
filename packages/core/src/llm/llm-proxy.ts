@@ -23,7 +23,10 @@ interface HealthState {
   errorMessage?: string;
 }
 
-/** 大模型代理服务，提供带降级链的 LLM 调用入口 */
+/**
+ * 大模型代理服务，提供带降级链的 LLM 调用入口
+ * LLM proxy service providing LLM invocation entry point with fallback chain
+ */
 export class FreyaLLMProxy implements ILLMService {
   private llmLogger: FreyaLLMLogger;
   private modelHealthRegistry = new Map<string, HealthState>();
@@ -37,6 +40,7 @@ export class FreyaLLMProxy implements ILLMService {
 
   /**
    * 发起大模型对话请求，支持工具调用与多候选自动降级熔断。
+   * Initiate LLM chat request, supporting tool calls and automatic fallback with circuit breaking.
    */
   async chat(
     messages: LLMMessage[],
@@ -297,6 +301,7 @@ export class FreyaLLMProxy implements ILLMService {
 
   /**
    * 获取指定模型的最大上下文 Token 额度。
+   * Get maximum context token limit for the specified model.
    */
   getContextWindow(modelId?: string): number {
     const providers = this.llmRegistry.providers;
@@ -312,6 +317,7 @@ export class FreyaLLMProxy implements ILLMService {
 
   /**
    * 获取指定大模型所支持的多模态及其他原生硬件能力列表。
+   * Get list of multimodal and native capabilities supported by the specified LLM.
    */
   getModelCapabilities(modelId?: string, providerId?: string): string[] {
     const matched = this.llmRegistry.findModelConfig(modelId || 'default-model', providerId);

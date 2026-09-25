@@ -8,7 +8,10 @@ const BUILTIN_COMMAND_CATEGORY_MAP: Record<string, string> = {
   models: 'model'
 };
 
-/** 系统指令注册表：维护主指令与别名的映射字典 */
+/**
+ * 系统指令注册表：维护主指令与别名的映射字典
+ * System command registry: maintains mapping dictionary between primary commands and aliases
+ */
 export class FreyaCommandRegistry {
   private commands = new Map<string, FreyaCommand>();
   private aliasMap = new Map<string, string>();
@@ -20,7 +23,10 @@ export class FreyaCommandRegistry {
     this.context = context;
   }
 
-  /** 判断指定指令当前是否已注册且处于可用启用状态 */
+  /**
+   * 判断指定指令当前是否已注册且处于可用启用状态
+   * Determine whether specified command is registered and enabled
+   */
   isCommandEnabled(name: string): boolean {
     const lowerName = name.toLowerCase();
     const primaryName = this.aliasMap.get(lowerName) || lowerName;
@@ -40,7 +46,10 @@ export class FreyaCommandRegistry {
     return true;
   }
 
-  /** 注册新的系统指令并建立别名路由 */
+  /**
+   * 注册新的系统指令并建立别名路由
+   * Register new system command and set up alias routing
+   */
   register(command: FreyaCommand, pluginId?: string): void {
     const name = command.name.toLowerCase();
     if (this.commands.has(name)) {
@@ -72,7 +81,10 @@ export class FreyaCommandRegistry {
     }
   }
 
-  /** 注销指定插件注册的所有指令与别名 */
+  /**
+   * 注销指定插件注册的所有指令与别名
+   * Unregister all commands and aliases registered by specified plugin
+   */
   unregisterByPlugin(pluginId: string): void {
     const names = this.pluginCommandsMap.get(pluginId);
     if (!names) return;

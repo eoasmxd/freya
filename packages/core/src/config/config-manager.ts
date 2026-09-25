@@ -148,7 +148,10 @@ function deepMerge(defaults: Record<string, any>, overrides: Record<string, any>
 
 const ALLOWED_PROMPTS = new Set(['IDENTITY', 'SOUL', 'USER', 'TOOLS', 'AGENTS', 'MEMORY']);
 
-/** 核心统一配置管理器 */
+/**
+ * 核心统一配置管理器
+ * Core unified configuration manager
+ */
 export class FreyaConfigManager {
   private context: FreyaContext;
   private schemaRegistry: FreyaConfigSchemaRegistry;
@@ -174,7 +177,10 @@ export class FreyaConfigManager {
     this.skillRegistry = skillRegistry;
   }
 
-  /** 获取全部敏感字段的 keyPath 列表 */
+  /**
+   * 获取全部敏感字段的 keyPath 列表
+   * Get keyPath list of all sensitive fields
+   */
   getSensitiveKeys(): string[] {
     return this.schemaRegistry.getSensitiveKeys();
   }

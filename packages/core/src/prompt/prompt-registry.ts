@@ -9,7 +9,10 @@ export interface FreyaPrompt {
   configFileName?: string;
 }
 
-/** 提示词内存注册表，管理所有系统及插件级提示词的分类检索 */
+/**
+ * 提示词内存注册表，管理所有系统及插件级提示词的分类检索
+ * In-memory prompt registry managing classified retrieval of system and plugin prompts
+ */
 export class FreyaPromptRegistry {
   private prompts = new Map<string, FreyaPrompt>();
 
@@ -38,7 +41,10 @@ export class FreyaPromptRegistry {
     return candidates;
   }
 
-  /** 注册提示词元数据声明并执行三层级联探针载入 */
+  /**
+   * 注册提示词元数据声明并执行三层级联探针载入
+   * Register prompt metadata declaration and perform three-tier cascading probe loading
+   */
   async register(prompt: Omit<FreyaPrompt, 'content'>): Promise<void> {
     const probePaths = this.resolveProbePaths(prompt);
     let content = '';
@@ -61,7 +67,10 @@ export class FreyaPromptRegistry {
     });
   }
 
-  /** 更新内存中的提示词文本内容 */
+  /**
+   * 更新内存中的提示词文本内容
+   * Update prompt text content in memory
+   */
   updateContent(key: string, content: string): void {
     const existing = this.prompts.get(key);
     if (existing) {
@@ -69,7 +78,10 @@ export class FreyaPromptRegistry {
     }
   }
 
-  /** 注销指定 Key 的内存提示词 */
+  /**
+   * 注销指定 Key 的内存提示词
+   * Unregister in-memory prompt by specified key
+   */
   unregister(key: string): void {
     this.prompts.delete(key);
   }
@@ -82,7 +94,10 @@ export class FreyaPromptRegistry {
     return this.prompts;
   }
 
-  /** 扫描并装载所有内核提示词 */
+  /**
+   * 扫描并装载所有内核提示词
+   * Scan and load all kernel prompts
+   */
   async loadKernelPrompts(): Promise<void> {
     const defaultDirPath = path.join(FREYA_APP, 'config', 'prompts');
     try {
@@ -115,7 +130,10 @@ export class FreyaPromptRegistry {
     } catch {}
   }
 
-  /** 获取并拼装完整的核心 System Prompt */
+  /**
+   * 获取并拼装完整的核心 System Prompt
+   * Retrieve and assemble full core System Prompt
+   */
   getSystemPrompt(): string {
     const identity = this.get('core.prompt.identity');
     const soul = this.get('core.prompt.soul');
@@ -146,7 +164,10 @@ export class FreyaPromptRegistry {
       `# CURRENT TIME (当前时间)\n${timeStr}`;
   }
 
-  /** 将核心 System Prompt 与当前激活的技能提示词、工具附加指示词及可用技能列表合成一个最终的系统提示词 */
+  /**
+   * 将核心 System Prompt 与当前激活的技能提示词、工具附加指示词及可用技能列表合成一个最终的系统提示词
+   * Compose core System Prompt with active skill, tool instructions, and available skills into final prompt
+   */
   composeSystemPrompt(
     activeSkill?: { id: string; content: string },
     toolInstructions: string[] = [],

@@ -20,7 +20,9 @@ interface WsConnectionMeta {
 
 /**
  * 内置 WebSocket 通信通道。
+ * Built-in WebSocket communication channel.
  * 负责管理物理长连接的接入与心跳，并将后端的全量/流式响应以 WebSocket 事件形式推送给网页端。
+ * Manages physical persistent connection lifecycle and heartbeats, pushing full/streaming responses to web client via WebSocket events.
  */
 export class FreyaWsChannel {
     id = 'built-in-ws-channel';

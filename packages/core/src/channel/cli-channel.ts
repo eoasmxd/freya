@@ -5,7 +5,9 @@ const CLI_CONN_ID = 'built-in-cli-channel:terminal';
 
 /**
  * 内置控制台交互通道。
+ * Built-in console interaction channel.
  * 负责监听终端标准输入（stdin）并将大模型响应流式渲染输出至标准输出（stdout）。
+ * Listens to terminal stdin and streams LLM responses to stdout.
  */
 function detectCliLanguage(): string {
     const envLang = (process.env.LANG || process.env.LC_ALL || process.env.LC_MESSAGES || '').toLowerCase();
@@ -19,6 +21,7 @@ function detectCliLanguage(): string {
         }
     } catch {
         // 忽略检测异常
+        // Ignore detection errors
     }
     return 'en';
 }

@@ -196,6 +196,7 @@ export class FreyaAgentExecutor {
 
   /**
    * 评估并自动卸载连续闲置超过设定阈值轮数的工具箱。
+   * Evaluate and automatically deactivate toolboxes idle for more than configured threshold rounds.
    */
   private async evaluateAndDeactivateIdleToolboxes(
     sessionId: string,

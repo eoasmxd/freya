@@ -5,7 +5,10 @@ import path from 'node:path';
 import { inspect } from 'node:util';
 import { FREYA_HOME } from './utils/paths.js';
 
-/** 双轨日志器：按日期滚动写入文件，按配置输出至控制台 */
+/**
+ * 双轨日志器：按日期滚动写入文件，按配置输出至控制台
+ * Dual-track logger: writes to daily rolling log files and outputs to console by config
+ */
 export class FreyaLogger implements Logger {
   private readonly logsDir: string;
   private consoleLevels = {
@@ -23,7 +26,10 @@ export class FreyaLogger implements Logger {
     fs.mkdirSync(this.logsDir, { recursive: true });
   }
 
-  /** 设置各日志级别是否输出至控制台 */
+  /**
+   * 设置各日志级别是否输出至控制台
+   * Configure whether log levels should output to console
+   */
   setConsoleLevel(levels: { error?: boolean; warn?: boolean; info?: boolean; debug?: boolean }): void {
     this.consoleLevels = { ...this.consoleLevels, ...levels };
   }

@@ -41,6 +41,7 @@ const WECOM_MIME_MAP: Record<string, string> = {
 
 /**
  * Freya 企业微信智能机器人长连接通道插件
+ * Freya WeChat Work intelligent bot persistent connection channel plugin
  */
 export default class FreyaWecomChannelPlugin implements ChannelPlugin {
   readonly type = "channel" as const;
@@ -357,6 +358,7 @@ export default class FreyaWecomChannelPlugin implements ChannelPlugin {
       }
     } else if (cmd === "pong") {
       // 心跳响应
+      // Heartbeat response
     }
   }
 
@@ -383,6 +385,7 @@ export default class FreyaWecomChannelPlugin implements ChannelPlugin {
 
   /**
    * 下载企业微信加密媒体文件并进行 AES-256-CBC 解密还原
+   * Download WeChat Work encrypted media file and decrypt via AES-256-CBC
    */
   private async downloadAndDecryptMedia(
     ctx: FreyaContext,
@@ -518,6 +521,7 @@ export default class FreyaWecomChannelPlugin implements ChannelPlugin {
 
   /**
    * 定期同步内存中的活跃机器人列表，提供配置平滑热重载支持
+   * Periodically synchronize active bots in memory to support smooth configuration hot-reloading
    */
   private async syncWecomBots(ctx: FreyaContext): Promise<void> {
     const rawBots = ctx.config.wecom?.bots;

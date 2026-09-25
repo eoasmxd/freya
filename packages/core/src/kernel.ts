@@ -27,7 +27,10 @@ import { FreyaMetaToolbox } from './tools/meta/index.js';
 import { FreyaToolRegistry } from './tools/tool-registry.js';
 import { FreyaWebContainer } from './web/web-container.js';
 
-/** Freya 核心微内核，负责协调各子系统启动与关闭 */
+/**
+ * Freya 核心微内核，负责协调各子系统启动与关闭
+ * Freya core microkernel responsible for coordinating startup and shutdown of subsystems
+ */
 export class FreyaKernel {
   private context = new DefaultFreyaContext();
   private sessionManager!: FreyaSessionManager;
