@@ -8,6 +8,7 @@ export interface ConfigFieldSchema {
   min?: number;
   max?: number;
   sensitive?: boolean;
+  manualOnly?: boolean;
   category?: string;
   uiHint?: 'text' | 'textarea' | 'password' | 'select' | 'slider';
   children?: ConfigFieldSchema[];

@@ -179,6 +179,10 @@ export class FreyaConfigManager {
     return this.schemaRegistry.getSensitiveKeys();
   }
 
+  getManualOnlyKeys(): string[] {
+    return this.schemaRegistry.getManualOnlyKeys();
+  }
+
   async loadAndInit(): Promise<void> {
     try {
       const freyaConfig = await this.fileHandler.readFreyaConfig();
@@ -547,21 +551,24 @@ export class FreyaConfigManager {
         required: true,
         min: 1,
         max: 65535,
-        category: '服务器'
+        category: '服务器',
+        manualOnly: true
       },
       {
         key: 'server.enabled',
         defaultValue: true,
         description: '是否启用 Web 网关服务与 WebSocket 频道',
         type: 'boolean',
-        category: '服务器'
+        category: '服务器',
+        manualOnly: true
       },
       {
         key: 'cli.enabled',
         defaultValue: true,
         description: '是否启用命令行终端交互频道',
         type: 'boolean',
-        category: '终端'
+        category: '终端',
+        manualOnly: true
       },
       {
         key: 'workspace',
@@ -569,7 +576,8 @@ export class FreyaConfigManager {
         description: '用户文档工作区目录名',
         type: 'string',
         required: true,
-        category: '工作区'
+        category: '工作区',
+        manualOnly: true
       },
       {
         key: 'contextManagement.enabled',
@@ -671,7 +679,8 @@ export class FreyaConfigManager {
         description: '默认模型降级链列表',
         type: 'array',
         category: '模型',
-        children: modelItemChildren
+        children: modelItemChildren,
+        manualOnly: true
       },
       {
         key: 'models.image',
@@ -696,42 +705,48 @@ export class FreyaConfigManager {
         type: 'number',
         min: 10,
         max: 300,
-        category: '安全'
+        category: '安全',
+        manualOnly: true
       },
       {
         key: 'tools.builtin.config.enabled',
         defaultValue: true,
         description: '是否启用系统核心配置工具箱（允许大模型查看与修改系统配置）',
         type: 'boolean',
-        category: '系统工具'
+        category: '系统工具',
+        manualOnly: true
       },
       {
         key: 'tools.builtin.session.enabled',
         defaultValue: true,
         description: '是否启用会话与子任务管理工具箱（允许大模型查阅会话历史与派生子任务）',
         type: 'boolean',
-        category: '系统工具'
+        category: '系统工具',
+        manualOnly: true
       },
       {
         key: 'commands.builtin.auth.enabled',
         defaultValue: true,
         description: '是否启用敏感操作授权审批指令（/approve 与 /reject）',
         type: 'boolean',
-        category: '系统指令'
+        category: '系统指令',
+        manualOnly: true
       },
       {
         key: 'commands.builtin.session.enabled',
         defaultValue: true,
         description: '是否启用会话管理与路由指令（/session 及其子命令）',
         type: 'boolean',
-        category: '系统指令'
+        category: '系统指令',
+        manualOnly: true
       },
       {
         key: 'commands.builtin.model.enabled',
         defaultValue: true,
         description: '是否启用模型查看与切换指令（/model 及其子命令）',
         type: 'boolean',
-        category: '系统指令'
+        category: '系统指令',
+        manualOnly: true
       }
     ];
 

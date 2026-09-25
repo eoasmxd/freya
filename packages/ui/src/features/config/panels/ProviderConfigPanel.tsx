@@ -254,6 +254,7 @@ export const ProviderConfigPanel: React.FC<ProviderConfigPanelProps> = ({ getApi
   };
 
   const startEditModel = (model: Model) => {
+    setShowAddModelForm(false);
     setEditingModelId(model.id);
     setEditModelName(model.name || '');
     setEditModelInputPrice(model.inputPrice !== undefined && model.inputPrice !== null ? String(model.inputPrice) : '0');
@@ -472,315 +473,408 @@ export const ProviderConfigPanel: React.FC<ProviderConfigPanelProps> = ({ getApi
             </div>
 
             <div style={{ marginTop: '0.8rem', borderTop: '1px solid rgba(255,255,255,0.03)', paddingTop: '1rem' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.6rem' }}>
                 <label className="config-label">关联大模型列表</label>
-                <button
-                  className="btn-header"
-                  onClick={() => setShowAddModelForm(!showAddModelForm)}
-                >
-                  {showAddModelForm ? '取消' : '关联新模型'}
-                </button>
+                <span style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>
+                  已关联 {(providers.find(p => p.id === selectedProviderId)?.models || []).length} 个模型
+                </span>
               </div>
 
-              {showAddModelForm && (
-                <div className="crud-form-card">
-                  <div className="crud-form-row">
-                    <div className="config-group">
-                      <label className="config-label" style={{ fontSize: '0.74rem' }}>模型物理 ID</label>
-                      <input
-                        type="text"
-                        placeholder="如 deepseek-chat"
-                        className="config-input"
-                        value={newModelId}
-                        onChange={(e) => setNewModelId(e.target.value)}
-                      />
-                    </div>
-                    <div className="config-group">
-                      <label className="config-label" style={{ fontSize: '0.74rem' }}>模型友好名称</label>
-                      <input
-                        type="text"
-                        placeholder="如 DeepSeek V3"
-                        className="config-input"
-                        value={newModelName}
-                        onChange={(e) => setNewModelName(e.target.value)}
-                      />
-                    </div>
+              <div className="models-list" style={{ margin: '0.6rem 0', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                {(providers.find(p => p.id === selectedProviderId)?.models || []).length === 0 && !showAddModelForm ? (
+                  <div style={{ fontSize: '0.76rem', color: 'var(--text-secondary)', padding: '0.4rem 0', fontStyle: 'italic' }}>
+                    暂未关联任何大模型。请点击下方“+ 关联新模型”进行添加。
                   </div>
-                  <div className="crud-form-row-3">
-                    <div className="config-group">
-                      <label className="config-label" style={{ fontSize: '0.74rem' }}>输入单价 (/ 1M)</label>
-                      <input
-                        type="number"
-                        step="0.0001"
-                        placeholder="0"
-                        className="config-input"
-                        value={newModelInputPrice}
-                        onChange={(e) => setNewModelInputPrice(e.target.value)}
-                      />
-                    </div>
-                    <div className="config-group">
-                      <label className="config-label" style={{ fontSize: '0.74rem' }}>缓存输入单价 (/ 1M)</label>
-                      <input
-                        type="number"
-                        step="0.0001"
-                        placeholder="0"
-                        className="config-input"
-                        value={newModelCachedInputPrice}
-                        onChange={(e) => setNewModelCachedInputPrice(e.target.value)}
-                      />
-                    </div>
-                    <div className="config-group">
-                      <label className="config-label" style={{ fontSize: '0.74rem' }}>输出单价 (/ 1M)</label>
-                      <input
-                        type="number"
-                        step="0.0001"
-                        placeholder="0"
-                        className="config-input"
-                        value={newModelOutputPrice}
-                        onChange={(e) => setNewModelOutputPrice(e.target.value)}
-                      />
-                    </div>
-                  </div>
-                  <div className="crud-form-row-3">
-                    <div className="config-group">
-                      <label className="config-label" style={{ fontSize: '0.74rem' }}>模型上下文窗口 (模型物理限制)</label>
-                      <input
-                        type="number"
-                        className="config-input"
-                        placeholder="默认 128000"
-                        value={newModelContextWindow}
-                        onChange={(e) => setNewModelContextWindow(e.target.value)}
-                      />
-                    </div>
-                    <div className="config-group">
-                      <label className="config-label" style={{ fontSize: '0.74rem' }}>上下文上限 Token (智能体输入控制)</label>
-                      <input
-                        type="number"
-                        placeholder="默认 128000 (超限触发压缩)"
-                        className="config-input"
-                        value={newModelContextTokens}
-                        onChange={(e) => setNewModelContextTokens(e.target.value)}
-                      />
-                    </div>
-                    <div className="config-group">
-                      <label className="config-label" style={{ fontSize: '0.74rem' }}>最大输出限制 Token (智能体输出控制)</label>
-                      <input
-                        type="number"
-                        placeholder="默认 4096 (单次回复限制)"
-                        className="config-input"
-                        value={newModelMaxTokens}
-                        onChange={(e) => setNewModelMaxTokens(e.target.value)}
-                      />
-                    </div>
-                  </div>
-                  <div className="config-group">
-                    <label className="config-label" style={{ fontSize: '0.74rem' }}>支持的能力类型 (Capabilities)</label>
-                    <div style={{ display: 'flex', gap: '1.2rem', padding: '0.2rem 0' }}>
-                      <label style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', fontSize: '0.8rem', cursor: 'pointer' }}>
-                        <input
-                          type="checkbox"
-                          checked={newModelCapabilities.includes('text')}
-                          onChange={() => toggleNewCapability('text')}
-                        />
-                        <span>文本对话 (text)</span>
-                      </label>
-                      <label style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', fontSize: '0.8rem', cursor: 'pointer' }}>
-                        <input
-                          type="checkbox"
-                          checked={newModelCapabilities.includes('image')}
-                          onChange={() => toggleNewCapability('image')}
-                        />
-                        <span>图片理解 / 视觉能力 (image)</span>
-                      </label>
-                      <label style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', fontSize: '0.8rem', cursor: 'pointer' }}>
-                        <input
-                          type="checkbox"
-                          checked={newModelCapabilities.includes('audio')}
-                          onChange={() => toggleNewCapability('audio')}
-                        />
-                        <span>音频理解 / 语音能力 (audio)</span>
-                      </label>
-                    </div>
-                  </div>
-                  <div className="tab-actions">
-                    <button className="btn-primary" onClick={handleAddModel}>
-                      确认新增并绑定
-                    </button>
-                  </div>
-                </div>
-              )}
-
-              <div className="models-list">
-                {(providers.find(p => p.id === selectedProviderId)?.models || []).map((m: Model) => (
-                  <div key={m.id} className="model-item">
-                    {editingModelId === m.id ? (
-                      <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                        <div className="config-group" style={{ margin: 0 }}>
-                          <label className="config-label" style={{ fontSize: '0.72rem' }}>模型名称</label>
-                          <input
-                            type="text"
-                            className="config-input"
-                            value={editModelName}
-                            onChange={(e) => setEditModelName(e.target.value)}
-                          />
-                        </div>
-
-                        <div className="crud-form-row-3">
-                          <div className="config-group" style={{ margin: 0 }}>
-                            <label className="config-label" style={{ fontSize: '0.72rem' }}>输入单价 (/ 1M)</label>
-                            <input
-                              type="number"
-                              step="0.0001"
-                              placeholder="0"
-                              className="config-input"
-                              value={editModelInputPrice}
-                              onChange={(e) => setEditModelInputPrice(e.target.value)}
-                            />
-                          </div>
-                          <div className="config-group" style={{ margin: 0 }}>
-                            <label className="config-label" style={{ fontSize: '0.72rem' }}>缓存输入单价 (/ 1M)</label>
-                            <input
-                              type="number"
-                              step="0.0001"
-                              placeholder="0"
-                              className="config-input"
-                              value={editModelCachedInputPrice}
-                              onChange={(e) => setEditModelCachedInputPrice(e.target.value)}
-                            />
-                          </div>
-                          <div className="config-group" style={{ margin: 0 }}>
-                            <label className="config-label" style={{ fontSize: '0.72rem' }}>输出单价 (/ 1M)</label>
-                            <input
-                              type="number"
-                              step="0.0001"
-                              placeholder="0"
-                              className="config-input"
-                              value={editModelOutputPrice}
-                              onChange={(e) => setEditModelOutputPrice(e.target.value)}
-                            />
-                          </div>
-                        </div>
-
-                        <div className="crud-form-row-3">
-                          <div className="config-group" style={{ margin: 0 }}>
-                            <label className="config-label" style={{ fontSize: '0.72rem' }}>模型上下文窗口 (模型物理限制)</label>
-                            <input
-                              type="number"
-                              className="config-input"
-                              placeholder="默认 128000"
-                              value={editModelContextWindow}
-                              onChange={(e) => setEditModelContextWindow(e.target.value)}
-                            />
-                          </div>
-                          <div className="config-group" style={{ margin: 0 }}>
-                            <label className="config-label" style={{ fontSize: '0.72rem' }}>上下文上限 Token (智能体输入控制)</label>
-                            <input
-                              type="number"
-                              className="config-input"
-                              placeholder="默认 128000 (超限触发压缩)"
-                              value={editModelContextTokens}
-                              onChange={(e) => setEditModelContextTokens(e.target.value)}
-                            />
-                          </div>
-                          <div className="config-group" style={{ margin: 0 }}>
-                            <label className="config-label" style={{ fontSize: '0.72rem' }}>最大输出限制 Token (智能体输出控制)</label>
-                            <input
-                              type="number"
-                              className="config-input"
-                              placeholder="默认 4096"
-                              value={editModelMaxTokens}
-                              onChange={(e) => setEditModelMaxTokens(e.target.value)}
-                            />
-                          </div>
-                        </div>
-                        <div className="config-group" style={{ margin: 0 }}>
-                          <label className="config-label" style={{ fontSize: '0.72rem' }}>支持的能力类型 (Capabilities)</label>
-                          <div style={{ display: 'flex', gap: '1.2rem', padding: '0.2rem 0' }}>
-                            <label style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', fontSize: '0.8rem', cursor: 'pointer' }}>
-                              <input
-                                type="checkbox"
-                                checked={editModelCapabilities.includes('text')}
-                                onChange={() => toggleEditCapability('text')}
-                              />
-                              <span>文本对话 (text)</span>
-                            </label>
-                            <label style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', fontSize: '0.8rem', cursor: 'pointer' }}>
-                              <input
-                                type="checkbox"
-                                checked={editModelCapabilities.includes('image')}
-                                onChange={() => toggleEditCapability('image')}
-                              />
-                              <span>图片理解 / 视觉能力 (image)</span>
-                            </label>
-                            <label style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', fontSize: '0.8rem', cursor: 'pointer' }}>
-                              <input
-                                type="checkbox"
-                                checked={editModelCapabilities.includes('audio')}
-                                onChange={() => toggleEditCapability('audio')}
-                              />
-                              <span>音频理解 / 语音能力 (audio)</span>
-                            </label>
-                          </div>
-                        </div>
-                        <div className="tab-actions" style={{ justifyContent: 'flex-end', marginTop: '0.25rem' }}>
-                          <button
-                            className="btn-primary"
-                            style={{ padding: '0.35rem 0.8rem', fontSize: '0.75rem' }}
-                            onClick={() => handleSaveModel(m.id)}
-                          >
-                            保存
-                          </button>
-                          <button
-                            className="btn-secondary"
-                            style={{ padding: '0.35rem 0.8rem', fontSize: '0.75rem' }}
-                            onClick={() => setEditingModelId('')}
-                          >
-                            取消
-                          </button>
-                        </div>
-                      </div>
-                    ) : (
-                      <>
-                        <div style={{ flex: 1 }}>
-                          <div className="model-name">
-                            {m.name || m.id}{' '}
-                            <span style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', fontWeight: 'normal' }}>
-                              ({m.id})
-                            </span>
-                          </div>
-                          <div className="model-details" style={{ marginTop: '0.25rem', lineHeight: '1.4' }}>
-                            <span>物理窗口: {m.contextWindow || 128000}</span>
-                            {m.contextTokens && <span> (输入控制: {m.contextTokens})</span>}
-                            <span> | 输入: {m.inputPrice} (1M)</span>
-                            {m.cachedInputPrice > 0 && <span> (缓存: {m.cachedInputPrice} (1M))</span>}
-                            <span> | 输出: {m.outputPrice} (1M)</span>
-                            {m.maxTokens && <span> | 输出控制: {m.maxTokens}</span>}
-                            <div style={{ marginTop: '0.15rem', color: '#888' }}>
-                              能力类型: {Array.isArray(m.capabilities) && m.capabilities.length > 0 ? m.capabilities.join(', ') : '无'}
+                ) : (
+                  (providers.find(p => p.id === selectedProviderId)?.models || []).map((m: Model) => (
+                    <div key={m.id} className="model-item" style={{ padding: '0.85rem 1.1rem', background: 'rgba(255,255,255,0.02)', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.05)', display: 'flex', flexDirection: 'column', alignItems: 'stretch', gap: '0.65rem', boxSizing: 'border-box', width: '100%' }}>
+                      {editingModelId === m.id ? (
+                        <>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(255,255,255,0.03)', paddingBottom: '0.35rem' }}>
+                            <div style={{ fontSize: '0.75rem', fontWeight: 600, color: 'rgba(255, 255, 255, 0.65)', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                              <span style={{ background: 'rgba(255,255,255,0.08)', padding: '0.1rem 0.35rem', borderRadius: '4px', fontSize: '0.7rem' }}>编辑</span>
+                              <span>{m.id}</span>
+                            </div>
+                            <div style={{ display: 'flex', gap: '0.5rem', flexShrink: 0 }}>
+                              <button
+                                className="btn-action edit"
+                                title="保存修改"
+                                onClick={() => handleSaveModel(m.id)}
+                              >
+                                保存
+                              </button>
+                              <button
+                                className="btn-action delete"
+                                title="取消修改"
+                                onClick={() => setEditingModelId('')}
+                              >
+                                取消
+                              </button>
                             </div>
                           </div>
+
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', paddingTop: '0.3rem' }}>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', width: '100%' }}>
+                              <label style={{ fontSize: '0.74rem', color: 'rgba(255,255,255,0.7)', fontWeight: 500 }}>模型友好名称</label>
+                              <input
+                                type="text"
+                                className="config-input"
+                                style={{ height: '32px', width: '100%', boxSizing: 'border-box', fontSize: '0.78rem', padding: '0.25rem 0.6rem' }}
+                                value={editModelName}
+                                onChange={(e) => setEditModelName(e.target.value)}
+                              />
+                            </div>
+
+                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.6rem 1rem', width: '100%' }}>
+                              <div style={{ flex: '1 1 calc(33.33% - 1rem)', minWidth: '180px', display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                                <label style={{ fontSize: '0.74rem', color: 'rgba(255,255,255,0.7)', fontWeight: 500 }}>输入单价 (/ 1M)</label>
+                                <input
+                                  type="number"
+                                  step="0.0001"
+                                  placeholder="0"
+                                  className="config-input"
+                                  style={{ height: '32px', width: '100%', boxSizing: 'border-box', fontSize: '0.78rem', padding: '0.25rem 0.6rem' }}
+                                  value={editModelInputPrice}
+                                  onChange={(e) => setEditModelInputPrice(e.target.value)}
+                                />
+                              </div>
+                              <div style={{ flex: '1 1 calc(33.33% - 1rem)', minWidth: '180px', display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                                <label style={{ fontSize: '0.74rem', color: 'rgba(255,255,255,0.7)', fontWeight: 500 }}>缓存输入单价 (/ 1M)</label>
+                                <input
+                                  type="number"
+                                  step="0.0001"
+                                  placeholder="0"
+                                  className="config-input"
+                                  style={{ height: '32px', width: '100%', boxSizing: 'border-box', fontSize: '0.78rem', padding: '0.25rem 0.6rem' }}
+                                  value={editModelCachedInputPrice}
+                                  onChange={(e) => setEditModelCachedInputPrice(e.target.value)}
+                                />
+                              </div>
+                              <div style={{ flex: '1 1 calc(33.33% - 1rem)', minWidth: '180px', display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                                <label style={{ fontSize: '0.74rem', color: 'rgba(255,255,255,0.7)', fontWeight: 500 }}>输出单价 (/ 1M)</label>
+                                <input
+                                  type="number"
+                                  step="0.0001"
+                                  placeholder="0"
+                                  className="config-input"
+                                  style={{ height: '32px', width: '100%', boxSizing: 'border-box', fontSize: '0.78rem', padding: '0.25rem 0.6rem' }}
+                                  value={editModelOutputPrice}
+                                  onChange={(e) => setEditModelOutputPrice(e.target.value)}
+                                />
+                              </div>
+                            </div>
+
+                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.6rem 1rem', width: '100%' }}>
+                              <div style={{ flex: '1 1 calc(33.33% - 1rem)', minWidth: '180px', display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                                <label style={{ fontSize: '0.74rem', color: 'rgba(255,255,255,0.7)', fontWeight: 500 }}>模型上下文窗口 (物理限制)</label>
+                                <input
+                                  type="number"
+                                  className="config-input"
+                                  placeholder="默认 128000"
+                                  style={{ height: '32px', width: '100%', boxSizing: 'border-box', fontSize: '0.78rem', padding: '0.25rem 0.6rem' }}
+                                  value={editModelContextWindow}
+                                  onChange={(e) => setEditModelContextWindow(e.target.value)}
+                                />
+                              </div>
+                              <div style={{ flex: '1 1 calc(33.33% - 1rem)', minWidth: '180px', display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                                <label style={{ fontSize: '0.74rem', color: 'rgba(255,255,255,0.7)', fontWeight: 500 }}>上下文上限 Token (超限触发压缩)</label>
+                                <input
+                                  type="number"
+                                  className="config-input"
+                                  placeholder="默认 128000"
+                                  style={{ height: '32px', width: '100%', boxSizing: 'border-box', fontSize: '0.78rem', padding: '0.25rem 0.6rem' }}
+                                  value={editModelContextTokens}
+                                  onChange={(e) => setEditModelContextTokens(e.target.value)}
+                                />
+                              </div>
+                              <div style={{ flex: '1 1 calc(33.33% - 1rem)', minWidth: '180px', display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                                <label style={{ fontSize: '0.74rem', color: 'rgba(255,255,255,0.7)', fontWeight: 500 }}>最大输出限制 Token (输出限制)</label>
+                                <input
+                                  type="number"
+                                  className="config-input"
+                                  placeholder="默认 4096"
+                                  style={{ height: '32px', width: '100%', boxSizing: 'border-box', fontSize: '0.78rem', padding: '0.25rem 0.6rem' }}
+                                  value={editModelMaxTokens}
+                                  onChange={(e) => setEditModelMaxTokens(e.target.value)}
+                                />
+                              </div>
+                            </div>
+
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', width: '100%' }}>
+                              <label style={{ fontSize: '0.74rem', color: 'rgba(255,255,255,0.7)', fontWeight: 500 }}>支持的能力类型 (Capabilities)</label>
+                              <div style={{ display: 'flex', gap: '1.2rem', padding: '0.2rem 0', flexWrap: 'wrap' }}>
+                                <label style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', fontSize: '0.78rem', cursor: 'pointer' }}>
+                                  <input
+                                    type="checkbox"
+                                    checked={editModelCapabilities.includes('text')}
+                                    onChange={() => toggleEditCapability('text')}
+                                  />
+                                  <span>文本对话 (text)</span>
+                                </label>
+                                <label style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', fontSize: '0.78rem', cursor: 'pointer' }}>
+                                  <input
+                                    type="checkbox"
+                                    checked={editModelCapabilities.includes('image')}
+                                    onChange={() => toggleEditCapability('image')}
+                                  />
+                                  <span>图片理解 / 视觉 (image)</span>
+                                </label>
+                                <label style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', fontSize: '0.78rem', cursor: 'pointer' }}>
+                                  <input
+                                    type="checkbox"
+                                    checked={editModelCapabilities.includes('audio')}
+                                    onChange={() => toggleEditCapability('audio')}
+                                  />
+                                  <span>音频理解 / 语音 (audio)</span>
+                                </label>
+                              </div>
+                            </div>
+                          </div>
+                        </>
+                      ) : (
+                        <>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(255,255,255,0.03)', paddingBottom: '0.35rem' }}>
+                            <div style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                              <span>{m.name || m.id}</span>
+                              <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', background: 'rgba(255,255,255,0.06)', padding: '0.1rem 0.4rem', borderRadius: '4px', fontFamily: 'monospace' }}>{m.id}</span>
+                            </div>
+                            <div style={{ display: 'flex', gap: '0.5rem', flexShrink: 0 }}>
+                              <button
+                                className="btn-action edit"
+                                title="修改模型参数"
+                                onClick={() => startEditModel(m)}
+                              >
+                                编辑
+                              </button>
+                              <button
+                                className="btn-action delete"
+                                title="删除模型"
+                                onClick={() => handleDeleteModel(m.id)}
+                              >
+                                删除
+                              </button>
+                            </div>
+                          </div>
+
+                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.6rem 1.2rem', padding: '0.2rem 0' }}>
+                            <div style={{ flex: '1 1 calc(50% - 1.2rem)', minWidth: '220px', display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
+                              <span style={{ color: 'var(--text-secondary)', fontSize: '0.72rem' }}>物理窗口 / 上下文限制</span>
+                              <span style={{ fontFamily: 'monospace', fontWeight: 600, fontSize: '0.8rem', color: 'var(--text-primary)' }}>
+                                {m.contextWindow || 128000} {m.contextTokens ? `(输入上限: ${m.contextTokens})` : ''}
+                              </span>
+                            </div>
+                            <div style={{ flex: '1 1 calc(50% - 1.2rem)', minWidth: '220px', display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
+                              <span style={{ color: 'var(--text-secondary)', fontSize: '0.72rem' }}>计费单价 (/ 1M tokens)</span>
+                              <span style={{ fontFamily: 'monospace', fontWeight: 600, fontSize: '0.8rem', color: 'var(--text-primary)' }}>
+                                输入: {m.inputPrice} | 输出: {m.outputPrice} {m.cachedInputPrice > 0 ? `| 缓存: ${m.cachedInputPrice}` : ''}
+                              </span>
+                            </div>
+                            <div style={{ flex: '1 1 calc(50% - 1.2rem)', minWidth: '220px', display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
+                              <span style={{ color: 'var(--text-secondary)', fontSize: '0.72rem' }}>最大输出控制 Token</span>
+                              <span style={{ fontFamily: 'monospace', fontWeight: 600, fontSize: '0.8rem', color: 'var(--text-primary)' }}>
+                                {m.maxTokens ? `${m.maxTokens} tokens` : '默认 4096'}
+                              </span>
+                            </div>
+                            <div style={{ flex: '1 1 calc(50% - 1.2rem)', minWidth: '220px', display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
+                              <span style={{ color: 'var(--text-secondary)', fontSize: '0.72rem' }}>支持的能力类型</span>
+                              <div style={{ display: 'flex', gap: '0.35rem', flexWrap: 'wrap', marginTop: '0.1rem' }}>
+                                {Array.isArray(m.capabilities) && m.capabilities.length > 0 ? (
+                                  m.capabilities.map(cap => (
+                                    <span key={cap} style={{ fontSize: '0.68rem', padding: '0.1rem 0.35rem', borderRadius: '4px', background: 'rgba(59, 130, 246, 0.12)', color: 'var(--color-primary, #60a5fa)', border: '1px solid rgba(59, 130, 246, 0.25)' }}>
+                                      {cap}
+                                    </span>
+                                  ))
+                                ) : (
+                                  <span style={{ fontSize: '0.76rem', color: 'var(--text-secondary)' }}>常规文本</span>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  ))
+                )}
+
+                {showAddModelForm && (
+                  <div className="model-item" style={{ padding: '0.85rem 1.1rem', background: 'rgba(59, 130, 246, 0.04)', borderRadius: '8px', border: '1px dashed rgba(59, 130, 246, 0.35)', display: 'flex', flexDirection: 'column', alignItems: 'stretch', gap: '0.65rem', boxSizing: 'border-box', width: '100%' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(255,255,255,0.04)', paddingBottom: '0.35rem' }}>
+                      <div style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--color-primary, #3b82f6)', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                        <span style={{ background: 'rgba(59, 130, 246, 0.15)', padding: '0.1rem 0.35rem', borderRadius: '4px', fontSize: '0.7rem' }}>+ 新建</span>
+                        <span>关联新模型</span>
+                      </div>
+                      <div style={{ display: 'flex', gap: '0.5rem', flexShrink: 0 }}>
+                        <button
+                          className="btn-action edit"
+                          title="确认关联"
+                          onClick={handleAddModel}
+                        >
+                          确定
+                        </button>
+                        <button
+                          className="btn-action delete"
+                          title="取消添加"
+                          onClick={() => setShowAddModelForm(false)}
+                        >
+                          取消
+                        </button>
+                      </div>
+                    </div>
+
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', paddingTop: '0.3rem' }}>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.6rem 1rem', width: '100%' }}>
+                        <div style={{ flex: '1 1 calc(50% - 1rem)', minWidth: '200px', display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                          <label style={{ fontSize: '0.74rem', color: 'rgba(255, 255, 255, 0.7)', fontWeight: 500 }}>
+                            模型物理 ID <span style={{ color: 'var(--color-danger, #ef4444)' }}>*</span>
+                          </label>
+                          <input
+                            type="text"
+                            placeholder="如 deepseek-chat"
+                            className="config-input"
+                            style={{ height: '32px', width: '100%', boxSizing: 'border-box', fontSize: '0.78rem', padding: '0.25rem 0.6rem' }}
+                            value={newModelId}
+                            onChange={(e) => setNewModelId(e.target.value)}
+                          />
                         </div>
-                        <div className="model-actions">
-                          <button
-                            className="btn-action edit"
-                            title="修改模型参数"
-                            onClick={() => startEditModel(m)}
-                          >
-                            编辑
-                          </button>
-                          <button
-                            className="btn-action delete"
-                            title="删除"
-                            onClick={() => handleDeleteModel(m.id)}
-                          >
-                            删除
-                          </button>
+                        <div style={{ flex: '1 1 calc(50% - 1rem)', minWidth: '200px', display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                          <label style={{ fontSize: '0.74rem', color: 'rgba(255, 255, 255, 0.7)', fontWeight: 500 }}>
+                            模型友好名称 <span style={{ color: 'var(--color-danger, #ef4444)' }}>*</span>
+                          </label>
+                          <input
+                            type="text"
+                            placeholder="如 DeepSeek V3"
+                            className="config-input"
+                            style={{ height: '32px', width: '100%', boxSizing: 'border-box', fontSize: '0.78rem', padding: '0.25rem 0.6rem' }}
+                            value={newModelName}
+                            onChange={(e) => setNewModelName(e.target.value)}
+                          />
                         </div>
-                      </>
-                    )}
+                      </div>
+
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.6rem 1rem', width: '100%' }}>
+                        <div style={{ flex: '1 1 calc(33.33% - 1rem)', minWidth: '180px', display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                          <label style={{ fontSize: '0.74rem', color: 'rgba(255, 255, 255, 0.7)', fontWeight: 500 }}>输入单价 (/ 1M)</label>
+                          <input
+                            type="number"
+                            step="0.0001"
+                            placeholder="0"
+                            className="config-input"
+                            style={{ height: '32px', width: '100%', boxSizing: 'border-box', fontSize: '0.78rem', padding: '0.25rem 0.6rem' }}
+                            value={newModelInputPrice}
+                            onChange={(e) => setNewModelInputPrice(e.target.value)}
+                          />
+                        </div>
+                        <div style={{ flex: '1 1 calc(33.33% - 1rem)', minWidth: '180px', display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                          <label style={{ fontSize: '0.74rem', color: 'rgba(255, 255, 255, 0.7)', fontWeight: 500 }}>缓存输入单价 (/ 1M)</label>
+                          <input
+                            type="number"
+                            step="0.0001"
+                            placeholder="0"
+                            className="config-input"
+                            style={{ height: '32px', width: '100%', boxSizing: 'border-box', fontSize: '0.78rem', padding: '0.25rem 0.6rem' }}
+                            value={newModelCachedInputPrice}
+                            onChange={(e) => setNewModelCachedInputPrice(e.target.value)}
+                          />
+                        </div>
+                        <div style={{ flex: '1 1 calc(33.33% - 1rem)', minWidth: '180px', display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                          <label style={{ fontSize: '0.74rem', color: 'rgba(255, 255, 255, 0.7)', fontWeight: 500 }}>输出单价 (/ 1M)</label>
+                          <input
+                            type="number"
+                            step="0.0001"
+                            placeholder="0"
+                            className="config-input"
+                            style={{ height: '32px', width: '100%', boxSizing: 'border-box', fontSize: '0.78rem', padding: '0.25rem 0.6rem' }}
+                            value={newModelOutputPrice}
+                            onChange={(e) => setNewModelOutputPrice(e.target.value)}
+                          />
+                        </div>
+                      </div>
+
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.6rem 1rem', width: '100%' }}>
+                        <div style={{ flex: '1 1 calc(33.33% - 1rem)', minWidth: '180px', display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                          <label style={{ fontSize: '0.74rem', color: 'rgba(255, 255, 255, 0.7)', fontWeight: 500 }}>模型上下文窗口 (物理限制)</label>
+                          <input
+                            type="number"
+                            className="config-input"
+                            placeholder="默认 128000"
+                            style={{ height: '32px', width: '100%', boxSizing: 'border-box', fontSize: '0.78rem', padding: '0.25rem 0.6rem' }}
+                            value={newModelContextWindow}
+                            onChange={(e) => setNewModelContextWindow(e.target.value)}
+                          />
+                        </div>
+                        <div style={{ flex: '1 1 calc(33.33% - 1rem)', minWidth: '180px', display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                          <label style={{ fontSize: '0.74rem', color: 'rgba(255, 255, 255, 0.7)', fontWeight: 500 }}>上下文上限 Token (输入控制)</label>
+                          <input
+                            type="number"
+                            placeholder="默认 128000 (超限触发压缩)"
+                            className="config-input"
+                            style={{ height: '32px', width: '100%', boxSizing: 'border-box', fontSize: '0.78rem', padding: '0.25rem 0.6rem' }}
+                            value={newModelContextTokens}
+                            onChange={(e) => setNewModelContextTokens(e.target.value)}
+                          />
+                        </div>
+                        <div style={{ flex: '1 1 calc(33.33% - 1rem)', minWidth: '180px', display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                          <label style={{ fontSize: '0.74rem', color: 'rgba(255, 255, 255, 0.7)', fontWeight: 500 }}>最大输出限制 Token (输出控制)</label>
+                          <input
+                            type="number"
+                            placeholder="默认 4096 (单次回复限制)"
+                            className="config-input"
+                            style={{ height: '32px', width: '100%', boxSizing: 'border-box', fontSize: '0.78rem', padding: '0.25rem 0.6rem' }}
+                            value={newModelMaxTokens}
+                            onChange={(e) => setNewModelMaxTokens(e.target.value)}
+                          />
+                        </div>
+                      </div>
+
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', width: '100%' }}>
+                        <label style={{ fontSize: '0.74rem', color: 'rgba(255, 255, 255, 0.7)', fontWeight: 500 }}>支持的能力类型 (Capabilities)</label>
+                        <div style={{ display: 'flex', gap: '1.2rem', padding: '0.2rem 0', flexWrap: 'wrap' }}>
+                          <label style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', fontSize: '0.78rem', cursor: 'pointer' }}>
+                            <input
+                              type="checkbox"
+                              checked={newModelCapabilities.includes('text')}
+                              onChange={() => toggleNewCapability('text')}
+                            />
+                            <span>文本对话 (text)</span>
+                          </label>
+                          <label style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', fontSize: '0.78rem', cursor: 'pointer' }}>
+                            <input
+                              type="checkbox"
+                              checked={newModelCapabilities.includes('image')}
+                              onChange={() => toggleNewCapability('image')}
+                            />
+                            <span>图片理解 / 视觉 (image)</span>
+                          </label>
+                          <label style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', fontSize: '0.8rem', cursor: 'pointer' }}>
+                            <input
+                              type="checkbox"
+                              checked={newModelCapabilities.includes('audio')}
+                              onChange={() => toggleNewCapability('audio')}
+                            />
+                            <span>音频理解 / 语音 (audio)</span>
+                          </label>
+                        </div>
+                      </div>
+                    </div>
                   </div>
-                ))}
+                )}
               </div>
+
+              {!showAddModelForm && (
+                <div style={{ marginTop: '0.5rem' }}>
+                  <button
+                    type="button"
+                    className="btn-action"
+                    style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', padding: '0.4rem 0.85rem', fontSize: '0.76rem', background: 'rgba(255, 255, 255, 0.04)', border: '1px dashed rgba(255, 255, 255, 0.15)', borderRadius: '6px', cursor: 'pointer', color: 'var(--text-secondary)' }}
+                    onClick={() => {
+                      setEditingModelId('');
+                      setShowAddModelForm(true);
+                    }}
+                  >
+                    <span>+ 关联新模型</span>
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         ) : (

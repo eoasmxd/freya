@@ -53,4 +53,26 @@ export class FreyaConfigSchemaRegistry {
     }
     return keys;
   }
+
+  getManualOnlyKeys(): string[] {
+    const keys: string[] = [];
+    const traverse = (field: ConfigFieldSchema, currentPrefix: string) => {
+      const path = currentPrefix ? `${currentPrefix}.${field.key}` : field.key;
+      if (field.manualOnly) {
+        keys.push(path);
+      }
+      if (field.children) {
+        for (const child of field.children) {
+          const separator = field.type === 'array' ? '.*' : '';
+          traverse(child, path + separator);
+        }
+      }
+    };
+    for (const fields of this.schema.values()) {
+      for (const field of fields) {
+        traverse(field, '');
+      }
+    }
+    return keys;
+  }
 }

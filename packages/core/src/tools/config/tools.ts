@@ -131,10 +131,28 @@ export class UpdateConfigTool implements FreyaTool {
   async execute(args: Record<string, any>, ctx: FreyaContext): Promise<string> {
     try {
       const configName = 'freya';
-      const keyPath = args.keyPath;
-      if (keyPath === 'workspace') {
-        return '❌ 权限拒绝：系统工作区路径 "workspace" 为核心只读保护字段，不允许通过大模型配置管理工具进行修改。';
+      const keyPath = String(args.keyPath || '').trim();
+      const manualOnlyKeys = this.configService.getManualOnlyKeys();
+      let isManualOnly = false;
+      const manualOnlySet = new Set(manualOnlyKeys);
+      if (manualOnlySet.has(keyPath)) {
+        isManualOnly = true;
+      } else {
+        for (const pattern of manualOnlyKeys) {
+          if (pattern.includes('*')) {
+            const regex = new RegExp('^' + pattern.replace(/\./g, '\\.').replace(/\*/g, '[^\\.]+') + '$');
+            if (regex.test(keyPath)) {
+              isManualOnly = true;
+              break;
+            }
+          }
+        }
       }
+
+      if (isManualOnly) {
+        return `❌ 权限拒绝：配置项 "${keyPath}" 仅允许管理员手动修改，禁止通过 AI 工具自动更新。`;
+      }
+
       let newValue = args.value;
 
       try {

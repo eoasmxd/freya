@@ -56,7 +56,24 @@ docker run -d --name freya -p 3000:3000 -v $(pwd)/freya-data:/data freya
 
 ---
 
-### 方式三：从源码构建运行
+### 方式三：通过 Home Assistant 应用安装（推荐智能家居用户）
+
+如果您使用 Home Assistant，可以直接将其作为 Add-on 应用运行。**该安装方式天然支持与 Home Assistant 原生交互**，内置专属工具箱，实现智能家居状态感知与设备控制：
+
+1. **一键添加仓库**：点击下方按钮跳转至您的 Home Assistant 实例并完成仓库添加：
+
+   [![在 Home Assistant 中添加此仓库](https://my.home-assistant.io/badges/supervisor_add_addon_repository.svg)](https://my.home-assistant.io/redirect/supervisor_add_addon_repository/?repository_url=https%3A%2F%2Fgithub.com%2Feoasmxd%2Fha-addons)
+
+   *或在 HA **“设置 -> 应用 -> 安装应用 -> 右上角三个点 (仓库)”** 中手动添加仓库地址：`https://github.com/eoasmxd/ha-addons`。*
+
+2. **安装并启动**：在应用列表中找到 **Freya**，点击安装并启动。建议勾选“在侧边栏中显示”与“开机自启”。
+3. **原生 HA 交互支持**：
+   - **实体状态感知**：完全遵循 HA 原生界面（设置 -> 语音助手 -> 暴露）中暴露给 Assist 的实体列表，智能体可按需读取设备状态与传感器数据。
+   - **设备安全控制**：应用默认处于安全只读模式。如需允许大模型执行开关灯、控制电器等动作，只需在应用“配置”页将 `allow_control` 开启为 `true`。
+
+---
+
+### 方式四：从源码构建运行
 
 运行环境要求：**Node.js** (>= 22.0.0) 和 **pnpm** (9.x)。
 
@@ -71,7 +88,7 @@ pnpm build
 pnpm start
 ```
 
-*任何一种方式启动服务后，使用浏览器访问 `http://localhost:3000` 即可进入 Web 操作界面。*
+*任何一种方式启动服务后，使用浏览器访问 `http://localhost:3000`（或在 Home Assistant 侧边栏点击）即可进入 Web 操作界面。*
 
 
 ---
@@ -83,7 +100,7 @@ pnpm start
 ### 🛠️ 技术规范与指南
 
 * 🚀 **[快速使用指引](doc/getting-started.md)**：图形化 LLM 提供商配置、插件开启控制与会话快捷指令。
-* 🛠️ **[安装与构建运行](doc/installation-guide.md)**：分步说明环境准备、安装、编译与控制台开发模式。
+* 🛠️ **[安装与构建运行](doc/installation-guide.md)**：包含 NPM 全局安装、Docker 容器化、Home Assistant 应用以及源码构建与控制台开发模式。
 * 🏗️ **[架构设计说明](doc/specifications/architecture-design.md)**：包含 Monorepo 物理结构、核心 ReAct 调用链路图、核心组件职责及 EventBus 异步通信机制。
 * ⚙️ **[配置与数据隔离规范](doc/specifications/config-spec.md)**：介绍 `~/.freya/` 运行时目录结构、配置/数据物理隔离及 Schema 动态合并策略。
 * 📝 **[提示词管理系统](doc/specifications/prompt-system.md)**：介绍 6 大维度提示词管理方案、动态 Prompt Composer 拼装结构与 Dual-Read 探针机制。
