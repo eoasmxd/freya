@@ -1,11 +1,18 @@
 import type { EventBus, Logger } from '@eoasmxd/freya-sdk';
 import crypto from 'node:crypto';
 
+interface ConnectionRecord {
+  connectionId: string;
+  sessionId: string;
+  lastActiveTime: number;
+  staleThresholdMs?: number;
+  channelType?: string;
+  language?: string;
+}
+
 /** 物理连接与逻辑会话映射管理器 */
 export class FreyaConnectionManager {
-  private connectionToSession = new Map<string, string>();
-  private lastActiveTime = new Map<string, number>();
-  private connectionThresholds = new Map<string, number>();
+  private connections = new Map<string, ConnectionRecord>();
   private sweepInterval?: ReturnType<typeof setInterval>;
   private staleThresholdMs = 120_000;
   private sweepIntervalMs = 30_000;
@@ -18,121 +25,106 @@ export class FreyaConnectionManager {
     this.startSweep();
   }
 
-  private resolveOrCreateSessionId(connectionId: string, defaultSessionId?: string): string {
-    let sessionId = this.connectionToSession.get(connectionId);
-    if (sessionId) {
-      return sessionId;
-    }
-
-    if (defaultSessionId) {
-      this.register(connectionId, defaultSessionId);
-      return defaultSessionId;
-    }
-
-    const suffix = connectionId.split(':')[1] || crypto.randomUUID();
-    sessionId = `session-${suffix}`;
-    this.register(connectionId, sessionId);
-    return sessionId;
-  }
-
   private initEventListeners(): void {
-    this.eventBus.on('connection:active', (payload: { connectionId: string; defaultSessionId?: string; staleThresholdMs?: number }) => {
-      this.touch(payload.connectionId);
-      if (typeof payload.staleThresholdMs === 'number') {
-        this.connectionThresholds.set(payload.connectionId, payload.staleThresholdMs);
-      }
-      this.resolveOrCreateSessionId(payload.connectionId, payload.defaultSessionId);
+    this.eventBus.on('connection:active', (payload: { connectionId: string; defaultSessionId?: string; staleThresholdMs?: number; channelType?: string; defaultLanguage?: string }) => {
+      this.bindSession(payload.connectionId, payload.defaultSessionId, payload, false);
     });
 
     this.eventBus.on('connection:inactive', (payload: { connectionId: string }) => {
       this.unregister(payload.connectionId);
     });
 
-    this.eventBus.on('connection:message', (payload: { connectionId: string; content: string; defaultSessionId?: string; attachments?: any[] }) => {
-      this.touch(payload.connectionId);
-      const sessionId = this.resolveOrCreateSessionId(payload.connectionId, payload.defaultSessionId);
+    this.eventBus.on('connection:message', (payload: { connectionId: string; content: string; defaultSessionId?: string; attachments?: any[]; channelType?: string; defaultLanguage?: string }) => {
+      const sessionId = this.bindSession(payload.connectionId, payload.defaultSessionId, payload, false);
+      const record = this.connections.get(payload.connectionId);
       this.eventBus.emit('session:input', {
         ...payload,
-        sessionId
+        sessionId,
+        channelType: payload.channelType || record?.channelType,
+        defaultLanguage: payload.defaultLanguage || record?.language
       });
     });
 
-    this.eventBus.on('connection:rebind', (payload: { connectionId: string; sessionId: string }) => {
-      this.rebind(payload.connectionId, payload.sessionId);
+    this.eventBus.on('connection:rebind', (payload: { connectionId: string; sessionId: string; channelType?: string; defaultLanguage?: string; staleThresholdMs?: number }) => {
+      this.bindSession(payload.connectionId, payload.sessionId, payload, true);
+      this.logger?.info(`[FreyaConnectionManager] 连接 "${payload.connectionId}" 已重定向绑定到会话 "${payload.sessionId}"`);
     });
 
     this.eventBus.on('session:reply:text', (payload: { sessionId: string; content: string }) => {
-      const conns = this.getConnectionsBySession(payload.sessionId);
-      for (const connId of conns) {
-        this.eventBus.emit('connection:reply', { connectionId: connId, content: payload.content });
-      }
+      this.broadcastToSession(payload.sessionId, 'connection:reply', (connId) => ({ connectionId: connId, content: payload.content }));
     });
 
     this.eventBus.on('session:reply:delta', (payload: { sessionId: string; text: string }) => {
-      const conns = this.getConnectionsBySession(payload.sessionId);
-      for (const connId of conns) {
-        this.eventBus.emit('connection:reply:delta', { connectionId: connId, text: payload.text });
-      }
+      this.broadcastToSession(payload.sessionId, 'connection:reply:delta', (connId) => ({ connectionId: connId, text: payload.text }));
     });
 
     this.eventBus.on('session:reply:error', (payload: { sessionId: string; message: string }) => {
-      const conns = this.getConnectionsBySession(payload.sessionId);
-      for (const connId of conns) {
-        this.eventBus.emit('connection:reply', { connectionId: connId, content: payload.message });
-      }
+      this.broadcastToSession(payload.sessionId, 'connection:reply', (connId) => ({ connectionId: connId, content: payload.message }));
     });
 
     this.eventBus.on('session:reply:completed', (payload: { sessionId: string }) => {
-      const conns = this.getConnectionsBySession(payload.sessionId);
-      for (const connId of conns) {
-        this.eventBus.emit('connection:reply:completed', { connectionId: connId });
-      }
+      this.broadcastToSession(payload.sessionId, 'connection:reply:completed', (connId) => ({ connectionId: connId }));
     });
 
     this.eventBus.on('tool:status', (payload: { sessionId: string;[key: string]: any }) => {
-      const conns = this.getConnectionsBySession(payload.sessionId);
-      for (const connId of conns) {
-        this.eventBus.emit('connection:event', { connectionId: connId, event: 'server:tool_status', data: payload });
-      }
+      this.broadcastToSession(payload.sessionId, 'connection:event', (connId) => ({ connectionId: connId, event: 'server:tool_status', data: payload }));
     });
 
     this.eventBus.on('session:billing:update', (payload: { sessionId: string; [key: string]: any }) => {
-      const conns = this.getConnectionsBySession(payload.sessionId);
-      for (const connId of conns) {
-        this.eventBus.emit('connection:event', { connectionId: connId, event: 'server:billing', data: payload });
+      this.broadcastToSession(payload.sessionId, 'connection:event', (connId) => ({ connectionId: connId, event: 'server:billing', data: payload }));
+    });
+
+    this.eventBus.on('config:language_changed', (payload: { language: string }) => {
+      for (const record of this.connections.values()) {
+        const effectiveLanguage = payload.language === 'auto' ? (record.language || 'en') : payload.language;
+        this.eventBus.emit('connection:event', {
+          connectionId: record.connectionId,
+          event: 'server:language_changed',
+          data: { language: effectiveLanguage }
+        });
       }
     });
   }
 
-  register(connectionId: string, sessionId: string): void {
-    this.connectionToSession.set(connectionId, sessionId);
-    this.lastActiveTime.set(connectionId, Date.now());
+  private bindSession(
+    connectionId: string,
+    sessionId?: string,
+    extra?: { channelType?: string; defaultLanguage?: string; staleThresholdMs?: number },
+    forceRebind = false
+  ): string {
+    const existing = this.connections.get(connectionId);
+    if (existing) {
+      if (forceRebind && sessionId) existing.sessionId = sessionId;
+      existing.lastActiveTime = Date.now();
+      if (extra?.channelType) existing.channelType = extra.channelType;
+      if (extra?.defaultLanguage) existing.language = extra.defaultLanguage;
+      if (typeof extra?.staleThresholdMs === 'number') existing.staleThresholdMs = extra.staleThresholdMs;
+      return existing.sessionId;
+    }
+
+    const targetSessionId = sessionId || `session-${connectionId.split(':')[1] || crypto.randomUUID()}`;
+    this.connections.set(connectionId, {
+      connectionId,
+      sessionId: targetSessionId,
+      lastActiveTime: Date.now(),
+      staleThresholdMs: extra?.staleThresholdMs,
+      channelType: extra?.channelType,
+      language: extra?.defaultLanguage
+    });
+    return targetSessionId;
   }
 
-  unregister(connectionId: string): void {
-    this.connectionToSession.delete(connectionId);
-    this.lastActiveTime.delete(connectionId);
-    this.connectionThresholds.delete(connectionId);
+  private unregister(connectionId: string): void {
+    this.connections.delete(connectionId);
     this.logger?.debug(`[FreyaConnectionManager] 连接 "${connectionId}" 已注销并清理活跃历史。`);
   }
 
-  touch(connectionId: string): void {
-    this.lastActiveTime.set(connectionId, Date.now());
-  }
-
-  rebind(connectionId: string, newSessionId: string): void {
-    this.connectionToSession.set(connectionId, newSessionId);
-    this.logger?.info(`[FreyaConnectionManager] 连接 "${connectionId}" 已重定向绑定到会话 "${newSessionId}"`);
-  }
-
-  getConnectionsBySession(sessionId: string): string[] {
-    const result: string[] = [];
-    for (const [connId, boundSessionId] of this.connectionToSession) {
-      if (boundSessionId === sessionId) {
-        result.push(connId);
+  private broadcastToSession(sessionId: string, event: string, buildPayload: (connId: string) => any): void {
+    for (const record of this.connections.values()) {
+      if (record.sessionId === sessionId) {
+        this.eventBus.emit(event, buildPayload(record.connectionId));
       }
     }
-    return result;
   }
 
   private startSweep(): void {
@@ -145,17 +137,17 @@ export class FreyaConnectionManager {
   private sweep(): void {
     const now = Date.now();
     const toRemove: string[] = [];
-    for (const [connId, lastActive] of this.lastActiveTime) {
-      const threshold = this.connectionThresholds.has(connId)
-        ? this.connectionThresholds.get(connId)!
+    for (const record of this.connections.values()) {
+      const threshold = typeof record.staleThresholdMs === 'number'
+        ? record.staleThresholdMs
         : this.staleThresholdMs;
 
       if (threshold <= 0 || threshold === Infinity) {
         continue;
       }
 
-      if (now - lastActive > threshold) {
-        toRemove.push(connId);
+      if (now - record.lastActiveTime > threshold) {
+        toRemove.push(record.connectionId);
       }
     }
     for (const connId of toRemove) {

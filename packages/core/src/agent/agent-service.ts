@@ -1,6 +1,6 @@
 import type { ChannelMessage, ILLMService, LLMMessage } from '@eoasmxd/freya-sdk';
 import { FreyaCommandExecutor } from '../command/command-executor.js';
-import type { DefaultFreyaContext } from '../context.js';
+import { currentConnectionStorage, type DefaultFreyaContext } from '../context.js';
 import type { FreyaPromptRegistry } from '../prompt/prompt-registry.js';
 import { FreyaSessionManager } from '../session/session-manager.js';
 import type { FreyaAgentExecutor } from './agent-executor.js';
@@ -86,6 +86,15 @@ export class FreyaAgentService {
   }
 
   async run(message: ChannelMessage): Promise<void> {
+    const connInfo = {
+      connectionId: message.connectionId,
+      channelType: message.channelType,
+      language: message.defaultLanguage || 'en'
+    };
+    return currentConnectionStorage.run(connInfo, () => this.executeRun(message));
+  }
+
+  private async executeRun(message: ChannelMessage): Promise<void> {
     let partialResponse = '';
 
     try {

@@ -275,6 +275,10 @@ export class FreyaConfigManager {
     setValueByKeyPath(rawConfig, keyPath, safeValue);
     this.updateContextConfig(rawConfig);
 
+    if (keyPath === 'system.language') {
+      this.context.eventBus.emit('config:language_changed', { language: safeValue });
+    }
+
     return `核心配置中的属性 "${keyPath}" 已成功修改，已实时生效。`;
   }
 
@@ -313,6 +317,10 @@ export class FreyaConfigManager {
       setValueByKeyPath(rawConfig, keyPath, safeValue);
     }
     this.updateContextConfig(rawConfig);
+
+    if (updates['system.language']) {
+      this.context.eventBus.emit('config:language_changed', { language: updates['system.language'] });
+    }
 
     return '全量全局配置已成功修改，并实时热更新生效。';
   }
@@ -543,6 +551,15 @@ export class FreyaConfigManager {
     ];
 
     const coreFields: ConfigFieldSchema[] = [
+      {
+        key: 'system.language',
+        defaultValue: 'auto',
+        description: '系统界面与交互语言',
+        type: 'string',
+        enumValues: ['auto', 'zh', 'en'],
+        uiHint: 'select',
+        category: '系统参数'
+      },
       {
         key: 'server.port',
         defaultValue: 3000,

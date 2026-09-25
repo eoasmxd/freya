@@ -26,6 +26,7 @@ interface ConfigFieldSchema {
   sensitive?: boolean;
   manualOnly?: boolean;
   uiHint?: string;
+  enumValues?: string[];
   children?: ConfigFieldSchema[];
 }
 
@@ -774,6 +775,17 @@ export const GlobalConfigPanel: React.FC<GlobalConfigPanelProps> = ({ getApiUrl 
                             />
                             <span className="slider" />
                           </label>
+                        ) : field.enumValues && field.enumValues.length > 0 ? (
+                          <select
+                            className="config-input"
+                            style={{ width: '280px', height: '34px', boxSizing: 'border-box', margin: 0 }}
+                            value={currentValue ?? field.defaultValue ?? field.enumValues[0]}
+                            onChange={(e) => setDynamicValues(prev => ({ ...prev, [field.key]: e.target.value }))}
+                          >
+                            {field.enumValues.map((opt: string) => (
+                              <option key={opt} value={opt}>{opt}</option>
+                            ))}
+                          </select>
                         ) : field.type === 'number' ? (
                           <input
                             type="number"

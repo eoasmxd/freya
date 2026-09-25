@@ -417,14 +417,18 @@ export default class FreyaWeixinChannelPlugin implements ChannelPlugin {
                   ctx.eventBus.emit("connection:active", {
                     connectionId,
                     defaultSessionId: connectionId,
-                    staleThresholdMs: 0
+                    staleThresholdMs: 0,
+                    channelType: "weixin",
+                    defaultLanguage: "zh"
                   });
 
                   ctx.eventBus.emit("connection:message", {
                     connectionId,
                     content: text,
                     attachments: attachments.length > 0 ? attachments : undefined,
-                    defaultSessionId: connectionId
+                    defaultSessionId: connectionId,
+                    channelType: "weixin",
+                    defaultLanguage: "zh"
                   });
                 }
               }

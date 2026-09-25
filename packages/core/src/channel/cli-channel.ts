@@ -7,6 +7,22 @@ const CLI_CONN_ID = 'built-in-cli-channel:terminal';
  * 内置控制台交互通道。
  * 负责监听终端标准输入（stdin）并将大模型响应流式渲染输出至标准输出（stdout）。
  */
+function detectCliLanguage(): string {
+    const envLang = (process.env.LANG || process.env.LC_ALL || process.env.LC_MESSAGES || '').toLowerCase();
+    if (envLang.startsWith('zh')) {
+        return 'zh';
+    }
+    try {
+        const locale = Intl.DateTimeFormat().resolvedOptions().locale.toLowerCase();
+        if (locale.startsWith('zh')) {
+            return 'zh';
+        }
+    } catch {
+        // 忽略检测异常
+    }
+    return 'en';
+}
+
 export class FreyaCliChannel {
     id = 'built-in-cli-channel';
     private rl?: readline.Interface;
@@ -22,9 +38,16 @@ export class FreyaCliChannel {
     }
 
     async start(ctx: FreyaContext): Promise<void> {
+        const defaultLanguage = detectCliLanguage();
         console.log('\n[CliChannel] 本地控制台交互已启动。输入消息即可交流，输入 "/exit" 退出交互。');
         console.log('[CliChannel] 提示：你可以通过在启动命令后追加 "--no-cli" 参数使程序在后台运行。\n');
-        ctx.eventBus.emit('connection:active', { connectionId: CLI_CONN_ID, defaultSessionId: 'main', staleThresholdMs: 0 });
+        ctx.eventBus.emit('connection:active', {
+            connectionId: CLI_CONN_ID,
+            defaultSessionId: 'main',
+            staleThresholdMs: 0,
+            channelType: 'cli',
+            defaultLanguage
+        });
 
         this.rl = readline.createInterface({
             input: process.stdin,
@@ -53,7 +76,9 @@ export class FreyaCliChannel {
             const messagePayload = {
                 connectionId: CLI_CONN_ID,
                 content: input,
-                defaultSessionId: 'main'
+                defaultSessionId: 'main',
+                channelType: 'cli',
+                defaultLanguage
             };
 
             ctx.eventBus.emit('connection:message', messagePayload);

@@ -209,7 +209,13 @@ export default class TelegramChannelPlugin implements ChannelPlugin {
 
                         const chatId = msg.chat.id.toString();
                         const connectionId = this.connId(botId, chatId);
-                        ctx.eventBus.emit('connection:active', { connectionId, defaultSessionId: `telegram:${botId}:${chatId}`, staleThresholdMs: 0 });
+                        ctx.eventBus.emit('connection:active', {
+                            connectionId,
+                            defaultSessionId: `telegram:${botId}:${chatId}`,
+                            staleThresholdMs: 0,
+                            channelType: 'telegram',
+                            defaultLanguage: 'en'
+                        });
                         this.registeredConnections.add(connectionId);
 
                         if (msg.text) {
@@ -225,7 +231,9 @@ export default class TelegramChannelPlugin implements ChannelPlugin {
                             ctx.eventBus.emit("connection:message", {
                                 connectionId,
                                 content: text,
-                                defaultSessionId: `telegram:${botId}:${chatId}`
+                                defaultSessionId: `telegram:${botId}:${chatId}`,
+                                channelType: "telegram",
+                                defaultLanguage: "en"
                             });
                             continue;
                         }
@@ -269,6 +277,8 @@ export default class TelegramChannelPlugin implements ChannelPlugin {
                                 connectionId,
                                 content: caption,
                                 attachments,
+                                channelType: "telegram",
+                                defaultLanguage: "en"
                             });
                         }
                     }

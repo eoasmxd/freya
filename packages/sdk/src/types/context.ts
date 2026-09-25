@@ -26,10 +26,19 @@ export interface FreyaPaths {
   workspaceDir: string;
 }
 
+export interface ConnectionInfo {
+  connectionId?: string;
+  channelType?: string;
+  language: string;
+}
+
 export interface FreyaContext {
   eventBus: EventBus;
   logger: Logger;
   readonly config: Readonly<Record<string, any>>;
   llm: ILLMService;
   paths: FreyaPaths;
+  getLanguage(): string;
+  getConnection(): ConnectionInfo | undefined;
 }
+

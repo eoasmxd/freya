@@ -15,6 +15,7 @@ interface WsConnectionMeta {
     clientId?: string;
     pingTimer?: ReturnType<typeof setInterval>;
     lastPongTime: number;
+    defaultLanguage: string;
 }
 
 /**
@@ -45,8 +46,11 @@ export class FreyaWsChannel {
     async start(ctx: FreyaContext): Promise<void> {
         this.wss = new WebSocketServer({ server: this.httpServer });
 
-        this.wss.on('connection', (ws) => {
+        this.wss.on('connection', (ws, req) => {
             const tempConnId = `${WSS_HANDLER_ID}:temp:${crypto.randomUUID()}`;
+            const acceptLang = String(req.headers['accept-language'] || '').toLowerCase();
+            const defaultLanguage = acceptLang.includes('zh') ? 'zh' : 'en';
+
             ctx.logger.info(`[WsChannel] 物理连接上线，分配临时 ID: ${tempConnId}`);
             this.connections.add(ws);
 
@@ -64,28 +68,49 @@ export class FreyaWsChannel {
                 connId: tempConnId,
                 clientId: undefined,
                 pingTimer,
-                lastPongTime: Date.now()
+                lastPongTime: Date.now(),
+                defaultLanguage
             };
             this.wsMetaMap.set(tempConnId, meta);
-            ctx.eventBus.emit('connection:active', { connectionId: tempConnId, defaultSessionId: 'main', staleThresholdMs: 300000 });
+            ctx.eventBus.emit('connection:active', {
+                connectionId: tempConnId,
+                defaultSessionId: 'main',
+                staleThresholdMs: 300000,
+                channelType: 'web',
+                defaultLanguage
+            });
 
             ws.on('pong', () => {
                 meta.lastPongTime = Date.now();
-                ctx.eventBus.emit('connection:active', { connectionId: meta.connId, staleThresholdMs: 300000 });
+                ctx.eventBus.emit('connection:active', {
+                    connectionId: meta.connId,
+                    staleThresholdMs: 300000,
+                    channelType: 'web',
+                    defaultLanguage: meta.defaultLanguage
+                });
             });
+
+            const configLang = (ctx.config as any)?.system?.language;
+            const effectiveLanguage = (configLang && configLang !== 'auto') ? configLang : meta.defaultLanguage;
 
             ws.send(JSON.stringify({
                 event: 'server:connected',
                 data: {
                     message: '已成功与 Freya 后端服务建立 WebSocket 链接。',
-                    connectionId: tempConnId
+                    connectionId: tempConnId,
+                    language: effectiveLanguage
                 }
             }));
 
             ws.on('message', (messageData) => {
                 try {
                     const payload = JSON.parse(messageData.toString());
-                    ctx.eventBus.emit('connection:active', { connectionId: meta.connId, staleThresholdMs: 300000 });
+                    ctx.eventBus.emit('connection:active', {
+                        connectionId: meta.connId,
+                        staleThresholdMs: 300000,
+                        channelType: 'web',
+                        defaultLanguage: meta.defaultLanguage
+                    });
                     meta.lastPongTime = Date.now();
 
                     if (payload.event === 'client:reconnect') {
@@ -102,7 +127,9 @@ export class FreyaWsChannel {
                         const messagePayload = {
                             connectionId: meta.connId,
                             content: content,
-                            defaultSessionId: 'main'
+                            defaultSessionId: 'main',
+                            channelType: 'web',
+                            defaultLanguage: meta.defaultLanguage
                         };
                         ctx.eventBus.emit('connection:message', messagePayload);
                     } else if (payload.event === 'client:interrupt') {
@@ -153,7 +180,13 @@ export class FreyaWsChannel {
         meta.connId = stableConnId;
         meta.clientId = clientId;
         this.wsMetaMap.set(stableConnId, meta);
-        ctx.eventBus.emit('connection:active', { connectionId: stableConnId, defaultSessionId: 'main', staleThresholdMs: 300000 });
+        ctx.eventBus.emit('connection:active', {
+            connectionId: stableConnId,
+            defaultSessionId: 'main',
+            staleThresholdMs: 300000,
+            channelType: 'web',
+            defaultLanguage: meta.defaultLanguage
+        });
 
         ctx.logger.info(`[WsChannel] 客户端断线重连成功，clientId: ${clientId}, 连接ID: ${stableConnId}`);
 

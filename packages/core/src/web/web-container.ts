@@ -19,6 +19,23 @@ const mimeTypes: Record<string, string> = {
     '.ico': 'image/x-icon'
 };
 
+function resolveHtmlLanguage(req: http.IncomingMessage, ctx: FreyaContext): string {
+    const configLang = (ctx.config as any)?.system?.language;
+    if (configLang && configLang !== 'auto') {
+        return configLang;
+    }
+    const acceptLang = String(req.headers['accept-language'] || '').toLowerCase();
+    return acceptLang.includes('zh') ? 'zh' : 'en';
+}
+
+function injectLanguageToHtml(html: string, lang: string): string {
+    const tag = `<script>window.__FREYA_LANGUAGE__ = "${lang}";</script>`;
+    if (html.includes('</head>')) {
+        return html.replace('</head>', `${tag}</head>`);
+    }
+    return tag + html;
+}
+
 /** HTTP 服务容器，托管前端 UI 静态资源 */
 export class FreyaWebContainer {
     private httpServer?: http.Server;
@@ -66,14 +83,23 @@ export class FreyaWebContainer {
                 const content = await fs.readFile(filePath);
                 const ext = path.extname(filePath).toLowerCase();
                 const contentType = mimeTypes[ext] || 'application/octet-stream';
+                if (ext === '.html') {
+                    const lang = resolveHtmlLanguage(req, ctx);
+                    const injected = injectLanguageToHtml(content.toString('utf-8'), lang);
+                    res.writeHead(200, { 'Content-Type': contentType });
+                    res.end(injected);
+                    return;
+                }
                 res.writeHead(200, { 'Content-Type': contentType });
                 res.end(content);
             } catch (err: any) {
                 if (err.code === 'ENOENT') {
                     try {
                         const indexHtml = await fs.readFile(path.join(uiDist, 'index.html'));
+                        const lang = resolveHtmlLanguage(req, ctx);
+                        const injected = injectLanguageToHtml(indexHtml.toString('utf-8'), lang);
                         res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
-                        res.end(indexHtml);
+                        res.end(injected);
                     } catch {
                         res.statusCode = 404;
                         res.end('Not Found');

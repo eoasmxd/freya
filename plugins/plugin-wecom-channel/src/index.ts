@@ -341,14 +341,18 @@ export default class FreyaWecomChannelPlugin implements ChannelPlugin {
         ctx.eventBus.emit("connection:active", {
           connectionId,
           defaultSessionId: connectionId,
-          staleThresholdMs: 0
+          staleThresholdMs: 0,
+          channelType: "wecom",
+          defaultLanguage: "zh"
         });
 
         ctx.eventBus.emit("connection:message", {
           connectionId,
           content,
           attachments: attachments.length > 0 ? attachments : undefined,
-          defaultSessionId: connectionId
+          defaultSessionId: connectionId,
+          channelType: "wecom",
+          defaultLanguage: "zh"
         });
       }
     } else if (cmd === "pong") {
