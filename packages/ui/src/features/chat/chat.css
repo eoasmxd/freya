@@ -140,6 +140,16 @@
 
 .message-meta .name {
   font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.bot-icon {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  object-fit: cover;
 }
 
 .message-wrapper.assistant .message-meta .name {

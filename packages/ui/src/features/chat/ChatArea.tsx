@@ -231,12 +231,18 @@ export const ChatArea: React.FC<ChatAreaProps> = ({ messages, chatPanelRef, isGe
 
         const msg = item.message;
         const isUser = msg.role === 'user';
-        const displayName = isUser ? '👤 用户' : '🤖 Freya';
 
         return (
           <div key={msg.id} className={`message-wrapper ${msg.role}`}>
             <div className="message-meta">
-              <span className="name">{displayName}</span>
+              {isUser ? (
+                <span className="name">👤 用户</span>
+              ) : (
+                <span className="name">
+                  <img src="./icon.png" alt="Freya" className="bot-icon" />
+                  <span>Freya</span>
+                </span>
+              )}
             </div>
             <div className={`message-bubble ${msg.isTyping ? 'cursor-typing' : ''}`}>
               <div className="message-content">
