@@ -1,7 +1,9 @@
+import type { LocalizedText } from './common.js';
+
 export interface ConfigFieldSchema {
   key: string;
   defaultValue?: any;
-  description: string;
+  description: LocalizedText;
   type: 'string' | 'number' | 'boolean' | 'enum' | 'object' | 'array';
   enumValues?: string[];
   required?: boolean;
@@ -9,7 +11,7 @@ export interface ConfigFieldSchema {
   max?: number;
   sensitive?: boolean;
   manualOnly?: boolean;
-  category?: string;
+  category?: LocalizedText;
   uiHint?: 'text' | 'textarea' | 'password' | 'select' | 'slider';
   children?: ConfigFieldSchema[];
 }

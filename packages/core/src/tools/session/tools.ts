@@ -24,7 +24,7 @@ export class ListSessionsTool implements FreyaTool {
     };
   }
 
-  async execute(args: Record<string, any>, ctx: FreyaContext): Promise<string> {
+  async execute(args: Record<string, any>): Promise<string> {
     try {
       const filter = (args.filter || 'all') as 'active' | 'archived' | 'all';
       let allIndices = this.sessionManager.listSessions();
@@ -104,7 +104,7 @@ export class ViewSessionInfoTool implements FreyaTool {
     };
   }
 
-  async execute(args: Record<string, any>, ctx: FreyaContext): Promise<string> {
+  async execute(args: Record<string, any>): Promise<string> {
     try {
       const sessionId = args.sessionId;
       const idx = this.sessionManager.findLatestIndexById(sessionId);
@@ -169,7 +169,7 @@ export class ViewSessionContentTool implements FreyaTool {
     };
   }
 
-  async execute(args: Record<string, any>, ctx: FreyaContext): Promise<string> {
+  async execute(args: Record<string, any>): Promise<string> {
     try {
       const sessionId = args.__sessionId || args.sessionId;
       if (!sessionId) {
@@ -232,7 +232,7 @@ export class ViewSessionSnapshotTool implements FreyaTool {
     };
   }
 
-  async execute(args: Record<string, any>, ctx: FreyaContext): Promise<string> {
+  async execute(args: Record<string, any>): Promise<string> {
     try {
       const sessionId = args.__sessionId || args.sessionId;
       if (!sessionId) {
@@ -278,7 +278,10 @@ export class ViewSessionSnapshotTool implements FreyaTool {
 export class SpawnSubagentTool implements FreyaTool {
   private agentService?: FreyaAgentService;
 
-  constructor(private sessionManager: FreyaSessionManager) {}
+  constructor(
+    private sessionManager: FreyaSessionManager,
+    private ctx?: FreyaContext
+  ) {}
 
   setAgentService(agentService: FreyaAgentService): void {
     this.agentService = agentService;
@@ -313,7 +316,7 @@ export class SpawnSubagentTool implements FreyaTool {
     };
   }
 
-  async execute(args: Record<string, any>, ctx: FreyaContext): Promise<string> {
+  async execute(args: Record<string, any>): Promise<string> {
     if (!args.prompt) {
       // 缺少 prompt 参数错误
       return '❌ Parameter error: Detailed prompt description for subtask must be provided.';
@@ -326,7 +329,7 @@ export class SpawnSubagentTool implements FreyaTool {
     const parentSessionId = args.__sessionId || 'unknown_parent';
     const childSessionId = `${parentSessionId}_sub_${Date.now()}`;
 
-    ctx.logger.info(`[SubagentTool] Spawning subagent task: parent "${parentSessionId}" -> child "${childSessionId}"`);
+    this.ctx?.logger.info(`[SubagentTool] Spawning subagent task: parent "${parentSessionId}" -> child "${childSessionId}"`);
     return await this.agentService.runSubAgent(parentSessionId, childSessionId, args.prompt, args);
   }
 }
@@ -359,7 +362,7 @@ export class CancelSubagentTool implements FreyaTool {
     };
   }
 
-  async execute(args: Record<string, any>, ctx: FreyaContext): Promise<string> {
+  async execute(args: Record<string, any>): Promise<string> {
     if (!args.childSessionId) {
       // 缺少 childSessionId 参数错误
       return '❌ Parameter error: Child session ID childSessionId must be specified.';

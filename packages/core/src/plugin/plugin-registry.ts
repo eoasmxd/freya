@@ -35,7 +35,8 @@ export class FreyaPluginRegistry {
           break;
         }
         default: {
-          ctx.logger.warn(`Attempting to register unknown capability type: ${plugin.name} (ID: ${plugin.id}, Type: ${type})`);
+          const pluginName = typeof plugin.name === 'string' ? plugin.name : plugin.name?.['en'] || plugin.id;
+          ctx.logger.warn(`Attempting to register unknown capability type: ${pluginName} (ID: ${plugin.id}, Type: ${type})`);
         }
       }
     }

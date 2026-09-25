@@ -40,7 +40,8 @@ function requestUserAuthorization(
 export class ReadConfigTool implements FreyaTool {
   constructor(
     private configService: FreyaConfigManager,
-    private pendingAuths: Map<string, (approved: boolean) => void>
+    private pendingAuths: Map<string, (approved: boolean) => void>,
+    private ctx: FreyaContext
   ) { }
 
   getDefinition(): ToolDefinition {
@@ -61,7 +62,7 @@ export class ReadConfigTool implements FreyaTool {
     };
   }
 
-  async execute(args: Record<string, any>, ctx: FreyaContext): Promise<string> {
+  async execute(args: Record<string, any>): Promise<string> {
     try {
       const revealSensitive = !!args.revealSensitive;
       const configName = 'freya';
@@ -90,8 +91,8 @@ export class ReadConfigTool implements FreyaTool {
         }
 
         if (hasSensitiveData) {
-          ctx.logger.warn('[ConfigTool] LLM attempting to read sensitive plaintext, initiating secondary user authorization...');
-          const approved = await requestUserAuthorization(ctx, 'read', configName, sensitiveKeys.join(', '), this.pendingAuths);
+          this.ctx.logger.warn('[ConfigTool] LLM attempting to read sensitive plaintext, initiating secondary user authorization...');
+          const approved = await requestUserAuthorization(this.ctx, 'read', configName, sensitiveKeys.join(', '), this.pendingAuths);
           if (!approved) {
             // 授权被拒绝提示
             return `❌ Authorization failed: User rejected LLM request to read sensitive configuration plaintext.`;
@@ -111,7 +112,8 @@ export class ReadConfigTool implements FreyaTool {
 export class UpdateConfigTool implements FreyaTool {
   constructor(
     private configService: FreyaConfigManager,
-    private pendingAuths: Map<string, (approved: boolean) => void>
+    private pendingAuths: Map<string, (approved: boolean) => void>,
+    private ctx: FreyaContext
   ) { }
 
   getDefinition(): ToolDefinition {
@@ -138,7 +140,7 @@ export class UpdateConfigTool implements FreyaTool {
     };
   }
 
-  async execute(args: Record<string, any>, ctx: FreyaContext): Promise<string> {
+  async execute(args: Record<string, any>): Promise<string> {
     try {
       const configName = 'freya';
       const keyPath = String(args.keyPath || '').trim();
@@ -188,8 +190,8 @@ export class UpdateConfigTool implements FreyaTool {
       }
 
       if (isSensitive) {
-        ctx.logger.warn(`[ConfigTool] Detected write to sensitive field "${keyPath}", initiating secondary user authorization...`);
-        const approved = await requestUserAuthorization(ctx, 'write', configName, keyPath, this.pendingAuths, '******');
+        this.ctx.logger.warn(`[ConfigTool] Detected write to sensitive field "${keyPath}", initiating secondary user authorization...`);
+        const approved = await requestUserAuthorization(this.ctx, 'write', configName, keyPath, this.pendingAuths, '******');
         if (!approved) {
           // 修改敏感字段授权被拒绝提示
           return `❌ Authorization failed: User rejected LLM request to modify sensitive field "${keyPath}".`;

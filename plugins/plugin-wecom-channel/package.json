@@ -6,9 +6,16 @@
   "publishConfig": {
     "access": "public"
   },
-  "description": "Freya 企业微信智能机器人长连接频道插件，通过 WebSocket 连接企业微信官方接口",
+  "description": "Freya WeCom intelligent bot persistent connection channel plugin",
   "freya": {
-    "displayName": "企业微信频道",
+    "displayName": {
+      "zh": "企业微信频道",
+      "en": "WeCom Channel Plugin"
+    },
+    "description": {
+      "zh": "Freya 企业微信智能机器人长连接频道插件，通过 WebSocket 连接企业微信官方接口",
+      "en": "Freya WeCom intelligent bot persistent connection channel plugin via official WebSocket interface"
+    },
     "defaultEnabled": false,
     "schema": "./schema.json"
   },

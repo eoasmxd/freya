@@ -6,9 +6,16 @@
   "publishConfig": {
     "access": "public"
   },
-  "description": "Freya Gemini 官方大模型接入插件",
+  "description": "Freya Gemini official LLM provider plugin",
   "freya": {
-    "displayName": "Gemini 模型插件",
+    "displayName": {
+      "zh": "Gemini 模型插件",
+      "en": "Gemini Model Plugin"
+    },
+    "description": {
+      "zh": "Freya Gemini 官方大模型接入插件，支持 Google Gemini 系列模型原生 API",
+      "en": "Freya Gemini official LLM provider plugin supporting Google Gemini model APIs"
+    },
     "defaultEnabled": false
   },
   "type": "module",

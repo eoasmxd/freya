@@ -1,8 +1,11 @@
 ---
 id: skill-wecom-integration
-name: 企业微信智能机器人接入与配置完全指南
-description: 当用户咨询如何接入或配置企业微信智能机器人，或提供 Bot ID 和 Secret 要求协助接入时触发。
-
+name:
+  zh: 企业微信智能机器人接入与配置完全指南
+  en: WeCom Intelligent Bot Integration and Configuration Complete Guide
+description:
+  zh: 当用户咨询如何接入或配置企业微信智能机器人，或提供 Bot ID 和 Secret 要求协助接入时触发。
+  en: Triggered when users inquire about integrating or configuring a WeCom intelligent bot, or provide a Bot ID and Secret requesting integration assistance.
 ---
 # 企业微信智能机器人接入与配置完全指南
 

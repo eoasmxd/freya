@@ -9,10 +9,10 @@ export default class FsToolsPlugin implements ToolPlugin {
 
   async setup(ctx: FreyaContext): Promise<void> {
     this.tools = [
-      new ListDirTool(),
-      new ReadFileTool(),
-      new WriteFileTool(),
-      new EditFileTool()
+      new ListDirTool(ctx),
+      new ReadFileTool(ctx),
+      new WriteFileTool(ctx),
+      new EditFileTool(ctx)
     ];
 
     const workspaceAbs = ctx.paths.workspaceDir;

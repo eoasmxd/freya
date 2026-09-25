@@ -1,40 +1,52 @@
 import type { FreyaCommandRegistry } from '../command-registry.js';
+import type { FreyaContext } from '@eoasmxd/freya-sdk';
+import { I18n } from '../../i18n/index.js';
+import { zh } from '../../i18n/locales/zh.js';
+import { en } from '../../i18n/locales/en.js';
 
 export interface HelpCommandsDeps {
     commands: FreyaCommandRegistry;
+    context: FreyaContext;
 }
 
 export function registerHelpCommands(deps: HelpCommandsDeps): void {
-    const { commands } = deps;
+    const { commands, context } = deps;
+    const i18n = new I18n({ zh, en }, context);
 
     commands.register({
         name: 'help',
-        description: '列出所有可用指令及说明',
+        description: i18n.all('cmd.help.description', 'List all available commands and their descriptions'),
         execute: async () => {
             const all = commands.list();
             if (all.length === 0) {
-                return 'ℹ️ 当前没有任何注册的指令。';
+                return i18n.t('cmd.help.empty', 'ℹ️ No commands are currently registered.');
             }
+
+            const aliasLabel = i18n.t('cmd.help.aliasLabel', 'aliases');
+            const usageLabel = i18n.t('cmd.help.usageLabel', 'usage');
 
             const lines = all
                 .sort((a, b) => a.name.localeCompare(b.name))
                 .flatMap((cmd) => {
+                    const desc = i18n.resolve(cmd.description);
                     const aliases = cmd.alias && cmd.alias.length > 0
-                        ? ` *(别名: ${cmd.alias.map((a) => `\`${a}\``).join(', ')})*`
+                        ? ` *(${aliasLabel}: ${cmd.alias.map((a) => `\`${a}\``).join(', ')})*`
                         : '';
-                    const header = `- **\`/${cmd.name}\`**${aliases} — ${cmd.description}`;
+                    const header = `- **\`/${cmd.name}\`**${aliases} — ${desc}`;
 
                     if (cmd.subcommands && cmd.subcommands.length > 0) {
                         const subLines = cmd.subcommands.map((sub) => {
-                            const usage = sub.usage ? ` (用法: \`${sub.usage}\`)` : '';
-                            return `  - \`${sub.name}\` — ${sub.description}${usage}`;
+                            const subDesc = i18n.resolve(sub.description);
+                            const usage = sub.usage ? ` (${usageLabel}: \`${sub.usage}\`)` : '';
+                            return `  - \`${sub.name}\` — ${subDesc}${usage}`;
                         });
                         return [header, ...subLines];
                     }
                     return [header];
                 });
 
-            return `### ℹ️ 可用指令列表（共 ${all.length} 条）\n\n${lines.join('\n')}`;
+            return i18n.t('cmd.help.title', '### ℹ️ Available Commands ({count} total)', { count: all.length })
+                + '\n\n' + lines.join('\n');
         }
     });
 }

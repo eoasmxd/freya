@@ -1,4 +1,4 @@
-import type { FreyaTool, FreyaToolbox } from '@eoasmxd/freya-sdk';
+import type { FreyaContext, FreyaTool, FreyaToolbox } from '@eoasmxd/freya-sdk';
 import type { FreyaSessionManager } from '../../session/session-manager.js';
 import type { FreyaAgentService } from '../../agent/agent-service.js';
 import {
@@ -15,8 +15,11 @@ export class SessionToolbox implements FreyaToolbox {
   private spawnTool: SpawnSubagentTool;
   private cancelTool: CancelSubagentTool;
 
-  constructor(private sessionManager: FreyaSessionManager) {
-    this.spawnTool = new SpawnSubagentTool(this.sessionManager);
+  constructor(
+    private sessionManager: FreyaSessionManager,
+    ctx?: FreyaContext
+  ) {
+    this.spawnTool = new SpawnSubagentTool(this.sessionManager, ctx);
     this.cancelTool = new CancelSubagentTool(this.sessionManager);
     this.tools = [
       new ListSessionsTool(this.sessionManager),

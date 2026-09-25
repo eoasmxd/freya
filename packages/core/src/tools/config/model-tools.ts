@@ -22,7 +22,7 @@ export class ListModelsTool implements FreyaTool {
     };
   }
 
-  async execute(args: Record<string, any>, ctx: FreyaContext): Promise<string> {
+  async execute(args: Record<string, any>): Promise<string> {
     try {
       const providerId = args.providerId ? String(args.providerId).trim() : undefined;
       const models = await this.configService.listModels(providerId);
@@ -118,7 +118,7 @@ export class AddModelTool implements FreyaTool {
     };
   }
 
-  async execute(args: Record<string, any>, ctx: FreyaContext): Promise<string> {
+  async execute(args: Record<string, any>): Promise<string> {
     try {
       const result = await this.configService.addModel(
         String(args.providerId || '').trim(),
@@ -210,7 +210,7 @@ export class EditModelTool implements FreyaTool {
     };
   }
 
-  async execute(args: Record<string, any>, ctx: FreyaContext): Promise<string> {
+  async execute(args: Record<string, any>): Promise<string> {
     try {
       const updates: Record<string, any> = {};
       if (args.name !== undefined) updates.name = args.name;
@@ -262,7 +262,7 @@ export class RemoveModelTool implements FreyaTool {
     };
   }
 
-  async execute(args: Record<string, any>, ctx: FreyaContext): Promise<string> {
+  async execute(args: Record<string, any>): Promise<string> {
     try {
       const result = await this.configService.removeModel(
         String(args.providerId || '').trim(),

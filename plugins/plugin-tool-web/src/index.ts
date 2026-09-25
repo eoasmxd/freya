@@ -10,16 +10,13 @@ export default class WebToolboxPlugin implements ToolPlugin {
     type = 'tool' as const;
 
     private cookieStore = new CookieStore();
-    private tools: FreyaTool[];
-
-    constructor() {
-        this.tools = [
-            new WebFetchTool(this.cookieStore),
-            new WebRequestTool(this.cookieStore),
-        ];
-    }
+    private tools: FreyaTool[] = [];
 
     async setup(ctx: FreyaContext): Promise<void> {
+        this.tools = [
+            new WebFetchTool(this.cookieStore, ctx),
+            new WebRequestTool(this.cookieStore, ctx),
+        ];
         ctx.logger.info('Web network toolbox plugin initialized.');
     }
 

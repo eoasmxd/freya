@@ -8,9 +8,9 @@ export default class MemoryToolsPlugin implements ToolPlugin {
 
   async setup(ctx: FreyaContext): Promise<void> {
     this.tools = [
-      new AddMemoryTool(),
-      new QueryMemoryTool(),
-      new DeleteMemoryTool()
+      new AddMemoryTool(ctx),
+      new QueryMemoryTool(ctx),
+      new DeleteMemoryTool(ctx)
     ];
 
     try {

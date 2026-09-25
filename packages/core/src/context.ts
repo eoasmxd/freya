@@ -12,22 +12,35 @@ import { FREYA_APP, FREYA_HOME, FREYA_LAUNCH } from './utils/paths.js';
 
 export const currentConnectionStorage = new AsyncLocalStorage<ConnectionInfo>();
 
+export function detectSystemLanguage(): string {
+  const envLang = (process.env.LANG || process.env.LC_ALL || process.env.LC_MESSAGES || '').toLowerCase();
+  if (envLang.startsWith('zh')) return 'zh';
+  try {
+    const locale = Intl.DateTimeFormat().resolvedOptions().locale.toLowerCase();
+    if (locale.startsWith('zh')) return 'zh';
+  } catch { }
+  return 'en';
+}
+
 export class DefaultFreyaContext implements FreyaContext {
   logger!: Logger;
   eventBus!: EventBus;
   config: Readonly<Record<string, any>> = {};
   llm!: ILLMService;
 
-  getLanguage(): string {
+  getLanguage(defaultLang?: string): string {
     const configLang = this.config?.system?.language;
     if (configLang && configLang !== 'auto') {
-      return configLang;
+      return configLang.toLowerCase();
     }
     const currentConn = currentConnectionStorage.getStore();
-    if (currentConn?.language) {
-      return currentConn.language;
+    if (currentConn?.language && currentConn.language !== 'auto') {
+      return currentConn.language.toLowerCase();
     }
-    return 'en';
+    if (defaultLang && defaultLang !== 'auto') {
+      return defaultLang.toLowerCase();
+    }
+    return detectSystemLanguage();
   }
 
   getConnection(): ConnectionInfo | undefined {

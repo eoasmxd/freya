@@ -23,7 +23,7 @@ export class ReadPromptTool implements FreyaTool {
     };
   }
 
-  async execute(args: Record<string, any>, ctx: FreyaContext): Promise<string> {
+  async execute(args: Record<string, any>): Promise<string> {
     try {
       const result = await this.configService.readPrompt(String(args.name || '').trim());
       return result;
@@ -61,7 +61,7 @@ export class WritePromptTool implements FreyaTool {
     };
   }
 
-  async execute(args: Record<string, any>, ctx: FreyaContext): Promise<string> {
+  async execute(args: Record<string, any>): Promise<string> {
     try {
       const result = await this.configService.writePrompt(
         String(args.name || '').trim(),
@@ -107,7 +107,7 @@ export class EditPromptTool implements FreyaTool {
     };
   }
 
-  async execute(args: Record<string, any>, ctx: FreyaContext): Promise<string> {
+  async execute(args: Record<string, any>): Promise<string> {
     try {
       const result = await this.configService.editPrompt(
         String(args.name || '').trim(),

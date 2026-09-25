@@ -11,7 +11,7 @@ async function executeRequest(
     method: string,
     args: Record<string, any>,
     cookieStore: CookieStore,
-    ctx: FreyaContext,
+    ctx?: FreyaContext,
     cleanMode?: "auto" | "text"
 ): Promise<string> {
     const validatedUrl = validateUrl(url);
@@ -37,9 +37,9 @@ async function executeRequest(
         }
     }
 
-    const timeout = ctx.config.web?.timeout ?? DEFAULT_TIMEOUT_MS;
-    const configMaxLength = ctx.config.web?.maxLength ?? undefined;
-    const configAutoSaveThreshold = ctx.config.web?.autoSaveThreshold ?? 50 * 1024;
+    const timeout = ctx?.config?.web?.timeout ?? DEFAULT_TIMEOUT_MS;
+    const configMaxLength = ctx?.config?.web?.maxLength ?? undefined;
+    const configAutoSaveThreshold = ctx?.config?.web?.autoSaveThreshold ?? 50 * 1024;
 
     const requestInit: RequestInit = {
         method,
@@ -163,7 +163,10 @@ async function executeRequest(
 
 export class WebFetchTool implements FreyaTool {
 
-    constructor(private cookieStore: CookieStore) { }
+    constructor(
+        private cookieStore: CookieStore,
+        private ctx?: FreyaContext
+    ) { }
 
     getDefinition(): ToolDefinition {
         return {
@@ -204,7 +207,7 @@ export class WebFetchTool implements FreyaTool {
         };
     }
 
-    async execute(args: Record<string, any>, ctx: FreyaContext): Promise<string> {
+    async execute(args: Record<string, any>): Promise<string> {
         if (!args.url) {
             // 缺少 URL 参数错误
             return '❌ Parameter error: Must specify url.';
@@ -219,7 +222,7 @@ export class WebFetchTool implements FreyaTool {
         const cleanMode = extractMode === 'raw' ? undefined : extractMode;
 
         try {
-            return await executeRequest(args.url, 'GET', args, this.cookieStore, ctx, cleanMode);
+            return await executeRequest(args.url, 'GET', args, this.cookieStore, this.ctx, cleanMode);
         } catch (err: any) {
             // 执行失败错误提示
             return `❌ web_fetch execution failed: ${err?.message || String(err)}`;
@@ -229,7 +232,10 @@ export class WebFetchTool implements FreyaTool {
 
 export class WebRequestTool implements FreyaTool {
 
-    constructor(private cookieStore: CookieStore) { }
+    constructor(
+        private cookieStore: CookieStore,
+        private ctx?: FreyaContext
+    ) { }
 
     getDefinition(): ToolDefinition {
         return {
@@ -285,7 +291,7 @@ export class WebRequestTool implements FreyaTool {
         };
     }
 
-    async execute(args: Record<string, any>, ctx: FreyaContext): Promise<string> {
+    async execute(args: Record<string, any>): Promise<string> {
         if (!args.url) {
             // 缺少 URL 参数错误
             return '❌ Parameter error: Must specify url.';
@@ -310,7 +316,7 @@ export class WebRequestTool implements FreyaTool {
         }
 
         try {
-            return await executeRequest(args.url, method, args, this.cookieStore, ctx);
+            return await executeRequest(args.url, method, args, this.cookieStore, this.ctx);
         } catch (err: any) {
             // 执行失败错误提示
             return `❌ web_request execution failed: ${err?.message || String(err)}`;

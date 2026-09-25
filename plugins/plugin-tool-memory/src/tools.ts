@@ -117,6 +117,7 @@ export function handleMemoryError(action: string, err: any, ctx: FreyaContext): 
 }
 
 export class AddMemoryTool implements FreyaTool {
+  constructor(private ctx?: FreyaContext) {}
 
   getDefinition(): ToolDefinition {
     return {
@@ -145,14 +146,14 @@ export class AddMemoryTool implements FreyaTool {
     };
   }
 
-  async execute(args: Record<string, any>, ctx: FreyaContext): Promise<string> {
+  async execute(args: Record<string, any>): Promise<string> {
     if (!args.content || !Array.isArray(args.keywords) || args.keywords.length === 0) {
       // 缺少必要参数错误
       return '❌ Parameter error: Must specify memory content and keyword list.';
     }
 
     try {
-      const dataDir = ctx.paths.dataDir;
+      const dataDir = this.ctx?.paths.dataDir || '';
       const indexData = await readIndex(dataDir);
       const { date, time } = getFormattedDateTime();
       const id = `mem_${Date.now()}`;
@@ -173,16 +174,17 @@ export class AddMemoryTool implements FreyaTool {
       }
       await writeIndex(dataDir, indexData);
 
-      ctx.logger.debug(`[add_memory] Successfully written memory: [${id}] keywords=${JSON.stringify(args.keywords)}`);
+      this.ctx?.logger.debug(`[add_memory] Successfully written memory: [${id}] keywords=${JSON.stringify(args.keywords)}`);
       // 记忆保存成功出参
       return `ℹ️ Memory saved successfully! (ID: ${id}, Date: ${date})`;
     } catch (err: any) {
-      return handleMemoryError('save memory', err, ctx);
+      return handleMemoryError('save memory', err, this.ctx!);
     }
   }
 }
 
 export class QueryMemoryTool implements FreyaTool {
+  constructor(private ctx?: FreyaContext) {}
 
   getDefinition(): ToolDefinition {
     return {
@@ -203,14 +205,14 @@ export class QueryMemoryTool implements FreyaTool {
     };
   }
 
-  async execute(args: Record<string, any>, ctx: FreyaContext): Promise<string> {
+  async execute(args: Record<string, any>): Promise<string> {
     if (!args.keyword) {
       // 缺少检索词参数错误
       return '❌ Parameter error: Must specify search keyword.';
     }
 
     try {
-      const dataDir = ctx.paths.dataDir;
+      const dataDir = this.ctx?.paths.dataDir || '';
       const indexData = await readIndex(dataDir);
       const queryKeyword = args.keyword.trim().toLowerCase();
 
@@ -248,12 +250,13 @@ export class QueryMemoryTool implements FreyaTool {
       // 查询记忆结果出参
       return `🧠 Found associated long-term memories for keyword "${args.keyword}":\n${resultLines.join('\n')}`;
     } catch (err: any) {
-      return handleMemoryError('query memory', err, ctx);
+      return handleMemoryError('query memory', err, this.ctx!);
     }
   }
 }
 
 export class DeleteMemoryTool implements FreyaTool {
+  constructor(private ctx?: FreyaContext) {}
 
   getDefinition(): ToolDefinition {
     return {
@@ -274,14 +277,14 @@ export class DeleteMemoryTool implements FreyaTool {
     };
   }
 
-  async execute(args: Record<string, any>, ctx: FreyaContext): Promise<string> {
+  async execute(args: Record<string, any>): Promise<string> {
     if (!args.id) {
       // 缺少删除 id 参数错误
       return '❌ Parameter error: Must specify memory id to delete.';
     }
 
     try {
-      const dataDir = ctx.paths.dataDir;
+      const dataDir = this.ctx?.paths.dataDir || '';
       const indexData = await readIndex(dataDir);
 
       const allDates = Array.from(new Set(Object.values(indexData.index).flat()));
@@ -320,11 +323,11 @@ export class DeleteMemoryTool implements FreyaTool {
       }
       await writeIndex(dataDir, indexData);
 
-      ctx.logger.debug(`[delete_memory] Successfully purged memory from disk: [${args.id}]`);
+      this.ctx?.logger.debug(`[delete_memory] Successfully purged memory from disk: [${args.id}]`);
       // 删除记忆成功出参
       return `ℹ️ Long-term memory with ID "${args.id}" was successfully deleted, index synchronized.`;
     } catch (err: any) {
-      return handleMemoryError('delete memory', err, ctx);
+      return handleMemoryError('delete memory', err, this.ctx!);
     }
   }
 }

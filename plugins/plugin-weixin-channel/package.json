@@ -6,9 +6,16 @@
   "publishConfig": {
     "access": "public"
   },
-  "description": "Freya 微信智能硬件 iLink 频道插件，通过长轮询 getUpdates 连接微信 iLink 平台",
+  "description": "Freya WeChat smart device iLink channel plugin via long polling",
   "freya": {
-    "displayName": "微信频道插件",
+    "displayName": {
+      "zh": "微信频道插件",
+      "en": "WeChat Channel Plugin"
+    },
+    "description": {
+      "zh": "Freya 微信智能硬件 iLink 频道插件，通过长轮询 getUpdates 连接微信 iLink 平台",
+      "en": "Freya WeChat smart device iLink channel plugin connecting to WeChat iLink via getUpdates long polling"
+    },
     "defaultEnabled": false
   },
   "type": "module",

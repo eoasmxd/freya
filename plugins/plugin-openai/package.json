@@ -6,9 +6,16 @@
   "publishConfig": {
     "access": "public"
   },
-  "description": "Freya OpenAI 兼容大模型接入插件",
+  "description": "Freya OpenAI-compatible LLM provider plugin",
   "freya": {
-    "displayName": "OpenAI 兼容模型插件",
+    "displayName": {
+      "zh": "OpenAI 兼容模型插件",
+      "en": "OpenAI Compatible Model Plugin"
+    },
+    "description": {
+      "zh": "Freya OpenAI 兼容大模型接入插件，支持 DeepSeek、Moonshot、Qwen 等标准接口",
+      "en": "Freya OpenAI-compatible LLM provider plugin supporting DeepSeek, Moonshot, Qwen and standard endpoints"
+    },
     "defaultEnabled": true
   },
   "type": "module",

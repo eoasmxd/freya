@@ -6,9 +6,16 @@
     "publishConfig": {
         "access": "public"
     },
-    "description": "Freya Web 网络请求工具集插件",
+    "description": "Freya Web network request toolbox plugin",
     "freya": {
-        "displayName": "Web 网络请求工具集",
+        "displayName": {
+            "zh": "Web 网络请求工具集",
+            "en": "Web Request Toolbox"
+        },
+        "description": {
+            "zh": "Freya Web 网络请求工具集插件，支持网络抓取与网页解析",
+            "en": "Freya Web network request toolbox plugin with web scraping and page parsing"
+        },
         "defaultEnabled": true,
         "schema": "./schema.json",
         "prompts": [

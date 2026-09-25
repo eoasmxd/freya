@@ -6,9 +6,16 @@
   "publishConfig": {
     "access": "public"
   },
-  "description": "Freya Active Memory 主动记忆工具集插件",
+  "description": "Freya Active Memory persistent memory toolbox plugin",
   "freya": {
-    "displayName": "Active Memory 主动记忆工具集",
+    "displayName": {
+      "zh": "Active Memory 主动记忆工具集",
+      "en": "Active Memory Toolbox"
+    },
+    "description": {
+      "zh": "Freya Active Memory 主动记忆工具集插件，支持用户特征与长期记忆检索",
+      "en": "Freya Active Memory persistent memory toolbox plugin for user profiles and memory retrieval"
+    },
     "defaultEnabled": true,
     "prompts": [
       "plugin.prompt.memory.md"

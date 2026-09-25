@@ -1,8 +1,11 @@
 ---
 id: skill-weixin-integration
-name: 微信机器人接入与配置完全指南
-description: 当用户咨询如何接入或配置微信机器人，或询问如何开启微信扫码绑定时触发。
-
+name:
+  zh: 微信机器人接入与配置完全指南
+  en: WeChat Bot Integration and Configuration Complete Guide
+description:
+  zh: 当用户咨询如何接入或配置微信机器人，或询问如何开启微信扫码绑定时触发。
+  en: Triggered when users inquire about integrating or configuring a WeChat bot, or ask how to start WeChat QR code binding.
 ---
 # 微信机器人接入与配置完全指南
 

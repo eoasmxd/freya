@@ -6,9 +6,16 @@
   "publishConfig": {
     "access": "public"
   },
-  "description": "Freya MySQL 数据库查询工具集插件",
+  "description": "Freya MySQL database query toolbox plugin",
   "freya": {
-    "displayName": "MySQL 数据库查询工具集",
+    "displayName": {
+      "zh": "MySQL 数据库查询工具集",
+      "en": "MySQL Database Toolbox"
+    },
+    "description": {
+      "zh": "Freya MySQL 数据库查询工具集插件，支持只读查询与审计校验",
+      "en": "Freya MySQL database query toolbox plugin with read-only query and audit verification"
+    },
     "defaultEnabled": false,
     "schema": "./schema.json",
     "prompts": [

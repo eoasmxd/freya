@@ -1,6 +1,11 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
+import type { FreyaContext, LocalizedText } from '@eoasmxd/freya-sdk';
+import { I18n } from '../i18n/index.js';
+import { zh } from '../i18n/locales/zh.js';
+import { en } from '../i18n/locales/en.js';
 import { FREYA_APP, FREYA_HOME, FREYA_LAUNCH } from '../utils/paths.js';
+
 
 export interface FreyaPrompt {
   key: string;
@@ -15,6 +20,12 @@ export interface FreyaPrompt {
  */
 export class FreyaPromptRegistry {
   private prompts = new Map<string, FreyaPrompt>();
+  private readonly i18n: I18n;
+
+  constructor(private ctx?: FreyaContext) {
+    this.i18n = new I18n({ zh, en }, ctx);
+  }
+
 
   private resolveProbePaths(prompt: Omit<FreyaPrompt, 'content'>): string[] {
     const baseName = path.basename(prompt.defaultPath);
@@ -172,7 +183,7 @@ export class FreyaPromptRegistry {
   composeSystemPrompt(
     activeSkill?: { id: string; content: string },
     toolInstructions: string[] = [],
-    availableSkills: { id: string; name: string; description?: string }[] = []
+    availableSkills: { id: string; name: LocalizedText; description?: LocalizedText }[] = []
   ): string {
     let systemPrompt = this.getSystemPrompt();
 
@@ -182,9 +193,13 @@ export class FreyaPromptRegistry {
 
     if (availableSkills && availableSkills.length > 0) {
       const listLines = availableSkills
-        .map((s) => `- **${s.name}** (Skill ID: \`${s.id}\`)\n  ${s.description || 'No description'}`)
+        .map((s) => {
+          const name = this.i18n.resolve(s.name);
+          const desc = this.i18n.resolve(s.description) || 'No description';
+          return `- **${name}** (Skill ID: \`${s.id}\`)\n  ${desc}`;
+        })
         .join('\n');
-      // 可用技能卡列表说明
+
       systemPrompt += `\n\n# AVAILABLE SKILLS\nThe system has detected the following available skills (activate via \`activate_skill("skill_id")\`):\n\n${listLines}`;
     }
 
@@ -195,3 +210,6 @@ export class FreyaPromptRegistry {
     return systemPrompt;
   }
 }
+
+
+

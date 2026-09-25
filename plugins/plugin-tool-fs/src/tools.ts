@@ -115,6 +115,7 @@ function formatBytes(bytes: number): string {
 }
 
 export class ListDirTool implements FreyaTool {
+  constructor(private ctx?: FreyaContext) { }
 
   getDefinition(): ToolDefinition {
     const { scopes, description } = getActiveScopesInfo();
@@ -140,10 +141,10 @@ export class ListDirTool implements FreyaTool {
     };
   }
 
-  async execute(args: Record<string, any>, ctx: FreyaContext): Promise<string> {
-    let baseAbs = ctx.paths.workspaceDir;
+  async execute(args: Record<string, any>): Promise<string> {
+    let baseAbs = this.ctx?.paths.workspaceDir || '';
     try {
-      const pathInfo = getSafePath(ctx, args.path || '.', args.scope);
+      const pathInfo = getSafePath(this.ctx!, args.path || '.', args.scope);
       const targetAbs = pathInfo.targetAbs;
       baseAbs = pathInfo.baseAbs;
 
@@ -178,12 +179,13 @@ export class ListDirTool implements FreyaTool {
       // 目录内容出参
       return `ℹ️ Directory "${args.path || '.'}"${scopeInfo} contains:\n${resultLines.join('\n')}`;
     } catch (err: any) {
-      return handleFsError(ctx, 'list directory', err, baseAbs);
+      return handleFsError(this.ctx!, 'list directory', err, baseAbs);
     }
   }
 }
 
 export class ReadFileTool implements FreyaTool {
+  constructor(private ctx?: FreyaContext) { }
 
   getDefinition(): ToolDefinition {
     const { scopes, description } = getActiveScopesInfo();
@@ -220,14 +222,14 @@ export class ReadFileTool implements FreyaTool {
     };
   }
 
-  async execute(args: Record<string, any>, ctx: FreyaContext): Promise<string> {
+  async execute(args: Record<string, any>): Promise<string> {
     if (!args.path) {
       // 缺少相对路径错误
       return '❌ Parameter error: Must specify target file relative path.';
     }
-    let baseAbs = ctx.paths.workspaceDir;
+    let baseAbs = this.ctx?.paths.workspaceDir || '';
     try {
-      const pathInfo = getSafePath(ctx, args.path, args.scope);
+      const pathInfo = getSafePath(this.ctx!, args.path, args.scope);
       const targetAbs = pathInfo.targetAbs;
       baseAbs = pathInfo.baseAbs;
 
@@ -264,12 +266,13 @@ export class ReadFileTool implements FreyaTool {
       // 切片内容出参
       return `ℹ️ File "${args.path}"${scopeInfo} lines ${start} to ${end} (total ${totalLines} lines):\n${slicedLines.join('\n')}`;
     } catch (err: any) {
-      return handleFsError(ctx, 'read file', err, baseAbs);
+      return handleFsError(this.ctx!, 'read file', err, baseAbs);
     }
   }
 }
 
 export class WriteFileTool implements FreyaTool {
+  constructor(private ctx?: FreyaContext) { }
 
   getDefinition(): ToolDefinition {
     return {
@@ -295,7 +298,7 @@ export class WriteFileTool implements FreyaTool {
     };
   }
 
-  async execute(args: Record<string, any>, ctx: FreyaContext): Promise<string> {
+  async execute(args: Record<string, any>): Promise<string> {
     if (!args.path || args.content === undefined) {
       // 缺少路径或内容参数错误
       return '❌ Parameter error: Must specify target path and content to write.';
@@ -305,7 +308,7 @@ export class WriteFileTool implements FreyaTool {
       return '❌ Security rejection: Write operations are only permitted in the workspace sandbox, all other areas are read-only.';
     }
     try {
-      const { targetAbs, baseAbs } = getSafePath(ctx, args.path);
+      const { targetAbs, baseAbs } = getSafePath(this.ctx!, args.path);
       const dirAbs = path.dirname(targetAbs);
 
       await fs.mkdir(dirAbs, { recursive: true });
@@ -314,12 +317,13 @@ export class WriteFileTool implements FreyaTool {
       // 写入成功出参
       return `ℹ️ Successfully wrote content to file "${args.path}".`;
     } catch (err: any) {
-      return handleFsError(ctx, 'write file', err);
+      return handleFsError(this.ctx!, 'write file', err);
     }
   }
 }
 
 export class EditFileTool implements FreyaTool {
+  constructor(private ctx?: FreyaContext) { }
 
   getDefinition(): ToolDefinition {
     return {
@@ -350,7 +354,7 @@ export class EditFileTool implements FreyaTool {
     };
   }
 
-  async execute(args: Record<string, any>, ctx: FreyaContext): Promise<string> {
+  async execute(args: Record<string, any>): Promise<string> {
     if (!args.path || args.target === undefined || args.replacement === undefined) {
       // 缺少必要参数错误
       return '❌ Parameter error: Must specify target path, search target, and replacement text.';
@@ -360,7 +364,7 @@ export class EditFileTool implements FreyaTool {
       return '❌ Security rejection: Edit operations are only permitted in the workspace sandbox, all other areas are read-only.';
     }
     try {
-      const { targetAbs, baseAbs } = getSafePath(ctx, args.path);
+      const { targetAbs, baseAbs } = getSafePath(this.ctx!, args.path);
       const stats = await fs.stat(targetAbs);
       if (!stats.isFile()) {
         // 非有效文件提示
@@ -386,7 +390,7 @@ export class EditFileTool implements FreyaTool {
       // 修改成功出参
       return `ℹ️ Successfully modified specified portion of file "${args.path}".`;
     } catch (err: any) {
-      return handleFsError(ctx, 'edit file', err);
+      return handleFsError(this.ctx!, 'edit file', err);
     }
   }
 }

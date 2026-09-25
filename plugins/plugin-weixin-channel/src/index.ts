@@ -3,6 +3,9 @@ import crypto from "node:crypto";
 import fs from "node:fs/promises";
 import path from "node:path";
 import QRCode from "qrcode";
+import { I18n } from "./i18n/index.js";
+import en from "./i18n/locales/en.js";
+import zh from "./i18n/locales/zh.js";
 
 interface WeixinBotConfig {
   id: string;
@@ -48,6 +51,7 @@ const WEIXIN_MIME_MAP: Record<string, string> = {
 export default class FreyaWeixinChannelPlugin implements ChannelPlugin {
   readonly type = "channel" as const;
 
+  private i18n = new I18n({ zh, en });
   private context!: FreyaContext;
   private activeAccounts = new Map<string, WeixinAccountState>();
   private contextTokens = new Map<string, string>();
@@ -71,7 +75,7 @@ export default class FreyaWeixinChannelPlugin implements ChannelPlugin {
     }
 
     if (state.isLoggedIn) {
-      return `ℹ️ 微信账号 [${accountId}] 已经是登录在线状态。`;
+      return this.i18n.t("cmd.weixin.login.alreadyOnline", `ℹ️ WeChat account [${accountId}] is already logged in and online.`, { accountId });
     }
 
     return await this.triggerWeixinQrLogin(ctx, accountId, state.config);
@@ -80,25 +84,27 @@ export default class FreyaWeixinChannelPlugin implements ChannelPlugin {
   commands: FreyaCommand[] = [
     {
       name: "weixin",
-      description: "微信机器人管理指令",
+      description: this.i18n.all("cmd.weixin.description", "WeChat bot management commands"),
       subcommands: [
-        { name: "list", description: "列出当前已加载微信账号及其连接登录状态" },
-        { name: "login", description: "拉取微信扫码登录二维码，用法: /weixin login <accountId>" }
+        { name: "list", description: this.i18n.all("cmd.weixin.sub.list", "List currently loaded WeChat accounts and connection login status") },
+        { name: "login", description: this.i18n.all("cmd.weixin.sub.login", "Fetch WeChat login QR code, usage: /weixin login <accountId>") }
       ],
       execute: async (args: string[], sessionId: string, ctx: FreyaContext): Promise<string | void> => {
         const sub = args[0]?.trim().toLowerCase();
 
         if (sub === "list") {
           if (this.activeAccounts.size === 0) {
-            return "ℹ️ 当前没有加载任何微信账号实例。";
+            return this.i18n.t("cmd.weixin.list.empty", "ℹ️ No WeChat account instances currently loaded.");
           }
 
-          let output = "📱 **微信账号连接状态列表**：\n\n";
+          let output = this.i18n.t("cmd.weixin.list.title", "📱 **WeChat Account Connection Status List**:\n\n");
           for (const [accountId, state] of this.activeAccounts.entries()) {
-            const statusStr = state.isLoggedIn ? "✅ **已登录 / 在线**" : "❌ **未登录 / 离线**";
-            output += `- 账号 ID: \`${accountId}\` —— ${statusStr}\n`;
+            const statusStr = state.isLoggedIn
+              ? this.i18n.t("cmd.weixin.list.statusOnline", "✅ **Logged in / Online**")
+              : this.i18n.t("cmd.weixin.list.statusOffline", "❌ **Not logged in / Offline**");
+            output += this.i18n.t("cmd.weixin.list.item", `- Account ID: \`${accountId}\` —— ${statusStr}\n`, { accountId, status: statusStr });
             if (!state.isLoggedIn) {
-              output += `  *(提示：可运行 \`/weixin login ${accountId}\` 启动扫码登录)*\n`;
+              output += this.i18n.t("cmd.weixin.list.loginHint", `  *(Tip: Run \`/weixin login ${accountId}\` to start QR code login)*\n`, { accountId });
             }
           }
           return output;
@@ -107,15 +113,17 @@ export default class FreyaWeixinChannelPlugin implements ChannelPlugin {
         if (sub === "login") {
           const accountId = args[1]?.trim();
           if (!accountId) {
-            return "❌ 缺少必要参数：请指定微信账号标识 id，例如 `/weixin login my_weixin`";
+            return this.i18n.t("cmd.weixin.login.missingId", "❌ Missing required parameter: please specify WeChat account id, e.g. `/weixin login my_weixin`");
           }
           return await this.loginAccount(accountId, ctx);
         }
 
-        return "❌ 未知子命令：支持的子命令有 `list` 和 `login`。用法示例：\n- `/weixin list`\n- `/weixin login my_weixin`";
+        return this.i18n.t("cmd.weixin.unknown", "❌ Unknown subcommand. Supported subcommands: `list` and `login`. Usage examples:\n- `/weixin list`\n- `/weixin login my_weixin`");
       }
     }
   ];
+
+
 
   private getWeixinConnectionId(botId: string, chatId: string): string {
     return `weixin:${botId}:${chatId}`;
@@ -202,6 +210,7 @@ export default class FreyaWeixinChannelPlugin implements ChannelPlugin {
 
   async setup(ctx: FreyaContext): Promise<void> {
     this.context = ctx;
+    this.i18n.setContext(ctx);
 
     ctx.eventBus.on("connection:reply", async (payload: { connectionId: string; content: string }) => {
       const prefix = "weixin:";
@@ -294,17 +303,18 @@ export default class FreyaWeixinChannelPlugin implements ChannelPlugin {
       });
 
       return (
-        `⚠️ **微信账号 [${accountId}] 登录二维码已成功生成！**\n\n` +
-        `**[微信扫码] 请使用微信扫描下方二维码绑定账号 [${accountId}]**：\n\n` +
+        this.i18n.t("cmd.weixin.login.qrGenerated", "⚠️ **Login QR code generated successfully for WeChat account [{accountId}]!**\n\n**[WeChat Scan] Please scan the QR code below to bind account [{accountId}]**:\n\n", { accountId }) +
         "```text\n" +
         qrAscii +
         "\n```\n\n" +
-        `*(提示：若字符二维码未能正常显示或无法扫描，您可以直接点击 [打开微信二维码网页](${scanUrl}) 扫码绑定)*`
+        this.i18n.t("cmd.weixin.login.qrFallbackHint", "*(Tip: If character QR code does not display properly, click [Open WeChat QR Page]({scanUrl}) to scan)*", { scanUrl })
       );
     } catch (err: any) {
       ctx.logger.error(`WeChat account [${accountId}] failed to fetch QR code login:`, err.message);
-      return `❌ 拉取微信登录二维码失败: ${err.message}`;
+      return this.i18n.t("cmd.weixin.login.fail", "❌ Failed to fetch WeChat login QR code: {message}", { message: err.message });
     }
+
+
   }
 
   private startWeixinLoop(ctx: FreyaContext, accountId: string, state: WeixinAccountState): void {

@@ -1,4 +1,5 @@
 import type { ConfigFieldSchema } from './config.js';
+import type { LocalizedText } from './common.js';
 import type { FreyaContext } from './context.js';
 import type { FreyaCommand } from './command.js';
 import type { FreyaToolbox } from './tool.js';
@@ -10,7 +11,8 @@ export type PluginType = 'llm' | 'tool' | 'channel';
 export interface FreyaPlugin {
   type: PluginType | PluginType[];
   id?: string;
-  name?: string;
+  name?: LocalizedText;
+  description?: LocalizedText;
   version?: string;
   commands?: FreyaCommand[];
 

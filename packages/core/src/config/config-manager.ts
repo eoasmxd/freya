@@ -7,6 +7,9 @@ import { FreyaConfigSchemaRegistry } from './schema-registry.js';
 import type { FreyaSkillRegistry, FreyaSkill } from '../skill/skill-registry.js';
 import path from 'node:path';
 import { FREYA_HOME } from '../utils/paths.js';
+import { I18n } from '../i18n/index.js';
+import { zh } from '../i18n/locales/zh.js';
+import { en } from '../i18n/locales/en.js';
 
 function cleanPathFromError(err: any): string {
   const rawMessage = err?.message || String(err);
@@ -160,6 +163,7 @@ export class FreyaConfigManager {
   private pluginManager: FreyaPluginManager;
   private promptManager: FreyaPromptManager;
   private skillRegistry?: FreyaSkillRegistry;
+  private i18n = new I18n({ zh, en });
 
   constructor(
     context: FreyaContext,
@@ -175,6 +179,7 @@ export class FreyaConfigManager {
     this.llmRegistry = llmRegistry;
     this.pluginManager = pluginManager;
     this.skillRegistry = skillRegistry;
+    this.i18n.setContext(context);
   }
 
   /**
@@ -551,224 +556,224 @@ export class FreyaConfigManager {
 
   registerCoreSchema(): void {
     const modelItemChildren: ConfigFieldSchema[] = [
-      { key: 'provider', type: 'string', required: true, description: 'LLM 提供商标识' },
-      { key: 'model', type: 'string', required: true, description: '模型名称' },
-      { key: 'name', type: 'string', required: true, description: '显示名称' },
+      { key: 'provider', type: 'string', required: true, description: this.i18n.all('schema.core.models.item.provider.desc', 'LLM provider identifier') },
+      { key: 'model', type: 'string', required: true, description: this.i18n.all('schema.core.models.item.model.desc', 'Model name') },
+      { key: 'name', type: 'string', required: true, description: this.i18n.all('schema.core.models.item.name.desc', 'Display name') },
     ];
 
     const coreFields: ConfigFieldSchema[] = [
       {
         key: 'system.language',
         defaultValue: 'auto',
-        description: '系统界面与交互语言',
+        description: this.i18n.all('schema.core.system.language.desc', 'System UI and interaction language'),
         type: 'string',
         enumValues: ['auto', 'zh', 'en'],
         uiHint: 'select',
-        category: '系统参数'
+        category: this.i18n.all('schema.core.category.system', 'System Parameters')
       },
       {
         key: 'server.port',
         defaultValue: 3000,
-        description: 'Web 网关服务端口',
+        description: this.i18n.all('schema.core.server.port.desc', 'Web gateway service port'),
         type: 'number',
         required: true,
         min: 1,
         max: 65535,
-        category: '服务器',
+        category: this.i18n.all('schema.core.category.server', 'Server'),
         manualOnly: true
       },
       {
         key: 'server.enabled',
         defaultValue: true,
-        description: '是否启用 Web 网关服务与 WebSocket 频道',
+        description: this.i18n.all('schema.core.server.enabled.desc', 'Enable Web gateway service and WebSocket channel'),
         type: 'boolean',
-        category: '服务器',
+        category: this.i18n.all('schema.core.category.server', 'Server'),
         manualOnly: true
       },
       {
         key: 'cli.enabled',
         defaultValue: true,
-        description: '是否启用命令行终端交互频道',
+        description: this.i18n.all('schema.core.cli.enabled.desc', 'Enable command-line terminal interaction channel'),
         type: 'boolean',
-        category: '终端',
+        category: this.i18n.all('schema.core.category.cli', 'CLI'),
         manualOnly: true
       },
       {
         key: 'workspace',
         defaultValue: 'workspace',
-        description: '用户文档工作区目录名',
+        description: this.i18n.all('schema.core.workspace.desc', 'User document workspace directory name'),
         type: 'string',
         required: true,
-        category: '工作区',
+        category: this.i18n.all('schema.core.category.workspace', 'Workspace'),
         manualOnly: true
       },
       {
         key: 'contextManagement.enabled',
         defaultValue: true,
-        description: '是否启用上下文管理',
+        description: this.i18n.all('schema.core.context.enabled.desc', 'Enable context management'),
         type: 'boolean',
-        category: '上下文管理'
+        category: this.i18n.all('schema.core.category.context', 'Context Management')
       },
       {
         key: 'contextManagement.maxHistoryTurns',
         defaultValue: 15,
-        description: '上下文历史最大轮数',
+        description: this.i18n.all('schema.core.context.maxHistoryTurns.desc', 'Maximum turns of context history'),
         type: 'number',
         min: 1,
         max: 100,
-        category: '上下文管理'
+        category: this.i18n.all('schema.core.category.context', 'Context Management')
       },
       {
         key: 'contextManagement.historyLimit',
         defaultValue: 100,
-        description: '上下文历史消息条数上限',
+        description: this.i18n.all('schema.core.context.historyLimit.desc', 'Upper limit of context history message count'),
         type: 'number',
         min: 10,
         max: 500,
-        category: '上下文管理'
+        category: this.i18n.all('schema.core.category.context', 'Context Management')
       },
       {
         key: 'contextManagement.keepRecentTurns',
         defaultValue: 6,
-        description: '压缩时保留的最近轮数',
+        description: this.i18n.all('schema.core.context.keepRecentTurns.desc', 'Recent turns preserved during compression'),
         type: 'number',
         min: 1,
         max: 50,
-        category: '上下文管理'
+        category: this.i18n.all('schema.core.category.context', 'Context Management')
       },
       {
         key: 'contextManagement.summarizeEnabled',
         defaultValue: true,
-        description: '是否启用上下文摘要压缩',
+        description: this.i18n.all('schema.core.context.summarizeEnabled.desc', 'Enable context summary compression'),
         type: 'boolean',
-        category: '上下文管理'
+        category: this.i18n.all('schema.core.category.context', 'Context Management')
       },
       {
         key: 'contextManagement.summaryMaxTokens',
         defaultValue: 150,
-        description: '上下文摘要压缩时，控制摘要生成的最大 Token 长度',
+        description: this.i18n.all('schema.core.context.summaryMaxTokens.desc', 'Maximum token length of summary generated during compression'),
         type: 'number',
         min: 50,
         max: 4096,
-        category: '上下文管理'
+        category: this.i18n.all('schema.core.category.context', 'Context Management')
       },
       {
         key: 'contextManagement.toolboxIdleTimeoutRounds',
         defaultValue: 10,
-        description: '已激活工具箱的最大闲置交互轮数，达到后将被自动卸载',
+        description: this.i18n.all('schema.core.context.toolboxIdleTimeoutRounds.desc', 'Max idle turns before automatically unloading an active toolbox'),
         type: 'number',
         min: 1,
         max: 100,
-        category: '上下文管理'
+        category: this.i18n.all('schema.core.category.context', 'Context Management')
       },
       {
         key: 'log.console.error',
         defaultValue: true,
-        description: '控制台输出 ERROR 日志（红色）',
+        description: this.i18n.all('schema.core.log.console.error.desc', 'Console ERROR logs output (red)'),
         type: 'boolean',
-        category: '日志'
+        category: this.i18n.all('schema.core.category.log', 'Logging')
       },
       {
         key: 'log.console.warn',
         defaultValue: false,
-        description: '控制台输出 WARN 日志（黄色）',
+        description: this.i18n.all('schema.core.log.console.warn.desc', 'Console WARN logs output (yellow)'),
         type: 'boolean',
-        category: '日志'
+        category: this.i18n.all('schema.core.category.log', 'Logging')
       },
       {
         key: 'log.console.info',
         defaultValue: false,
-        description: '控制台输出 INFO 日志（绿色）',
+        description: this.i18n.all('schema.core.log.console.info.desc', 'Console INFO logs output (green)'),
         type: 'boolean',
-        category: '日志'
+        category: this.i18n.all('schema.core.category.log', 'Logging')
       },
       {
         key: 'log.console.debug',
         defaultValue: false,
-        description: '控制台输出 DEBUG 日志（灰色）',
+        description: this.i18n.all('schema.core.log.console.debug.desc', 'Console DEBUG logs output (gray)'),
         type: 'boolean',
-        category: '日志'
+        category: this.i18n.all('schema.core.category.log', 'Logging')
       },
       {
         key: 'log.llm',
         defaultValue: false,
-        description: '是否记录大模型交互日志',
+        description: this.i18n.all('schema.core.log.llm.desc', 'Record LLM interaction logs'),
         type: 'boolean',
-        category: '日志'
+        category: this.i18n.all('schema.core.category.log', 'Logging')
       },
       {
         key: 'models.default',
         defaultValue: [],
-        description: '默认模型降级链列表',
+        description: this.i18n.all('schema.core.models.default.desc', 'Default model fallback chain list'),
         type: 'array',
-        category: '模型',
+        category: this.i18n.all('schema.core.category.models', 'Models'),
         children: modelItemChildren,
         manualOnly: true
       },
       {
         key: 'models.image',
         defaultValue: [],
-        description: '图像模型列表',
+        description: this.i18n.all('schema.core.models.image.desc', 'Image models list'),
         type: 'array',
-        category: '模型',
+        category: this.i18n.all('schema.core.category.models', 'Models'),
         children: modelItemChildren
       },
       {
         key: 'models.audio',
         defaultValue: [],
-        description: '音频转录模型列表',
+        description: this.i18n.all('schema.core.models.audio.desc', 'Audio transcription models list'),
         type: 'array',
-        category: '模型',
+        category: this.i18n.all('schema.core.category.models', 'Models'),
         children: modelItemChildren
       },
       {
         key: 'config.authTimeout',
         defaultValue: 30,
-        description: 'AI 代理配置修改等待授权超时秒数',
+        description: this.i18n.all('schema.core.config.authTimeout.desc', 'Timeout seconds for AI agent waiting for config authorization'),
         type: 'number',
         min: 10,
         max: 300,
-        category: '安全',
+        category: this.i18n.all('schema.core.category.security', 'Security'),
         manualOnly: true
       },
       {
         key: 'tools.builtin.config.enabled',
         defaultValue: true,
-        description: '是否启用系统核心配置工具箱（允许大模型查看与修改系统配置）',
+        description: this.i18n.all('schema.core.tools.config.enabled.desc', 'Enable core config toolbox (allows model to view/modify config)'),
         type: 'boolean',
-        category: '系统工具',
+        category: this.i18n.all('schema.core.category.tools', 'Builtin Tools'),
         manualOnly: true
       },
       {
         key: 'tools.builtin.session.enabled',
         defaultValue: true,
-        description: '是否启用会话与子任务管理工具箱（允许大模型查阅会话历史与派生子任务）',
+        description: this.i18n.all('schema.core.tools.session.enabled.desc', 'Enable session toolbox (allows model to view history/spawn subtasks)'),
         type: 'boolean',
-        category: '系统工具',
+        category: this.i18n.all('schema.core.category.tools', 'Builtin Tools'),
         manualOnly: true
       },
       {
         key: 'commands.builtin.auth.enabled',
         defaultValue: true,
-        description: '是否启用敏感操作授权审批指令（/approve 与 /reject）',
+        description: this.i18n.all('schema.core.commands.auth.enabled.desc', 'Enable sensitive operation approval commands (/approve and /reject)'),
         type: 'boolean',
-        category: '系统指令',
+        category: this.i18n.all('schema.core.category.commands', 'Builtin Commands'),
         manualOnly: true
       },
       {
         key: 'commands.builtin.session.enabled',
         defaultValue: true,
-        description: '是否启用会话管理与路由指令（/session 及其子命令）',
+        description: this.i18n.all('schema.core.commands.session.enabled.desc', 'Enable session management commands (/session and subcommands)'),
         type: 'boolean',
-        category: '系统指令',
+        category: this.i18n.all('schema.core.category.commands', 'Builtin Commands'),
         manualOnly: true
       },
       {
         key: 'commands.builtin.model.enabled',
         defaultValue: true,
-        description: '是否启用模型查看与切换指令（/model 及其子命令）',
+        description: this.i18n.all('schema.core.commands.model.enabled.desc', 'Enable model switching commands (/model and subcommands)'),
         type: 'boolean',
-        category: '系统指令',
+        category: this.i18n.all('schema.core.category.commands', 'Builtin Commands'),
         manualOnly: true
       }
     ];

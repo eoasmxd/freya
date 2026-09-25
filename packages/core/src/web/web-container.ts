@@ -1,6 +1,9 @@
 import type { FreyaContext } from '@eoasmxd/freya-sdk';
 import type { FreyaConfigManager } from '../config/config-manager.js';
 import { FreyaConfigApi } from './config-api.js';
+import { I18n } from '../i18n/index.js';
+import { zh } from '../i18n/locales/zh.js';
+import { en } from '../i18n/locales/en.js';
 import fsSync from 'node:fs';
 import fs from 'node:fs/promises';
 import http from 'node:http';
@@ -44,8 +47,11 @@ export class FreyaWebContainer {
     private httpServer?: http.Server;
     private port: number = 3000;
     private configApi?: FreyaConfigApi;
+    private i18n: I18n;
 
-    constructor() { }
+    constructor() {
+        this.i18n = new I18n({ zh, en });
+    }
 
     /**
      * 获取当前托管的底层 HTTP 服务实例
@@ -53,7 +59,7 @@ export class FreyaWebContainer {
      */
     getServer(): http.Server {
         if (!this.httpServer) {
-            throw new Error('[WebContainer] HTTP 服务尚未初始化。');
+            throw new Error(this.i18n.t('web.error.notInitialized', '[WebContainer] HTTP server has not been initialized.'));
         }
         return this.httpServer;
     }
@@ -63,8 +69,9 @@ export class FreyaWebContainer {
      * Start Web static container hosting service
      */
     async start(ctx: FreyaContext, configManager: FreyaConfigManager): Promise<void> {
+        this.i18n.setContext(ctx);
         this.port = (ctx.config as any)?.server?.port ?? 3000;
-        this.configApi = new FreyaConfigApi(configManager);
+        this.configApi = new FreyaConfigApi(configManager, ctx);
         const uiDist = this.getUiDistPath(FREYA_APP);
         const safePrefix = uiDist.endsWith(path.sep) ? uiDist : uiDist + path.sep;
 

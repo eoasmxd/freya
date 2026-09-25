@@ -250,8 +250,8 @@ function ensureStringValues(obj: Record<string, unknown>): Record<string, string
  * 获取工作区绝对路径
  * Get workspace absolute directory path
  */
-export function getWorkspaceDir(ctx: FreyaContext): string {
-    return ctx.paths.workspaceDir;
+export function getWorkspaceDir(ctx?: FreyaContext): string {
+    return ctx?.paths?.workspaceDir ?? process.cwd();
 }
 
 function isBinaryContentType(contentType: string): boolean {

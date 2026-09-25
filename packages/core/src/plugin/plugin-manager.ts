@@ -1,4 +1,4 @@
-import type { ConfigFieldSchema, FreyaContext, FreyaPlugin } from '@eoasmxd/freya-sdk';
+import type { ConfigFieldSchema, FreyaContext, FreyaPlugin, LocalizedText } from '@eoasmxd/freya-sdk';
 import fs from 'node:fs/promises';
 import { createRequire } from 'node:module';
 import path from 'node:path';
@@ -6,6 +6,9 @@ import { pathToFileURL } from 'node:url';
 import { FreyaCommandRegistry } from '../command/command-registry.js';
 import { FreyaConfigSchemaRegistry } from '../config/schema-registry.js';
 import { FreyaPromptRegistry } from '../prompt/prompt-registry.js';
+import { I18n } from '../i18n/index.js';
+import { zh } from '../i18n/locales/zh.js';
+import { en } from '../i18n/locales/en.js';
 import { FREYA_APP, FREYA_HOME, FREYA_LAUNCH } from '../utils/paths.js';
 import { FreyaPluginRegistry } from './plugin-registry.js';
 
@@ -15,8 +18,8 @@ export interface PluginConfigEntry {
   valid?: boolean;
   status?: 'active' | 'disabled' | 'error' | 'not_found' | 'invalid';
   errorReason?: string;
-  displayName?: string;
-  description?: string;
+  displayName?: LocalizedText;
+  description?: LocalizedText;
   version?: string;
   source?: 'builtin' | 'launch' | 'runtime' | 'npm';
 }
@@ -25,8 +28,8 @@ interface DiscoveredPluginInfo {
   id: string;
   resolvedDir: string;
   mainEntry: string;
-  displayName: string;
-  description: string;
+  displayName: LocalizedText;
+  description: LocalizedText;
   version: string;
   source: 'builtin' | 'launch' | 'runtime' | 'npm';
   defaultEnabled?: boolean;
@@ -34,6 +37,12 @@ interface DiscoveredPluginInfo {
   valid: boolean;
   errorReason?: string;
   schema?: ConfigFieldSchema[];
+}
+
+function getPluginLogName(plugin: FreyaPlugin): string {
+  if (!plugin.name) return plugin.id || 'unknown';
+  if (typeof plugin.name === 'string') return plugin.name;
+  return plugin.name['en'] || Object.values(plugin.name)[0] || plugin.id || 'unknown';
 }
 
 /**
@@ -61,7 +70,7 @@ export class FreyaPluginManager {
    */
   async loadPlugin(
     pluginPath: string,
-    meta: { id: string; displayName?: string; version?: string; prompts?: string[]; resolvedDir?: string },
+    meta: { id: string; displayName?: LocalizedText; description?: LocalizedText; version?: string; prompts?: string[]; resolvedDir?: string },
     ctx: FreyaContext
   ): Promise<FreyaPlugin> {
     const fileUrl = pathToFileURL(pluginPath).toString();
@@ -77,9 +86,10 @@ export class FreyaPluginManager {
 
     // 自动补全后写入静态元数据
     // Write static metadata after autocomplete
-    plugin.id = plugin.id || meta.id;
-    plugin.name = plugin.name || meta.displayName || meta.id;
-    plugin.version = plugin.version || meta.version || '0.1.0';
+    plugin.id = meta.id;
+    plugin.name = meta.displayName || meta.id;
+    plugin.description = meta.description || '';
+    plugin.version = meta.version || '0.1.0';
 
     if (plugin.commands && Array.isArray(plugin.commands)) {
       for (const cmd of plugin.commands) {
@@ -98,7 +108,7 @@ export class FreyaPluginManager {
       }
     }
 
-    ctx.logger.info(`Plugin mounted successfully: ${plugin.name} (${plugin.id})`);
+    ctx.logger.info(`Plugin mounted successfully: ${getPluginLogName(plugin)} (${plugin.id})`);
     return plugin;
   }
 
@@ -108,12 +118,12 @@ export class FreyaPluginManager {
    */
   async setupAndStartAll(ctx: FreyaContext): Promise<void> {
     for (const plugin of this.plugins.values()) {
-      ctx.logger.debug(`Initializing plugin: ${plugin.name}`);
+      ctx.logger.debug(`Initializing plugin: ${getPluginLogName(plugin)}`);
       await plugin.setup(ctx);
     }
     for (const plugin of this.plugins.values()) {
       if (plugin.start) {
-        ctx.logger.debug(`Starting plugin: ${plugin.name}`);
+        ctx.logger.debug(`Starting plugin: ${getPluginLogName(plugin)}`);
         await plugin.start(ctx);
       }
     }
@@ -126,7 +136,7 @@ export class FreyaPluginManager {
   async stopAll(ctx: FreyaContext): Promise<void> {
     for (const plugin of this.plugins.values()) {
       if (plugin.stop) {
-        ctx.logger.debug(`Stopping plugin: ${plugin.name}`);
+        ctx.logger.debug(`Stopping plugin: ${getPluginLogName(plugin)}`);
         await plugin.stop(ctx);
       }
     }
@@ -144,9 +154,9 @@ export class FreyaPluginManager {
     return Array.from(this.plugins.values());
   }
 
-  getPluginMeta(pluginId: string): { description: string } | undefined {
+  getPluginMeta(pluginId: string): { description?: LocalizedText } | undefined {
     const entry = this.pluginEntries.find((e) => e.id === pluginId);
-    return entry ? { description: entry.description || '' } : undefined;
+    return entry ? { description: entry.description } : undefined;
   }
 
   /**
@@ -154,17 +164,22 @@ export class FreyaPluginManager {
    * Toggle plugin enabled/disabled status and synchronize physical configuration
    */
   async togglePlugin(pluginId: string, enabled: boolean): Promise<string> {
+    const i18n = new I18n({ zh, en }, this.ctx);
     const entry = this.pluginEntries.find((e: PluginConfigEntry) => e.id === pluginId);
     if (!entry) {
-      return `❌ 未找到 ID 为 "${pluginId}" 的插件，请检查名称是否正确。`;
+      return i18n.t('plugin.toggle.notFound', '❌ Plugin with ID "{id}" not found. Please verify the name.', { id: pluginId });
     }
 
     if (enabled && entry.valid === false) {
-      return `❌ 无法启用插件 "${pluginId}": ${entry.errorReason || '该插件状态非法'}`;
+      const reason = entry.errorReason || i18n.t('plugin.toggle.invalidStateDefault', 'plugin is in an invalid state');
+      return i18n.t('plugin.toggle.invalidState', '❌ Cannot enable plugin "{id}": {reason}', { id: pluginId, reason });
     }
 
     if (entry.enabled === enabled) {
-      return `ℹ️ 插件 "${pluginId}" 状态已是 ${enabled ? '启用' : '禁用'}。`;
+      const state = enabled
+        ? i18n.t('plugin.toggle.stateEnabled', 'enabled')
+        : i18n.t('plugin.toggle.stateDisabled', 'disabled');
+      return i18n.t('plugin.toggle.alreadyInState', 'ℹ️ Plugin "{id}" is already {state}.', { id: pluginId, state });
     }
 
     entry.enabled = enabled;
@@ -176,7 +191,7 @@ export class FreyaPluginManager {
       const rawEntries = this.pluginEntries.map((e) => ({ id: e.id, enabled: e.enabled }));
       await fs.writeFile(configPluginsPath, JSON.stringify(rawEntries, null, 2) + '\n', 'utf-8');
     } catch (err: any) {
-      return `❌ 插件状态变更成功，但写入 plugins.json 失败: ${err.message}`;
+      return i18n.t('plugin.toggle.writeFailed', '❌ Plugin state changed, but failed to write plugins.json: {message}', { message: err.message });
     }
 
     if (enabled) {
@@ -187,7 +202,7 @@ export class FreyaPluginManager {
           const resolvedDir = this.pluginResolvedDirs.get(pluginId);
           const loadedPlugin = await this.loadPlugin(
             loadPath,
-            { id: pluginId, displayName: entry.displayName, version: entry.version, prompts, resolvedDir },
+            { id: pluginId, displayName: entry.displayName, description: entry.description, version: entry.version, prompts, resolvedDir },
             this.ctx
           );
           await loadedPlugin.setup(this.ctx);
@@ -200,9 +215,9 @@ export class FreyaPluginManager {
         } catch (err: any) {
           entry.status = 'error';
           entry.valid = false;
-          entry.errorReason = `热激活载入代码失败: ${err.message}`;
+          entry.errorReason = `Hot activate load failed: ${err.message}`;
           this.ctx.logger.error(`[FreyaPluginManager] Failed to hot activate plugin "${pluginId}":`, err.message);
-          return `❌ 插件 "${pluginId}" 开启失败: ${err.message}`;
+          return i18n.t('plugin.toggle.startFailed', '❌ Failed to start plugin "{id}": {message}', { id: pluginId, message: err.message });
         }
       }
     } else {
@@ -230,7 +245,10 @@ export class FreyaPluginManager {
     }
 
     this.ctx.eventBus.emit('plugin:toggled', { pluginId, enabled });
-    return `✅ 插件 "${pluginId}" 已${enabled ? '启用' : '禁用'}并立即生效。`;
+    const state = enabled
+      ? i18n.t('plugin.toggle.stateEnabled', 'enabled')
+      : i18n.t('plugin.toggle.stateDisabled', 'disabled');
+    return i18n.t('plugin.toggle.success', '✅ Plugin "{id}" has been {state} and took effect immediately.', { id: pluginId, state });
   }
 
   /**
@@ -251,8 +269,8 @@ export class FreyaPluginManager {
         return null;
       }
 
-      const displayName = String(pkg.freya?.displayName || pkg.displayName || id);
-      const description = String(pkg.description || '');
+      const displayName: LocalizedText = (pkg.freya?.displayName || pkg.displayName || id) as LocalizedText;
+      const description: LocalizedText = (pkg.freya?.description || pkg.description || '') as LocalizedText;
       const version = String(pkg.version || '0.1.0');
       const defaultEnabled = ((source === 'builtin' || source === 'launch') && pkg.freya?.defaultEnabled === true);
       const rawPrompts = pkg.freya?.prompts;
@@ -585,7 +603,7 @@ export class FreyaPluginManager {
         const resolvedDir = this.pluginResolvedDirs.get(entry.id);
         const loadedPlugin = await this.loadPlugin(
           mainEntryPath,
-          { id: entry.id, displayName: entry.displayName, version: entry.version, prompts, resolvedDir },
+          { id: entry.id, displayName: entry.displayName, description: entry.description, version: entry.version, prompts, resolvedDir },
           ctx
         );
         pluginRegistry.register(loadedPlugin, ctx);

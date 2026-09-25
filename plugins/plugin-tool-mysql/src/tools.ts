@@ -21,7 +21,8 @@ function sanitizeErrorMessage(err: any, password?: string): string {
 export class MysqlQueryTool implements FreyaTool {
   constructor(
     private poolManager: MysqlPoolManager,
-    private auditService: SqlAuditService
+    private auditService: SqlAuditService,
+    private ctx?: FreyaContext
   ) {}
 
   getDefinition(): ToolDefinition {
@@ -54,7 +55,7 @@ export class MysqlQueryTool implements FreyaTool {
     };
   }
 
-  async execute(args: Record<string, any>, ctx: FreyaContext): Promise<string> {
+  async execute(args: Record<string, any>): Promise<string> {
     const rawSql = typeof args.sql === 'string' ? args.sql.trim() : '';
     if (!rawSql) {
       // 缺少 SQL 语句参数错误
@@ -67,7 +68,7 @@ export class MysqlQueryTool implements FreyaTool {
 
     const queryParams = Array.isArray(args.params) ? args.params : undefined;
 
-    const auditResult = await this.auditService.audit(rawSql, connectionName || 'default', ctx);
+    const auditResult = await this.auditService.audit(rawSql, connectionName || 'default', this.ctx!);
     if (!auditResult.passed) {
       // SQL 审计未通过拒绝执行
       return `❌ SQL audit rejected execution.\nReason: ${auditResult.reason}`;
@@ -78,7 +79,7 @@ export class MysqlQueryTool implements FreyaTool {
       const { pool, config } = this.poolManager.getPool(connectionName);
       currentPassword = config.password || '';
 
-      const maxRows = Number(ctx.config?.mysql?.maxRows ?? ctx.config?.['mysql.maxRows']) || 100;
+      const maxRows = Number(this.ctx?.config?.mysql?.maxRows ?? this.ctx?.config?.['mysql.maxRows']) || 100;
       const [rows] = await pool.query(rawSql, queryParams);
 
       if (!Array.isArray(rows)) {
@@ -107,7 +108,7 @@ export class MysqlQueryTool implements FreyaTool {
       }, null, 2);
     } catch (err: any) {
       const safeMessage = sanitizeErrorMessage(err, currentPassword);
-      ctx.logger.error(`MySQL query execution error: ${safeMessage}`);
+      this.ctx?.logger.error(`MySQL query execution error: ${safeMessage}`);
       // MySQL 查询失败错误提示
       return `❌ MySQL query execution failed: ${safeMessage}`;
     }

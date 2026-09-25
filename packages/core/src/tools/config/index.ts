@@ -43,13 +43,13 @@ export class ConfigToolbox implements FreyaToolbox {
     });
 
     this.tools = [
-      new ReadConfigTool(configService, this.pendingAuths),
-      new UpdateConfigTool(configService, this.pendingAuths),
+      new ReadConfigTool(configService, this.pendingAuths, ctx),
+      new UpdateConfigTool(configService, this.pendingAuths, ctx),
       new ReadPromptTool(configService),
       new WritePromptTool(configService),
       new EditPromptTool(configService),
-      new ListPluginsTool(configService),
-      new TogglePluginTool(configService),
+      new ListPluginsTool(configService, ctx),
+      new TogglePluginTool(configService, ctx),
       new ListProvidersTool(configService),
       new AddProviderTool(configService),
       new EditProviderTool(configService),

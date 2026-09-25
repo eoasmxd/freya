@@ -1,8 +1,11 @@
 ---
 id: skill-mysql-integration
-name: MySQL 数据库接入与配置指南
-description: 当用户咨询如何接入、连接或配置 MySQL 数据库，或询问数据库配置参数与权限要求时触发。
-
+name:
+  zh: MySQL 数据库接入与配置指南
+  en: MySQL Database Integration and Configuration Guide
+description:
+  zh: 当用户咨询如何接入、连接或配置 MySQL 数据库，或询问数据库配置参数与权限要求时触发。
+  en: Triggered when users inquire about integrating, connecting, or configuring a MySQL database, or ask about connection parameters and permissions.
 ---
 # MySQL 数据库接入与配置指南
 

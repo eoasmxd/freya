@@ -53,7 +53,8 @@ export interface FreyaContext {
   readonly config: Readonly<Record<string, any>>;
   llm: ILLMService;
   paths: FreyaPaths;
-  getLanguage(): string;
+  getLanguage(defaultLang?: string): string;
   getConnection(): ConnectionInfo | undefined;
+
 }
 

@@ -1,8 +1,11 @@
 ---
 id: skill-telegram-integration
-name: Telegram 机器人接入与配置完全指南
-description: 当用户咨询如何接入或配置 Telegram 机器人，或提供 Bot Token 要求协助接入时触发。
-
+name:
+  zh: Telegram 机器人接入与配置完全指南
+  en: Telegram Bot Integration and Configuration Complete Guide
+description:
+  zh: 当用户咨询如何接入或配置 Telegram 机器人，或提供 Bot Token 要求协助接入时触发。
+  en: Triggered when users inquire about integrating or configuring a Telegram bot, or provide a Bot Token requesting integration assistance.
 ---
 # Telegram 机器人接入与配置完全指南
 

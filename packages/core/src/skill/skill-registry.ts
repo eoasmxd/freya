@@ -1,12 +1,15 @@
-import type { FreyaContext } from '@eoasmxd/freya-sdk';
+import type { FreyaContext, LocalizedText } from '@eoasmxd/freya-sdk';
+import { I18n } from '../i18n/index.js';
+import { zh } from '../i18n/locales/zh.js';
+import { en } from '../i18n/locales/en.js';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { FREYA_APP, FREYA_HOME, FREYA_LAUNCH } from '../utils/paths.js';
 
 export interface FreyaSkill {
   id: string;
-  name: string;
-  description: string;
+  name: LocalizedText;
+  description?: LocalizedText;
   content: string;
   enabled: boolean;
   source: 'builtin' | 'launch' | 'runtime';
@@ -99,9 +102,13 @@ export class FreyaSkillRegistry {
             const finalSource = existing?.source === 'builtin' ? 'builtin' : source;
             const finalEnabled = existing !== undefined ? existing.enabled : defaultEnabled;
 
+            const name = metadata.name && (typeof metadata.name !== 'object' || Object.keys(metadata.name).length > 0)
+              ? metadata.name
+              : file.replace('.md', '');
+
             this.skills.set(metadata.id, {
               id: metadata.id,
-              name: metadata.name || file.replace('.md', ''),
+              name,
               description: metadata.description || '',
               content: content.trim(),
               enabled: finalEnabled,
@@ -145,23 +152,29 @@ export class FreyaSkillRegistry {
    * Toggle skill enabled/disabled status and persist
    */
   async toggleSkill(skillId: string, enabled: boolean): Promise<string> {
+    const i18n = new I18n({ zh, en }, this.context);
     const skill = this.skills.get(skillId);
     if (!skill) {
-      return `❌ 未找到 ID 为 "${skillId}" 的技能，请检查名称是否正确。`;
+      return i18n.t('skill.toggle.notFound', '❌ Skill with ID "{id}" not found. Please verify the name.', { id: skillId });
     }
 
+    const displayName = i18n.resolve(skill.name) || skillId;
+    const state = enabled
+      ? i18n.t('skill.toggle.stateEnabled', 'enabled')
+      : i18n.t('skill.toggle.stateDisabled', 'disabled');
+
     if (skill.enabled === enabled) {
-      return `ℹ️ 技能 "${skill.name || skillId}" 状态已是 ${enabled ? '启用' : '禁用'}。`;
+      return i18n.t('skill.toggle.alreadyInState', 'ℹ️ Skill "{name}" is already {state}.', { name: displayName, state });
     }
 
     skill.enabled = enabled;
     const configSkillsPath = path.join(FREYA_HOME, 'config', 'skills.json');
     try {
       await this.persistSkillsConfig(configSkillsPath);
-      this.context?.logger.info(`Skill "${skill.name || skillId}" status changed to: ${enabled ? 'enabled' : 'disabled'}`);
-      return `✅ 技能 "${skill.name || skillId}" 已成功${enabled ? '启用' : '禁用'}。`;
+      this.context?.logger.info(`Skill "${displayName}" status changed to: ${enabled ? 'enabled' : 'disabled'}`);
+      return i18n.t('skill.toggle.success', '✅ Skill "{name}" has been successfully {state}.', { name: displayName, state });
     } catch (err: any) {
-      return `❌ 技能状态变更成功，但写入 skills.json 失败: ${err.message}`;
+      return i18n.t('skill.toggle.writeFailed', '❌ Skill state changed, but failed to write skills.json: {message}', { message: err.message });
     }
   }
 
@@ -190,25 +203,50 @@ export class FreyaSkillRegistry {
    * 解析技能文件的 YAML Frontmatter
    * Parse YAML Frontmatter of skill files
    */
-  private parseFrontmatter(rawContent: string): { metadata: Record<string, string>; content: string } {
-    const metadata: Record<string, string> = {};
+  private parseFrontmatter(rawContent: string): { metadata: Record<string, any>; content: string } {
+    const metadata: Record<string, any> = {};
     let content = rawContent;
 
     const match = rawContent.match(/^---\r?\n([\s\S]*?)\r?\n---\r?\n([\s\S]*)$/);
-    if (match) {
-      const yamlBlock = match[1];
-      content = match[2];
+    if (!match) {
+      return { metadata, content };
+    }
 
-      const lines = yamlBlock.split('\n');
-      for (const line of lines) {
-        const parts = line.split(':');
-        if (parts.length >= 2) {
-          const key = parts[0].trim();
-          const value = parts.slice(1).join(':').trim().replace(/^['"]|['"]$/g, '');
+    const yamlBlock = match[1];
+    content = match[2];
+    let activeKey: string | null = null;
+
+    for (const rawLine of yamlBlock.split('\n')) {
+      const line = rawLine.replace(/\r$/, '');
+      if (!line.trim() || line.trim().startsWith('#')) continue;
+
+      if (/^\s+/.test(line) && activeKey) {
+        const colonIndex = line.indexOf(':');
+        if (colonIndex !== -1) {
+          const subKey = line.slice(0, colonIndex).trim();
+          const subValue = line.slice(colonIndex + 1).trim().replace(/^['"]|['"]$/g, '');
+          if (typeof metadata[activeKey] !== 'object' || metadata[activeKey] === null) {
+            metadata[activeKey] = {};
+          }
+          metadata[activeKey][subKey] = subValue;
+        }
+        continue;
+      }
+
+      const colonIndex = line.indexOf(':');
+      if (colonIndex !== -1) {
+        const key = line.slice(0, colonIndex).trim();
+        const value = line.slice(colonIndex + 1).trim().replace(/^['"]|['"]$/g, '');
+        if (value === '') {
+          metadata[key] = {};
+          activeKey = key;
+        } else {
           metadata[key] = value;
+          activeKey = null;
         }
       }
     }
+
     return { metadata, content };
   }
 }

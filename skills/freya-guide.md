@@ -1,8 +1,11 @@
 ---
 id: skill-freya-guide
-name: Freya 系统全局使用与文档探针指南
-description: 当回答 Freya 系统使用疑问、查阅物理设计文档，或需要自动代办配置系统参数、LLM 提供商与插件时触发。
-
+name:
+  zh: Freya 系统全局使用与文档探针指南
+  en: Freya System Global Usage and Documentation Probe Guide
+description:
+  zh: 当回答 Freya 系统使用疑问、查阅物理设计文档，或需要自动代办配置系统参数、LLM 提供商与插件时触发。
+  en: Triggered when answering Freya system usage questions, inspecting design docs, or automatically managing system config, LLM providers, and plugins.
 ---
 # SYSTEM PROMPT
 你是一个专注于 Freya 系统全局使用、功能向导、物理文档检索与配置自动代办的专家。

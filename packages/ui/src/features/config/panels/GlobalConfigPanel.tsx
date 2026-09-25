@@ -33,6 +33,7 @@ interface ConfigFieldSchema {
 
 export const GlobalConfigPanel: React.FC<GlobalConfigPanelProps> = ({ getApiUrl }) => {
   const { t } = useI18n();
+
   const [availableModels, setAvailableModels] = useState<AvailableModel[]>([]);
   const [schemas, setSchemas] = useState<Record<string, ConfigFieldSchema[]>>({});
   const [dynamicValues, setDynamicValues] = useState<Record<string, any>>({});

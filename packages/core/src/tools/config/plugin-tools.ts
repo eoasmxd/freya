@@ -1,8 +1,18 @@
 import type { FreyaContext, FreyaTool, ToolDefinition } from '@eoasmxd/freya-sdk';
 import { FreyaConfigManager } from '../../config/config-manager.js';
+import { I18n } from '../../i18n/index.js';
+import { zh } from '../../i18n/locales/zh.js';
+import { en } from '../../i18n/locales/en.js';
 
 export class ListPluginsTool implements FreyaTool {
-  constructor(private configService: FreyaConfigManager) { }
+  private i18n: I18n;
+
+  constructor(
+    private configService: FreyaConfigManager,
+    ctx?: FreyaContext
+  ) {
+    this.i18n = new I18n({ zh, en }, ctx);
+  }
 
   getDefinition(): ToolDefinition {
     return {
@@ -13,7 +23,7 @@ export class ListPluginsTool implements FreyaTool {
     };
   }
 
-  async execute(args: Record<string, any>, ctx: FreyaContext): Promise<string> {
+  async execute(args: Record<string, any>): Promise<string> {
     try {
       const entries = await this.configService.listPlugins();
       if (!entries || entries.length === 0) {
@@ -27,8 +37,10 @@ export class ListPluginsTool implements FreyaTool {
         // 插件来源渠道映射
         const sourceMap: Record<string, string> = { builtin: 'Builtin Directory', runtime: 'Runtime Environment', npm: 'NPM Package Registry' };
         const sourceName = sourceMap[e.source] || e.source;
-        let info = `${i + 1}. [${statusTag}] ${e.displayName || e.id} (${e.id})\n` +
-          `   Version: ${e.version || '0.1.0'} | Source: ${sourceName} | Description: ${e.description || 'None'}`;
+        const displayName = this.i18n.resolve(e.displayName) || e.id;
+        const description = this.i18n.resolve(e.description) || 'None';
+        let info = `${i + 1}. [${statusTag}] ${displayName} (${e.id})\n` +
+          `   Version: ${e.version || '0.1.0'} | Source: ${sourceName} | Description: ${description}`;
         if (!e.valid && e.errorReason) {
           // 插件异常诊断归因
           info += `\n   ❌ Diagnostic Error: ${e.errorReason}`;
@@ -46,7 +58,10 @@ export class ListPluginsTool implements FreyaTool {
 }
 
 export class TogglePluginTool implements FreyaTool {
-  constructor(private configService: FreyaConfigManager) { }
+  constructor(
+    private configService: FreyaConfigManager,
+    private ctx?: FreyaContext
+  ) { }
 
   getDefinition(): ToolDefinition {
     return {
@@ -72,7 +87,7 @@ export class TogglePluginTool implements FreyaTool {
     };
   }
 
-  async execute(args: Record<string, any>, ctx: FreyaContext): Promise<string> {
+  async execute(args: Record<string, any>): Promise<string> {
     try {
       const pluginId = String(args.pluginId).trim();
       const enabled = !!args.enabled;

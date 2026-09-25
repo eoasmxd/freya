@@ -145,7 +145,7 @@ export class FreyaAgentExecutor {
           });
 
           try {
-            const result = await tool.execute(args, this.context);
+            const result = await tool.execute(args);
             this.context.eventBus.emit('tool:status', {
               sessionId,
               toolCallId: toolCall.id,

@@ -13,7 +13,7 @@ export class ListProvidersTool implements FreyaTool {
     };
   }
 
-  async execute(args: Record<string, any>, ctx: FreyaContext): Promise<string> {
+  async execute(args: Record<string, any>): Promise<string> {
     try {
       const providers = await this.configService.listProviders();
       if (providers.length === 0) {
@@ -75,7 +75,7 @@ export class AddProviderTool implements FreyaTool {
     };
   }
 
-  async execute(args: Record<string, any>, ctx: FreyaContext): Promise<string> {
+  async execute(args: Record<string, any>): Promise<string> {
     try {
       const result = await this.configService.addProvider({
         id: String(args.id || '').trim(),
@@ -134,7 +134,7 @@ export class EditProviderTool implements FreyaTool {
     };
   }
 
-  async execute(args: Record<string, any>, ctx: FreyaContext): Promise<string> {
+  async execute(args: Record<string, any>): Promise<string> {
     try {
       const updates: Record<string, any> = {};
       if (args.name !== undefined) updates.name = args.name;
@@ -173,7 +173,7 @@ export class RemoveProviderTool implements FreyaTool {
     };
   }
 
-  async execute(args: Record<string, any>, ctx: FreyaContext): Promise<string> {
+  async execute(args: Record<string, any>): Promise<string> {
     try {
       const result = await this.configService.removeProvider(String(args.providerId || '').trim());
       return result.startsWith('❌') ? result : `✅ ${result}`;

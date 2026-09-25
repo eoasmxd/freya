@@ -54,14 +54,14 @@ export class FreyaKernel {
     const configSchemaRegistry = new FreyaConfigSchemaRegistry();
     const toolRegistry = new FreyaToolRegistry(ctx);
     const llmRegistry = new FreyaLLMRegistry();
-    const promptRegistry = new FreyaPromptRegistry();
+    const promptRegistry = new FreyaPromptRegistry(ctx);
 
     const commandRegistry = new FreyaCommandRegistry(ctx);
     this.channelRegistry = new FreyaChannelRegistry();
     const pluginRegistry = new FreyaPluginRegistry(toolRegistry, llmRegistry, this.channelRegistry);
     const skillRegistry = new FreyaSkillRegistry();
 
-    const promptManager = new FreyaPromptManager(promptRegistry, ctx.logger);
+    const promptManager = new FreyaPromptManager(promptRegistry, ctx);
     this.pluginManager = new FreyaPluginManager(configSchemaRegistry, commandRegistry, promptRegistry);
 
     await this.pluginManager.loadConfiguredPlugins(pluginRegistry, ctx);
@@ -99,7 +99,7 @@ export class FreyaKernel {
     this.connectionManager = new FreyaConnectionManager(ctx.eventBus, ctx.logger);
 
     const configToolbox = new ConfigToolbox(configManager, ctx);
-    const sessionToolbox = new SessionToolbox(this.sessionManager);
+    const sessionToolbox = new SessionToolbox(this.sessionManager, ctx);
     const metaToolbox = new FreyaMetaToolbox(this.sessionManager, toolRegistry, skillRegistry);
     toolRegistry.registerToolbox(configToolbox);
     toolRegistry.registerToolbox(sessionToolbox);

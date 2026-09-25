@@ -17,7 +17,7 @@ export default class MysqlToolsPlugin implements ToolPlugin {
   async setup(ctx: FreyaContext): Promise<void> {
     this.poolManager = new MysqlPoolManager(ctx);
     this.tools = [
-      new MysqlQueryTool(this.poolManager, this.auditService)
+      new MysqlQueryTool(this.poolManager, this.auditService, ctx)
     ];
 
     const available = this.poolManager.getAvailableConnectionNames();
