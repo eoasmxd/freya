@@ -23,23 +23,24 @@ function resolveScopeBase(envValue: string | undefined, defaultPath: string, lau
  */
 function getActiveScopesInfo(): { scopes: string[]; description: string } {
   const scopes = ['workspace'];
-  const descParts = ['默认为 "workspace" 沙箱'];
+  const descParts = ['default to "workspace" sandbox'];
 
   const srcVal = process.env.FREYA_FS_SRC;
   const isSrcDisabled = srcVal !== undefined && (srcVal.trim() === '' || srcVal.trim().toLowerCase() === 'false');
   if (!isSrcDisabled) {
     scopes.push('src');
-    descParts.push('支持指定 "src" 源码区');
+    descParts.push('support "src" source code');
   }
 
   const docVal = process.env.FREYA_FS_DOC;
   const isDocDisabled = docVal !== undefined && (docVal.trim() === '' || docVal.trim().toLowerCase() === 'false');
   if (!isDocDisabled) {
     scopes.push('doc');
-    descParts.push('指定 "doc" 文档区');
+    descParts.push('support "doc" documentation');
   }
 
-  const description = `读取作用域（可选，${descParts.join('，')}）`;
+  // 读取作用域描述
+  const description = `Read scope (optional, ${descParts.join(', ')})`;
   return { scopes, description };
 }
 
@@ -60,18 +61,21 @@ export function getSafePath(ctx: FreyaContext, relativePath: string, scope?: str
   }
 
   if (!baseAbs) {
-    throw new Error(`安全拒绝：作用域 "${targetScope}" 未开放或已被禁用。`);
+    // 作用域未开放安全拒绝
+    throw new Error(`Security rejection: Scope "${targetScope}" is not available or has been disabled.`);
   }
 
   if (relativePath && path.isAbsolute(relativePath)) {
-    throw new Error('安全拒绝：只能使用相对路径，不允许使用绝对路径。');
+    // 绝对路径安全拒绝
+    throw new Error('Security rejection: Only relative paths are allowed, absolute paths are prohibited.');
   }
 
   const targetAbs = path.resolve(baseAbs, relativePath || '.');
   const basePrefix = baseAbs.endsWith(path.sep) ? baseAbs : baseAbs + path.sep;
 
   if (targetAbs !== baseAbs && !targetAbs.startsWith(basePrefix)) {
-    throw new Error(`安全越界拒绝：无法访问目标作用域外部的相对路径 "${relativePath}"。`);
+    // 越界安全拒绝
+    throw new Error(`Security boundary rejection: Cannot access relative path "${relativePath}" outside the target scope.`);
   }
 
   return { targetAbs, baseAbs };
@@ -94,7 +98,8 @@ export function sanitizeError(err: any, baseAbs: string): string {
  */
 export function handleFsError(ctx: FreyaContext, action: string, err: any, baseAbs?: string): string {
   const targetBase = baseAbs || ctx.paths.workspaceDir;
-  return `❌ ${action}失败: ${sanitizeError(err, targetBase)}`;
+  // 文件操作失败提示
+  return `❌ Failed to ${action}: ${sanitizeError(err, targetBase)}`;
 }
 
 /**
@@ -115,13 +120,15 @@ export class ListDirTool implements FreyaTool {
     const { scopes, description } = getActiveScopesInfo();
     return {
       name: 'list_dir',
-      description: '列出指定目录下的文件和子文件夹列表。注意：仅允许访问相对路径，不可传绝对路径或向上越级 escape 路径。',
+      // 列出指定目录内容
+      description: 'List files and subdirectories under specified directory path. Note: only relative paths allowed, no absolute or parent escape paths.',
       parameters: {
         type: 'object',
         properties: {
           path: {
             type: 'string',
-            description: '要查看的目录相对路径（可选，默认为根目录 "."）'
+            // 要查看的相对路径
+            description: 'Relative path of directory to inspect (optional, defaults to root ".")'
           },
           scope: {
             type: 'string',
@@ -142,33 +149,36 @@ export class ListDirTool implements FreyaTool {
 
       const stats = await fs.stat(targetAbs);
       if (!stats.isDirectory()) {
-        return `❌ 路径 "${args.path || '.'}" 不是一个有效的目录。`;
+        // 非有效目录提示
+        return `❌ Path "${args.path || '.'}" is not a valid directory.`;
       }
 
       const entries = await fs.readdir(targetAbs, { withFileTypes: true });
       if (entries.length === 0) {
-        return `ℹ️ 目录 "${args.path || '.'}" 为空。`;
+        // 目录为空提示
+        return `ℹ️ Directory "${args.path || '.'}" is empty.`;
       }
 
       const resultLines: string[] = [];
       for (const entry of entries) {
         const entryAbs = path.join(targetAbs, entry.name);
         if (entry.isDirectory()) {
-          resultLines.push(`[目录] ${entry.name}`);
+          resultLines.push(`[Directory] ${entry.name}`);
         } else {
           try {
             const entryStats = await fs.stat(entryAbs);
-            resultLines.push(`[文件] ${entry.name} (${formatBytes(entryStats.size)})`);
+            resultLines.push(`[File] ${entry.name} (${formatBytes(entryStats.size)})`);
           } catch {
-            resultLines.push(`[文件] ${entry.name}`);
+            resultLines.push(`[File] ${entry.name}`);
           }
         }
       }
 
       const scopeInfo = args.scope ? ` (${args.scope})` : '';
-      return `ℹ️ 目录 "${args.path || '.'}"${scopeInfo} 内容如下：\n${resultLines.join('\n')}`;
+      // 目录内容出参
+      return `ℹ️ Directory "${args.path || '.'}"${scopeInfo} contains:\n${resultLines.join('\n')}`;
     } catch (err: any) {
-      return handleFsError(ctx, '列出目录', err, baseAbs);
+      return handleFsError(ctx, 'list directory', err, baseAbs);
     }
   }
 }
@@ -179,13 +189,15 @@ export class ReadFileTool implements FreyaTool {
     const { scopes, description } = getActiveScopesInfo();
     return {
       name: 'read_file',
-      description: '读取指定文件的文本内容。支持指定行号起止区间切片读取，防范大文件上下文超限。',
+      // 读取指定文件文本
+      description: 'Read text content of specified file. Supports line slicing to prevent context overflow on large files.',
       parameters: {
         type: 'object',
         properties: {
           path: {
             type: 'string',
-            description: '目标文件的相对路径（如 "notes.txt"）'
+            // 目标文件相对路径
+            description: 'Relative path of target file (e.g. "notes.txt")'
           },
           scope: {
             type: 'string',
@@ -194,11 +206,13 @@ export class ReadFileTool implements FreyaTool {
           },
           startLine: {
             type: 'integer',
-            description: '起始行号（可选，1-indexed，包含该行。默认为第 1 行）'
+            // 起始行号
+            description: 'Start line number (optional, 1-indexed, inclusive. Defaults to line 1)'
           },
           endLine: {
             type: 'integer',
-            description: '结束行号（可选，1-indexed，包含该行。默认读取至文件末尾）'
+            // 结束行号
+            description: 'End line number (optional, 1-indexed, inclusive. Defaults to end of file)'
           }
         },
         required: ['path']
@@ -208,7 +222,8 @@ export class ReadFileTool implements FreyaTool {
 
   async execute(args: Record<string, any>, ctx: FreyaContext): Promise<string> {
     if (!args.path) {
-      return '❌ 参数错误：必须指定目标文件相对路径。';
+      // 缺少相对路径错误
+      return '❌ Parameter error: Must specify target file relative path.';
     }
     let baseAbs = ctx.paths.workspaceDir;
     try {
@@ -218,7 +233,8 @@ export class ReadFileTool implements FreyaTool {
 
       const stats = await fs.stat(targetAbs);
       if (!stats.isFile()) {
-        return `❌ 路径 "${args.path}" 不是一个有效的文件。`;
+        // 非有效文件提示
+        return `❌ Path "${args.path}" is not a valid file.`;
       }
 
       const rawContent = await fs.readFile(targetAbs, 'utf-8');
@@ -234,18 +250,21 @@ export class ReadFileTool implements FreyaTool {
       const end = args.endLine !== undefined ? Math.min(totalLines, parseInt(args.endLine, 10)) : totalLines;
 
       if (start > totalLines) {
-        return `❌ 起始行号 (${start}) 超过了文件总行数 (${totalLines})。`;
+        // 起始行号超限错误
+        return `❌ Start line (${start}) exceeds total line count (${totalLines}).`;
       }
 
       if (start > end) {
-        return `❌ 起始行号 (${start}) 不能大于结束行号 (${end})。`;
+        // 起始行大于结束行错误
+        return `❌ Start line (${start}) cannot be greater than end line (${end}).`;
       }
 
       const slicedLines = lines.slice(start - 1, end);
       const scopeInfo = args.scope ? ` (${args.scope})` : '';
-      return `ℹ️ 文件 "${args.path}"${scopeInfo} 的第 ${start} 至 ${end} 行（共 ${totalLines} 行）如下：\n${slicedLines.join('\n')}`;
+      // 切片内容出参
+      return `ℹ️ File "${args.path}"${scopeInfo} lines ${start} to ${end} (total ${totalLines} lines):\n${slicedLines.join('\n')}`;
     } catch (err: any) {
-      return handleFsError(ctx, '读取文件', err, baseAbs);
+      return handleFsError(ctx, 'read file', err, baseAbs);
     }
   }
 }
@@ -255,17 +274,20 @@ export class WriteFileTool implements FreyaTool {
   getDefinition(): ToolDefinition {
     return {
       name: 'write_file',
-      description: '向安全工作区内的目标路径创建或覆写完整文件。支持自动递归创建父目录。警告：此为覆写操作，请勿直接调用以覆写大型文件或多行代码文件以防输出截断，应优先改用 edit_file 进行精准局部查找替换。',
+      // 创建或覆写完整文件
+      description: 'Create or overwrite a complete file at target path within workspace. Automatically creates parent directories recursively. Warning: prefer edit_file for large code files to avoid truncation.',
       parameters: {
         type: 'object',
         properties: {
           path: {
             type: 'string',
-            description: '目标文件的相对路径（如 "logs/info.log"）'
+            // 目标文件相对路径
+            description: 'Relative path of target file (e.g. "logs/info.log")'
           },
           content: {
             type: 'string',
-            description: '要写入的完整文本内容'
+            // 写入的文本内容
+            description: 'Complete text content to write'
           }
         },
         required: ['path', 'content']
@@ -275,10 +297,12 @@ export class WriteFileTool implements FreyaTool {
 
   async execute(args: Record<string, any>, ctx: FreyaContext): Promise<string> {
     if (!args.path || args.content === undefined) {
-      return '❌ 参数错误：必须指定目标路径与写入内容。';
+      // 缺少路径或内容参数错误
+      return '❌ Parameter error: Must specify target path and content to write.';
     }
     if (args.scope && args.scope !== 'workspace') {
-      return '❌ 安全拒绝：仅允许在工作区 (workspace) 进行写入操作，其它区域均为只读保护区。';
+      // 非工作区写入安全拒绝
+      return '❌ Security rejection: Write operations are only permitted in the workspace sandbox, all other areas are read-only.';
     }
     try {
       const { targetAbs, baseAbs } = getSafePath(ctx, args.path);
@@ -287,9 +311,10 @@ export class WriteFileTool implements FreyaTool {
       await fs.mkdir(dirAbs, { recursive: true });
       await fs.writeFile(targetAbs, args.content, 'utf-8');
 
-      return `ℹ️ 已成功将内容写入文件 "${args.path}"。`;
+      // 写入成功出参
+      return `ℹ️ Successfully wrote content to file "${args.path}".`;
     } catch (err: any) {
-      return handleFsError(ctx, '写入文件', err);
+      return handleFsError(ctx, 'write file', err);
     }
   }
 }
@@ -299,21 +324,25 @@ export class EditFileTool implements FreyaTool {
   getDefinition(): ToolDefinition {
     return {
       name: 'edit_file',
-      description: '查找并替换安全工作区内目标文件中的唯一局部文本段。入参 target 的缩写、换行和空格必须与原文件内容完全精确匹配；replacement 为要替换上去的完整新文本段。此为安全修改大文件的首选方式。',
+      // 局部查找替换文件内容
+      description: 'Find and replace a unique local text block in a workspace file. Target indentation and line breaks must match original text exactly; replacement is new text block. Preferred method for editing code files safely.',
       parameters: {
         type: 'object',
         properties: {
           path: {
             type: 'string',
-            description: '目标文件的相对路径（如 "config.json"）'
+            // 目标文件相对路径
+            description: 'Relative path of target file (e.g. "config.json")'
           },
           target: {
             type: 'string',
-            description: '要查找并被替换的原始精确文本段'
+            // 查找的原文本段
+            description: 'Exact original text snippet to find and replace'
           },
           replacement: {
             type: 'string',
-            description: '替换后的新文本段'
+            // 替换后的新文本段
+            description: 'New replacement text snippet'
           }
         },
         required: ['path', 'target', 'replacement']
@@ -323,35 +352,41 @@ export class EditFileTool implements FreyaTool {
 
   async execute(args: Record<string, any>, ctx: FreyaContext): Promise<string> {
     if (!args.path || args.target === undefined || args.replacement === undefined) {
-      return '❌ 参数错误：必须指定目标路径、查找目标与替换文本。';
+      // 缺少必要参数错误
+      return '❌ Parameter error: Must specify target path, search target, and replacement text.';
     }
     if (args.scope && args.scope !== 'workspace') {
-      return '❌ 安全拒绝：仅允许在工作区 (workspace) 进行修改操作，其它区域均为只读保护区。';
+      // 非工作区修改安全拒绝
+      return '❌ Security rejection: Edit operations are only permitted in the workspace sandbox, all other areas are read-only.';
     }
     try {
       const { targetAbs, baseAbs } = getSafePath(ctx, args.path);
       const stats = await fs.stat(targetAbs);
       if (!stats.isFile()) {
-        return `❌ 路径 "${args.path}" 不是一个有效的文件。`;
+        // 非有效文件提示
+        return `❌ Path "${args.path}" is not a valid file.`;
       }
 
       const content = await fs.readFile(targetAbs, 'utf-8');
       const firstIndex = content.indexOf(args.target);
       if (firstIndex === -1) {
-        return `❌ 修改失败：在文件 "${args.path}" 中未找到指定的 target 文本。请确保 target 在大小写、缩进和换行上与文件内完全一致。`;
+        // 未匹配到目标文本错误提示
+        return `❌ Edit failed: Target text not found in file "${args.path}". Ensure casing, indentation, and newlines match file exactly.`;
       }
 
       const secondIndex = content.indexOf(args.target, firstIndex + args.target.length);
       if (secondIndex !== -1) {
-        return `❌ 修改拒绝：在文件 "${args.path}" 中匹配到多处相同的目标文本。请扩大 target 文本段以包含更多上下文行确保唯一性。`;
+        // 多处匹配冲突拒绝提示
+        return `❌ Edit rejected: Multiple occurrences of target text found in "${args.path}". Expand target block to include more context lines for uniqueness.`;
       }
 
       const newContent = content.slice(0, firstIndex) + args.replacement + content.slice(firstIndex + args.target.length);
       await fs.writeFile(targetAbs, newContent, 'utf-8');
 
-      return `ℹ️ 已成功修改文件 "${args.path}" 的指定部分。`;
+      // 修改成功出参
+      return `ℹ️ Successfully modified specified portion of file "${args.path}".`;
     } catch (err: any) {
-      return handleFsError(ctx, '修改文件', err);
+      return handleFsError(ctx, 'edit file', err);
     }
   }
 }

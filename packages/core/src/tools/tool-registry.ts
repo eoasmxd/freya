@@ -128,7 +128,8 @@ export class FreyaToolRegistry {
 
       const resolved = promptRegistry.get(key);
       if (resolved) {
-        instructions.push(`### 工具箱能力说明 [激活ID: "${toolboxId}"]\n${resolved}`);
+        // 工具箱能力说明提示词 (MD 中的中文暂时不需要处理)
+        instructions.push(`### Toolbox Capabilities [ID: "${toolboxId}"]\n${resolved}`);
       }
     }
     return instructions;

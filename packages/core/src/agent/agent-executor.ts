@@ -55,7 +55,7 @@ export class FreyaAgentExecutor {
           ...history,
           {
             role: 'system',
-            content: this.promptRegistry.get('core.prompt.max_turns') || '已达到最大决策轮数上限，请基于已完成的工作向用户总结当前进展。'
+            content: this.promptRegistry.get('core.prompt.max_turns')
           }
         ];
         const finalResponse = await this.llmPlugin.chat(finalPayload, undefined, {

@@ -155,8 +155,9 @@ export default class GeminiPlugin implements LLMPlugin {
                 }
               });
             } else {
+              // 附件加载失败兜底提示
               parts.push({
-                text: `[附件加载失败: ${att.url || att.path || '未知'}]`
+                text: `[Failed to load attachment: ${att.url || att.path || 'unknown'}]`
               });
             }
           }

@@ -112,7 +112,8 @@ function cleanPathFromError(err: any, ctx: FreyaContext): string {
  * Unified memory error handling and physical path sanitization
  */
 export function handleMemoryError(action: string, err: any, ctx: FreyaContext): string {
-  return `❌ ${action}失败: ${cleanPathFromError(err, ctx)}`;
+  // 记忆操作失败提示
+  return `❌ Failed to ${action}: ${cleanPathFromError(err, ctx)}`;
 }
 
 export class AddMemoryTool implements FreyaTool {
@@ -120,20 +121,23 @@ export class AddMemoryTool implements FreyaTool {
   getDefinition(): ToolDefinition {
     return {
       name: 'add_memory',
-      description: '向记忆库中添加一条重要的长期记忆。参数 content 需为要记录的具体事实或偏好，keywords 必须为你自主提取的 1-3 个中文核心词（不能带空格），系统会物理绑定日期持久化以供未来模糊搜索。',
+      // 添加长期记忆
+      description: 'Add an important long-term memory entry into the memory store. Parameter content is the fact or preference to record; keywords must be 1-3 self-extracted core terms (no spaces) for future fuzzy retrieval.',
       parameters: {
         type: 'object',
         properties: {
           content: {
             type: 'string',
-            description: '需要被记录的具体事实、偏好或背景信息'
+            // 需要记录的记忆内容
+            description: 'Specific fact, preference, or background information to record'
           },
           keywords: {
             type: 'array',
             items: {
               type: 'string'
             },
-            description: '自主提取的强相关核心词列表（如：["猫", "咪咪", "宠物"]）'
+            // 自主提取的核心词列表
+            description: 'Self-extracted relevant core keyword list (e.g. ["cat", "pet", "coffee"])'
           }
         },
         required: ['content', 'keywords']
@@ -143,7 +147,8 @@ export class AddMemoryTool implements FreyaTool {
 
   async execute(args: Record<string, any>, ctx: FreyaContext): Promise<string> {
     if (!args.content || !Array.isArray(args.keywords) || args.keywords.length === 0) {
-      return '❌ 参数错误：必须指定具体记忆内容 content 和核心词列表 keywords。';
+      // 缺少必要参数错误
+      return '❌ Parameter error: Must specify memory content and keyword list.';
     }
 
     try {
@@ -169,9 +174,10 @@ export class AddMemoryTool implements FreyaTool {
       await writeIndex(dataDir, indexData);
 
       ctx.logger.debug(`[add_memory] Successfully written memory: [${id}] keywords=${JSON.stringify(args.keywords)}`);
-      return `ℹ️ 记忆保存成功！(ID: ${id}, 日期: ${date})`;
+      // 记忆保存成功出参
+      return `ℹ️ Memory saved successfully! (ID: ${id}, Date: ${date})`;
     } catch (err: any) {
-      return handleMemoryError('保存记忆', err, ctx);
+      return handleMemoryError('save memory', err, ctx);
     }
   }
 }
@@ -181,13 +187,15 @@ export class QueryMemoryTool implements FreyaTool {
   getDefinition(): ToolDefinition {
     return {
       name: 'query_memory',
-      description: '根据核心检索词查询与之关联的记忆。keyword 应为单个中文核心词，系统将自动进行模糊检索并回溯返回包含 ID 和日期的历史记忆内容。',
+      // 查询关联长期记忆
+      description: 'Query associated memories by keyword. System performs fuzzy retrieval and returns historical entries with IDs and timestamps.',
       parameters: {
         type: 'object',
         properties: {
           keyword: {
             type: 'string',
-            description: '检索核心词（如："猫" 或 "黑咖啡"）'
+            // 检索核心词
+            description: 'Search keyword (e.g. "cat" or "coffee")'
           }
         },
         required: ['keyword']
@@ -197,7 +205,8 @@ export class QueryMemoryTool implements FreyaTool {
 
   async execute(args: Record<string, any>, ctx: FreyaContext): Promise<string> {
     if (!args.keyword) {
-      return '❌ 参数错误：必须指定检索的核心词 keyword。';
+      // 缺少检索词参数错误
+      return '❌ Parameter error: Must specify search keyword.';
     }
 
     try {
@@ -217,7 +226,8 @@ export class QueryMemoryTool implements FreyaTool {
       }
 
       if (targetDates.length === 0) {
-        return `ℹ️ 记忆库中未找到与核心词 "${args.keyword}" 相关的长期记忆。`;
+        // 未找到相关记忆提示
+        return `ℹ️ No long-term memory found associated with keyword "${args.keyword}".`;
       }
 
       const resultLines: string[] = [];
@@ -231,12 +241,14 @@ export class QueryMemoryTool implements FreyaTool {
       }
 
       if (resultLines.length === 0) {
-        return `ℹ️ 记忆库中未找到与核心词 "${args.keyword}" 相关的具体记忆内容。`;
+        // 未找到具体记忆内容提示
+        return `ℹ️ No specific memory content found associated with keyword "${args.keyword}".`;
       }
 
-      return `🧠 找到与核心词 "${args.keyword}" 关联的长期记忆如下：\n${resultLines.join('\n')}`;
+      // 查询记忆结果出参
+      return `🧠 Found associated long-term memories for keyword "${args.keyword}":\n${resultLines.join('\n')}`;
     } catch (err: any) {
-      return handleMemoryError('查询记忆', err, ctx);
+      return handleMemoryError('query memory', err, ctx);
     }
   }
 }
@@ -246,13 +258,15 @@ export class DeleteMemoryTool implements FreyaTool {
   getDefinition(): ToolDefinition {
     return {
       name: 'delete_memory',
-      description: '根据唯一 ID 从记忆库中彻底擦除过时或错误的记忆。id 需传入形如 "mem_1234567" 的物理标识，删除前建议先 query_memory 确认 id。',
+      // 删除指定记忆
+      description: 'Purge outdated or incorrect memory permanently from the memory store by unique ID (e.g. "mem_1234567"). Query memory first to confirm ID.',
       parameters: {
         type: 'object',
         properties: {
           id: {
             type: 'string',
-            description: '待删除记忆项的唯一 ID（例如："mem_1719999999000"）'
+            // 待删除记忆项的唯一 ID
+            description: 'Unique ID of the memory item to delete (e.g. "mem_1719999999000")'
           }
         },
         required: ['id']
@@ -262,7 +276,8 @@ export class DeleteMemoryTool implements FreyaTool {
 
   async execute(args: Record<string, any>, ctx: FreyaContext): Promise<string> {
     if (!args.id) {
-      return '❌ 参数错误：必须指定待删除记忆的 id。';
+      // 缺少删除 id 参数错误
+      return '❌ Parameter error: Must specify memory id to delete.';
     }
 
     try {
@@ -283,7 +298,8 @@ export class DeleteMemoryTool implements FreyaTool {
       }
 
       if (!found) {
-        return `❌ 删除失败：在记忆库中未找到 ID 为 "${args.id}" 的记忆项。`;
+        // 未找到记忆项提示
+        return `❌ Delete failed: Memory item with ID "${args.id}" not found in memory store.`;
       }
 
       const activeDates = new Set<string>();
@@ -305,9 +321,10 @@ export class DeleteMemoryTool implements FreyaTool {
       await writeIndex(dataDir, indexData);
 
       ctx.logger.debug(`[delete_memory] Successfully purged memory from disk: [${args.id}]`);
-      return `ℹ️ ID 为 "${args.id}" 的长期记忆已被成功删除，索引已同步修剪。`;
+      // 删除记忆成功出参
+      return `ℹ️ Long-term memory with ID "${args.id}" was successfully deleted, index synchronized.`;
     } catch (err: any) {
-      return handleMemoryError('删除记忆', err, ctx);
+      return handleMemoryError('delete memory', err, ctx);
     }
   }
 }

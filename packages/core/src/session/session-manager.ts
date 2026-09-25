@@ -265,10 +265,12 @@ export class FreyaSessionManager {
                                 latestSession.history = keepMessages;
                             } else if (result.type === 'summarized') {
                                 const snap = result.snapshot!;
-                                const taggedSummary = `[压缩快照 ${snap.id}] ${result.newSummary!}`;
+                                // 压缩快照标识标签
+                                const taggedSummary = `[Snapshot ${snap.id}] ${result.newSummary!}`;
                                 const summaryUserMsg: LLMMessage = {
                                     role: 'user',
-                                    content: `[上下文压缩摘要] 以下是此前对话的回顾，请参考：\n${taggedSummary}`,
+                                    // 上下文压缩摘要回顾引导词
+                                    content: `[Context Summary] Below is a recap of previous conversation for reference:\n${taggedSummary}`,
                                 };
                                 const keepMessages = latestSession.history.slice(result.safeTruncateIndex);
                                 latestSession.summary = taggedSummary;

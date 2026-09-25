@@ -7,7 +7,8 @@ export class ListPluginsTool implements FreyaTool {
   getDefinition(): ToolDefinition {
     return {
       name: 'list_plugin',
-      description: '查询当前系统中已发现的所有插件模块列表，返回每个插件的包名 ID、显示别名、渠道来源、启用状态及诊断提示。',
+      // 查询系统插件列表
+      description: 'Query all discovered plugins in the system, returning package ID, display name, source channel, enabled status, and diagnostic errors.',
       parameters: { type: 'object', properties: {} }
     };
   }
@@ -15,23 +16,31 @@ export class ListPluginsTool implements FreyaTool {
   async execute(args: Record<string, any>, ctx: FreyaContext): Promise<string> {
     try {
       const entries = await this.configService.listPlugins();
-      if (!entries || entries.length === 0) return '⚠️ 当前未扫描发现任何插件配置条目。';
+      if (!entries || entries.length === 0) {
+        // 未发现任何插件提示
+        return '⚠️ No plugin configurations found currently.';
+      }
 
       const lines = entries.map((e, i) => {
-        const statusTag = !e.valid ? '⚠️ 异常阻断' : (e.enabled ? '✅ 已启用' : '⬚ 未启用');
-        const sourceMap: Record<string, string> = { builtin: '内置目录', runtime: '运行环境', npm: 'NPM包注册' };
+        // 插件启用状态标签
+        const statusTag = !e.valid ? '⚠️ Blocked' : (e.enabled ? '✅ Enabled' : '⬚ Disabled');
+        // 插件来源渠道映射
+        const sourceMap: Record<string, string> = { builtin: 'Builtin Directory', runtime: 'Runtime Environment', npm: 'NPM Package Registry' };
         const sourceName = sourceMap[e.source] || e.source;
         let info = `${i + 1}. [${statusTag}] ${e.displayName || e.id} (${e.id})\n` +
-          `   版本: ${e.version || '0.1.0'} | 来源: ${sourceName} | 说明: ${e.description || '无'}`;
+          `   Version: ${e.version || '0.1.0'} | Source: ${sourceName} | Description: ${e.description || 'None'}`;
         if (!e.valid && e.errorReason) {
-          info += `\n   ❌ 诊断归因: ${e.errorReason}`;
+          // 插件异常诊断归因
+          info += `\n   ❌ Diagnostic Error: ${e.errorReason}`;
         }
         return info;
       });
 
-      return `当前共检索到 ${entries.length} 个插件模块：\n\n${lines.join('\n\n')}`;
+      // 插件列表出参
+      return `Total ${entries.length} plugin modules retrieved:\n\n${lines.join('\n\n')}`;
     } catch (err: any) {
-      return `❌ 查询插件列表失败: ${err.message}`;
+      // 查询插件列表失败错误提示
+      return `❌ Failed to list plugins: ${err.message}`;
     }
   }
 }
@@ -42,12 +51,21 @@ export class TogglePluginTool implements FreyaTool {
   getDefinition(): ToolDefinition {
     return {
       name: 'toggle_plugin',
-      description: '启用或禁用指定的系统插件（pluginId 须为插件 NPM 包名）。系统会执行热重载，实时加载/启动或停用卸载插件资源。',
+      // 启用或禁用系统插件
+      description: 'Enable or disable a specified system plugin by NPM package ID. The system hot-reloads and activates or deactivates the plugin resources dynamically.',
       parameters: {
         type: 'object',
         properties: {
-          pluginId: { type: 'string', description: '目标插件的 NPM 包名 ID' },
-          enabled: { type: 'boolean', description: 'true 启用，false 禁用' }
+          pluginId: {
+            type: 'string',
+            // 目标插件的 NPM 包名 ID
+            description: 'Target plugin NPM package ID'
+          },
+          enabled: {
+            type: 'boolean',
+            // 是否启用
+            description: 'true to enable, false to disable'
+          }
         },
         required: ['pluginId', 'enabled']
       }
@@ -58,10 +76,14 @@ export class TogglePluginTool implements FreyaTool {
     try {
       const pluginId = String(args.pluginId).trim();
       const enabled = !!args.enabled;
-      if (!pluginId) return '❌ 缺少必要参数：pluginId 不能为空。';
+      if (!pluginId) {
+        // 缺少必要参数提示
+        return '❌ Missing required parameter: pluginId cannot be empty.';
+      }
       return await this.configService.togglePlugin(pluginId, enabled);
     } catch (err: any) {
-      return `❌ 切换插件状态失败: ${err.message}`;
+      // 切换插件状态失败错误提示
+      return `❌ Failed to toggle plugin state: ${err.message}`;
     }
   }
 }

@@ -258,7 +258,8 @@ export class FreyaAgentService {
         if (partialResponse.trim()) {
           await this.sessionManager.appendMessage(message.sessionId, {
             role: 'assistant',
-            content: `${partialResponse}\n\n*(已中止)*`
+            // 中断标记后缀
+            content: `${partialResponse}\n\n*(interrupted)*`
           });
         }
         this.context.eventBus.emit('session:reply:completed', { sessionId: message.sessionId });
@@ -319,9 +320,11 @@ export class FreyaAgentService {
       controller.abort();
       this.abortControllers.delete(targetKey);
       this.sessionManager.updateSession(childSessionId, { status: 'failed', durationMs: 0 }).catch(() => { });
-      return `ℹ️ 子智能体会话 ${childSessionId} 中止成功。`;
+      // 成功中止子智能体出参
+      return `ℹ️ Child agent session ${childSessionId} aborted successfully.`;
     } else {
-      throw new Error(`未找到活跃的子智能体会话 ID: ${childSessionId}，或它已执行结束。`);
+      // 未找到活跃子智能体会话异常
+      throw new Error(`Active child agent session not found for ID: ${childSessionId}, or it has already completed.`);
     }
   }
 }

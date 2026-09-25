@@ -6,11 +6,12 @@ import type { Session, SnapFile } from './types.js';
 function formatHistoryToText(history: LLMMessage[]): string {
     return history
         .map((msg) => {
+            // 对话角色名称映射
             const roleMap: Record<string, string> = {
-                user: '用户',
-                assistant: '助手',
-                system: '系统',
-                tool: '工具结果'
+                user: 'User',
+                assistant: 'Assistant',
+                system: 'System',
+                tool: 'Tool Result'
             };
             const roleName = roleMap[msg.role] || msg.role;
             return `[${roleName}]: ${msg.content}`;
@@ -69,9 +70,11 @@ export class SessionCompactor {
         const formattedHistory = formatHistoryToText(historyToCompress);
         const userContentParts: string[] = [];
         if (currentSummary) {
-            userContentParts.push(`【先前的对话提要】：\n${currentSummary}`);
+            // 先前的对话提要
+            userContentParts.push(`[Previous Conversation Summary]:\n${currentSummary}`);
         }
-        userContentParts.push(`【需要提炼的对话历史】：\n${formattedHistory}`);
+        // 需要提炼的对话历史
+        userContentParts.push(`[Conversation History to Summarize]:\n${formattedHistory}`);
 
         const summaryRequest: LLMMessage[] = [
             {
@@ -171,11 +174,13 @@ export class SessionCompactor {
             this.logger?.info(`[SessionCompactor] Context summary compaction completed: "${newSummary}"`);
 
             const snapFile = this.buildSnapshot(session, newSummary, historyToCompress);
-            const taggedSummary = `[压缩快照 ${snapFile.id}] ${newSummary}`;
+            // 压缩快照标识标签
+            const taggedSummary = `[Snapshot ${snapFile.id}] ${newSummary}`;
 
             const summaryUserMsg: LLMMessage = {
                 role: 'user',
-                content: `[上下文压缩摘要] 以下是此前对话的回顾，请参考：\n${taggedSummary}`,
+                // 上下文压缩摘要回顾引导词
+                content: `[Context Summary] Below is a recap of previous conversation for reference:\n${taggedSummary}`,
             };
             this.truncateHistory(history, safeTruncateIndex, summaryUserMsg);
 

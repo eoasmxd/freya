@@ -144,8 +144,8 @@ export class FreyaPromptRegistry {
 
     const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'Asia/Shanghai';
     const now = new Date();
-    const nowStr = now.toLocaleString('zh-CN', { timeZone });
-    const weekday = ['日', '一', '二', '三', '四', '五', '六'][now.getDay()];
+    const nowStr = now.toLocaleString('en-US', { timeZone });
+    const weekday = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][now.getDay()];
 
     const offsetMinutes = -now.getTimezoneOffset();
     const sign = offsetMinutes >= 0 ? '+' : '-';
@@ -153,15 +153,16 @@ export class FreyaPromptRegistry {
     const absMins = Math.abs(offsetMinutes) % 60;
     const utcOffset = `UTC${sign}${absHours}${absMins > 0 ? `:${absMins.toString().padStart(2, '0')}` : ''}`;
 
-    const timeStr = `${nowStr} (星期${weekday}, 时区: ${timeZone}, ${utcOffset})`;
+    // 当前系统时间
+    const timeStr = `${nowStr} (${weekday}, TimeZone: ${timeZone}, ${utcOffset})`;
 
-    return `# IDENTITY (本体)\n${identity}\n\n` +
-      `# SOUL (灵魂)\n${soul}\n\n` +
-      `# USER INFO (用户画像)\n${user}\n\n` +
-      `# MEMORY (长期记忆)\n${memory}\n\n` +
-      `# TOOLS SPEC (工具指南)\n${tools}\n\n` +
-      `# AGENT TOPOLOGY (拓扑模式)\n${agents}\n\n` +
-      `# CURRENT TIME (当前时间)\n${timeStr}`;
+    return `# IDENTITY\n${identity}\n\n` + // 智能体本体定义
+      `# SOUL\n${soul}\n\n` + // 智能体灵魂与行为风格
+      `# USER INFO\n${user}\n\n` + // 用户画像信息
+      `# MEMORY\n${memory}\n\n` + // 长期记忆
+      `# TOOLS SPEC\n${tools}\n\n` + // 工具使用规范指南
+      `# AGENT TOPOLOGY\n${agents}\n\n` + // 智能体拓扑模式
+      `# CURRENT TIME\n${timeStr}`; // 当前系统时间
   }
 
   /**
@@ -181,9 +182,10 @@ export class FreyaPromptRegistry {
 
     if (availableSkills && availableSkills.length > 0) {
       const listLines = availableSkills
-        .map((s) => `- **${s.name}** (技能ID: \`${s.id}\`)\n  ${s.description || '无描述'}`)
+        .map((s) => `- **${s.name}** (Skill ID: \`${s.id}\`)\n  ${s.description || 'No description'}`)
         .join('\n');
-      systemPrompt += `\n\n# AVAILABLE SKILLS (可用技能卡列表)\n本系统当前已物理安装并扫描到如下可用特长技能卡（你可通过调用 \`activate_skill("技能ID")\` 激活对应模式）：\n\n${listLines}`;
+      // 可用技能卡列表说明
+      systemPrompt += `\n\n# AVAILABLE SKILLS\nThe system has detected the following available skills (activate via \`activate_skill("skill_id")\`):\n\n${listLines}`;
     }
 
     if (activeSkill && activeSkill.content) {

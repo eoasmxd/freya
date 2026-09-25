@@ -58,12 +58,14 @@ export class SqlAuditService {
   public async audit(sql: string, connectionName: string, ctx: FreyaContext): Promise<AuditResult> {
     const trimmedSql = sql.trim();
     if (!trimmedSql) {
-      return { passed: false, reason: 'SQL 语句内容不能为空。' };
+      // 拦截原因：SQL 语句内容为空
+      return { passed: false, reason: 'SQL statement cannot be empty.' };
     }
 
     const auditPrompt = await this.loadAuditPrompt(ctx);
     if (!auditPrompt) {
-      return { passed: false, reason: 'SQL 审计提示词模板未就绪，安全拒绝执行。' };
+      // 拦截原因：安全审查提示词未就绪
+      return { passed: false, reason: 'SQL audit prompt template is not ready, execution rejected for safety.' };
     }
 
     const messages: LLMMessage[] = [
@@ -94,19 +96,22 @@ export class SqlAuditService {
       if (typeof parsed.passed === 'boolean') {
         return {
           passed: parsed.passed,
-          reason: parsed.reason ? String(parsed.reason) : (parsed.passed ? '审查通过' : '未提供拦截原因')
+          // 审核通过或未提供原因
+          reason: parsed.reason ? String(parsed.reason) : (parsed.passed ? 'Audit passed.' : 'No rejection reason provided.')
         };
       }
 
+      // 响应结构不符合预期
       return {
         passed: false,
-        reason: `审查响应结构不符合预期: ${rawOutput}`
+        reason: `Audit response structure does not match expectation: ${rawOutput}`
       };
     } catch (err: any) {
       ctx.logger.error('Error during pre-LLM SQL audit process:', err);
+      // 审查服务调用失败
       return {
         passed: false,
-        reason: `SQL 安全审查服务调用失败: ${err?.message || err}`
+        reason: `SQL security audit service call failed: ${err?.message || err}`
       };
     }
   }

@@ -46,13 +46,15 @@ export class ReadConfigTool implements FreyaTool {
   getDefinition(): ToolDefinition {
     return {
       name: 'read_config',
-      description: '读取系统核心配置。出于安全考量，敏感配置值默认会进行脱敏处理，除非指定 revealSensitive 为 true 并通过用户授权。',
+      // 读取系统核心配置
+      description: 'Read core system configuration. For security reasons, sensitive config values are masked by default unless revealSensitive is set to true and approved via user authorization.',
       parameters: {
         type: 'object',
         properties: {
           revealSensitive: {
             type: 'boolean',
-            description: '是否揭示敏感字段的明文（默认为 false）'
+            // 是否揭示敏感字段明文
+            description: 'Whether to reveal plaintext of sensitive fields (defaults to false)'
           }
         }
       }
@@ -91,7 +93,8 @@ export class ReadConfigTool implements FreyaTool {
           ctx.logger.warn('[ConfigTool] LLM attempting to read sensitive plaintext, initiating secondary user authorization...');
           const approved = await requestUserAuthorization(ctx, 'read', configName, sensitiveKeys.join(', '), this.pendingAuths);
           if (!approved) {
-            return `❌ 授权失败：用户拒绝了大模型读取核心配置敏感明文的请求。`;
+            // 授权被拒绝提示
+            return `❌ Authorization failed: User rejected LLM request to read sensitive configuration plaintext.`;
           }
         }
       }
@@ -99,7 +102,8 @@ export class ReadConfigTool implements FreyaTool {
       const outputData = await this.configService.readConfig(revealSensitive);
       return JSON.stringify(outputData, null, 2);
     } catch (err: any) {
-      return `❌ 读取核心配置失败: ${err.message}`;
+      // 读取配置失败错误提示
+      return `❌ Failed to read core configuration: ${err.message}`;
     }
   }
 }
@@ -113,17 +117,20 @@ export class UpdateConfigTool implements FreyaTool {
   getDefinition(): ToolDefinition {
     return {
       name: 'update_config',
-      description: '对系统核心配置进行细粒度的局部属性（keyPath）增量修改（如 "log.console"）。绝大部分策略属性实时热生效；但若修改了与系统底层进程生命周期绑定的关键属性（如 "port" 端口配置），则需要手动重启核心服务方可物理应用。修改敏感配置项目前需要经过用户授权。',
+      // 修改系统核心配置局部属性
+      description: 'Incrementally update fine-grained property (keyPath) of system configuration (e.g. "log.console"). Most properties take effect dynamically; process-level lifecycle bindings (e.g. "port") require manual core service restart. Modifying sensitive configs requires user authorization.',
       parameters: {
         type: 'object',
         properties: {
           keyPath: {
             type: 'string',
-            description: '属性层级路径（如："log.console" 或 "contextManagement.maxHistoryTurns"）'
+            // 属性层级路径
+            description: 'Property hierarchical path (e.g. "log.console" or "contextManagement.maxHistoryTurns")'
           },
           value: {
             type: 'string',
-            description: '新修改的目标值（可为任意类型，传 JSON 字符串或字面量）'
+            // 新修改的目标值
+            description: 'New target value to update (any type, pass as JSON string or literal)'
           }
         },
         required: ['keyPath', 'value']
@@ -153,7 +160,8 @@ export class UpdateConfigTool implements FreyaTool {
       }
 
       if (isManualOnly) {
-        return `❌ 权限拒绝：配置项 "${keyPath}" 仅允许管理员手动修改，禁止通过 AI 工具自动更新。`;
+        // 仅限管理员手动修改提示
+        return `❌ Permission denied: Config item "${keyPath}" can only be modified manually by administrator, automated AI updates are forbidden.`;
       }
 
       let newValue = args.value;
@@ -183,14 +191,16 @@ export class UpdateConfigTool implements FreyaTool {
         ctx.logger.warn(`[ConfigTool] Detected write to sensitive field "${keyPath}", initiating secondary user authorization...`);
         const approved = await requestUserAuthorization(ctx, 'write', configName, keyPath, this.pendingAuths, '******');
         if (!approved) {
-          return `❌ 授权失败：用户拒绝了大模型修改核心配置敏感字段 "${keyPath}" 的请求。`;
+          // 修改敏感字段授权被拒绝提示
+          return `❌ Authorization failed: User rejected LLM request to modify sensitive field "${keyPath}".`;
         }
       }
 
       const result = await this.configService.updateConfig(keyPath, newValue);
       return result.startsWith('❌') ? result : `✅ ${result}`;
     } catch (err: any) {
-      return `❌ 修改核心配置失败: ${err.message}`;
+      // 修改配置失败错误提示
+      return `❌ Failed to update core configuration: ${err.message}`;
     }
   }
 }
