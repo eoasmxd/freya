@@ -13,7 +13,7 @@ export default class OpenAICompatiblePlugin implements LLMPlugin {
 
   async setup(ctx: FreyaContext): Promise<void> {
     this.context = ctx;
-    ctx.logger.info('OpenAI 兼容模型插件初始化就绪。');
+    ctx.logger.info('OpenAI-compatible model plugin initialized.');
   }
 
   async chat(
@@ -89,7 +89,7 @@ export default class OpenAICompatiblePlugin implements LLMPlugin {
               const buffer = await fs.readFile(targetAbs);
               url = `data:${img.mimeType};base64,${buffer.toString('base64')}`;
             } catch (err: any) {
-              this.context.logger.error(`读取本地图像附件失败 [${img.path}]:`, err.message);
+              this.context.logger.error(`Failed to read local image attachment [${img.path}]:`, err.message);
             }
           }
           if (url) {

@@ -50,7 +50,7 @@ export class FreyaConnectionManager {
 
     this.eventBus.on('connection:rebind', (payload: { connectionId: string; sessionId: string; channelType?: string; defaultLanguage?: string; staleThresholdMs?: number }) => {
       this.bindSession(payload.connectionId, payload.sessionId, payload, true);
-      this.logger?.info(`[FreyaConnectionManager] 连接 "${payload.connectionId}" 已重定向绑定到会话 "${payload.sessionId}"`);
+      this.logger?.info(`[FreyaConnectionManager] Connection "${payload.connectionId}" rebound to session "${payload.sessionId}"`);
     });
 
     this.eventBus.on('session:reply:text', (payload: { sessionId: string; content: string }) => {
@@ -119,7 +119,7 @@ export class FreyaConnectionManager {
 
   private unregister(connectionId: string): void {
     this.connections.delete(connectionId);
-    this.logger?.debug(`[FreyaConnectionManager] 连接 "${connectionId}" 已注销并清理活跃历史。`);
+    this.logger?.debug(`[FreyaConnectionManager] Connection "${connectionId}" unregistered and history cleaned up.`);
   }
 
   private broadcastToSession(sessionId: string, event: string, buildPayload: (connId: string) => any): void {
@@ -155,7 +155,7 @@ export class FreyaConnectionManager {
     }
     for (const connId of toRemove) {
       this.unregister(connId);
-      this.logger?.info(`[FreyaConnectionManager] 连接 "${connId}" 因长时间无心跳活跃已被自动剔除注销。`);
+      this.logger?.info(`[FreyaConnectionManager] Connection "${connId}" unregistered due to heartbeat inactivity timeout.`);
     }
   }
 

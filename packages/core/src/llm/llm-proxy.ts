@@ -87,7 +87,7 @@ export class FreyaLLMProxy implements ILLMService {
           });
         }
         this.context.logger.warn(
-          `[FreyaLLMProxy] 模型 [${candidate.name}] 调用遭遇 [${errorType}] 级异常，已熔断避让: ${err.message}`
+          `[FreyaLLMProxy] Model [${candidate.name}] encountered [${errorType}] error, circuit breaker triggered: ${err.message}`
         );
       }
     }

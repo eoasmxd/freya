@@ -16,9 +16,9 @@ export default class MemoryToolsPlugin implements ToolPlugin {
     try {
       await ensureIndexFile(ctx.paths.dataDir);
       await ensureSubdirExists(ctx.paths.dataDir);
-      ctx.logger.info('主动记忆多文件持久化存储已就绪。');
+      ctx.logger.info('Active memory multi-file persistence storage ready.');
     } catch (err: any) {
-      ctx.logger.error('初始化主动记忆多文件持久化存储失败:', err);
+      ctx.logger.error('Failed to initialize active memory persistence storage:', err);
     }
   }
 

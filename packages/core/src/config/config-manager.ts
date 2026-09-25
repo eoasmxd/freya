@@ -201,7 +201,7 @@ export class FreyaConfigManager {
         }
       }
     } catch (err: any) {
-      this.context.logger.error('加载主配置文件 freya.json 失败:', err);
+      this.context.logger.error('Failed to load primary configuration file freya.json:', err);
     }
   }
 
@@ -213,9 +213,9 @@ export class FreyaConfigManager {
 
       this.updateContextConfig(merged);
       await this.fileHandler.writeFreyaConfig(merged);
-      this.context.logger.info('配置模式合并完成，已回写至 config/freya.json。');
+      this.context.logger.info('Configuration schema merged and written back to config/freya.json.');
     } catch (err: any) {
-      this.context.logger.error('合并配置模式并回写 freya.json 失败:', err);
+      this.context.logger.error('Failed to merge configuration schema and write back to freya.json:', err);
     }
   }
 
@@ -350,7 +350,7 @@ export class FreyaConfigManager {
     });
     await this.fileHandler.writeProviders(providers);
     if (this.llmRegistry) this.llmRegistry.setProviders(providers);
-    this.context.logger.info(`[FreyaConfigManager] 新增模型提供商: ${id}`);
+    this.context.logger.info(`[FreyaConfigManager] Added model provider: ${id}`);
     return `模型提供商 "${id}" 已成功新增。`;
   }
 
@@ -366,7 +366,7 @@ export class FreyaConfigManager {
     if (updatedKeys.length === 0) return '⚠️ 未指定任何需要修改的属性。';
     await this.fileHandler.writeProviders(providers);
     if (this.llmRegistry) this.llmRegistry.setProviders(providers);
-    this.context.logger.info(`[FreyaConfigManager] 修改模型提供商 "${providerId}" 属性: ${updatedKeys.join(', ')}`);
+    this.context.logger.info(`[FreyaConfigManager] Updated model provider "${providerId}" attributes: ${updatedKeys.join(', ')}`);
     return `提供商 "${providerId}" 的属性 [${updatedKeys.join(', ')}] 已成功修改。`;
   }
 
@@ -377,7 +377,7 @@ export class FreyaConfigManager {
     providers.splice(index, 1);
     await this.fileHandler.writeProviders(providers);
     if (this.llmRegistry) this.llmRegistry.setProviders(providers);
-    this.context.logger.info(`[FreyaConfigManager] 删除模型提供商: ${providerId}`);
+    this.context.logger.info(`[FreyaConfigManager] Deleted model provider: ${providerId}`);
     return `模型提供商 "${providerId}" 及其所有模型配置已删除。`;
   }
 
@@ -433,7 +433,7 @@ export class FreyaConfigManager {
 
     await this.fileHandler.writeProviders(providers);
     if (this.llmRegistry) this.llmRegistry.setProviders(providers);
-    this.context.logger.info(`[FreyaConfigManager] 新增模型: ${providerId}/${modelId}`);
+    this.context.logger.info(`[FreyaConfigManager] Added model: ${providerId}/${modelId}`);
     return `模型 "${modelId}" 已成功新增至提供商 "${providerId}"。`;
   }
 
@@ -460,7 +460,7 @@ export class FreyaConfigManager {
 
     await this.fileHandler.writeProviders(providers);
     if (this.llmRegistry) this.llmRegistry.setProviders(providers);
-    this.context.logger.info(`[FreyaConfigManager] 修改模型 "${providerId}/${modelId}" 属性: ${updatedKeys.join(', ')}`);
+    this.context.logger.info(`[FreyaConfigManager] Updated model "${providerId}/${modelId}" attributes: ${updatedKeys.join(', ')}`);
     return `模型 "${modelId}"（提供商 "${providerId}"）的属性 [${updatedKeys.join(', ')}] 已成功修改。`;
   }
 
@@ -476,7 +476,7 @@ export class FreyaConfigManager {
     models.splice(index, 1);
     await this.fileHandler.writeProviders(providers);
     if (this.llmRegistry) this.llmRegistry.setProviders(providers);
-    this.context.logger.info(`[FreyaConfigManager] 删除模型: ${providerId}/${modelId}`);
+    this.context.logger.info(`[FreyaConfigManager] Deleted model: ${providerId}/${modelId}`);
     return `模型 "${modelId}"（提供商 "${providerId}"）已成功删除。`;
   }
 
@@ -529,7 +529,7 @@ export class FreyaConfigManager {
     if (!this.promptManager) return '❌ 提示词服务未初始化。';
 
     await this.promptManager.writePrompt(promptName, content);
-    this.context.logger.info(`[FreyaConfigManager] 主提示词 "${promptName}" 已成功全量覆写并热更新入底座。`);
+    this.context.logger.info(`[FreyaConfigManager] Primary prompt "${promptName}" fully overridden and hot reloaded into core.`);
     return `主提示词文档 [${promptName}] 已覆盖写入并实时生效。`;
   }
 
@@ -542,7 +542,7 @@ export class FreyaConfigManager {
 
     try {
       await this.promptManager.editPrompt(promptName, targetContent, replacementContent);
-      this.context.logger.info(`[FreyaConfigManager] 主提示词 "${promptName}" 局部修改热生效。`);
+      this.context.logger.info(`[FreyaConfigManager] Primary prompt "${promptName}" partial update hot reloaded.`);
       return `主提示词文档 [${promptName}] 局部替换成功，已实时应用。`;
     } catch (err: any) {
       return `❌ 修改失败：${err.message}`;

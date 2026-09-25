@@ -32,7 +32,7 @@ export async function preprocessAudio(
 
   for (let i = 0; i < audioAttachments.length; i++) {
     const audio = audioAttachments[i];
-    context.logger.info(`正在为音频 [${i + 1}/${audioAttachments.length}] 生成文字转录...`);
+    context.logger.info(`Generating transcription for audio [${i + 1}/${audioAttachments.length}]...`);
 
     try {
       const sttPrompt = promptRegistry.get('core.prompt.stt_guidance') || '';
@@ -76,7 +76,7 @@ export async function preprocessAudio(
       audio.description = formattedSTT;
       tempResult = `${tempResult}\n${formattedSTT}`.trim();
     } catch (err: any) {
-      context.logger.warn(`音频转录失败: ${err.message}`);
+      context.logger.warn(`Audio transcription failed: ${err.message}`);
       audio.description = '【音频转录失败：无可用的音频转写模型】';
       anyFailed = true;
       break;
@@ -113,7 +113,7 @@ export async function preprocessImages(
 
   for (let i = 0; i < imageAttachments.length; i++) {
     const img = imageAttachments[i];
-    context.logger.info(`正在为图片 [${i + 1}/${imageAttachments.length}] 生成文字描述...`);
+    context.logger.info(`Generating description for image [${i + 1}/${imageAttachments.length}]...`);
 
     try {
       const imageDescPrompt = promptRegistry.get('core.prompt.image_description') || '';
@@ -157,7 +157,7 @@ export async function preprocessImages(
       img.description = formattedImg;
       tempResult = `${tempResult}\n${formattedImg}`.trim();
     } catch (imgErr: any) {
-      context.logger.warn(`图片描述失败: ${imgErr.message}`);
+      context.logger.warn(`Image description failed: ${imgErr.message}`);
       img.description = '【图像描述失败：无可用的识图模型】';
       anyFailed = true;
       break;

@@ -76,16 +76,16 @@ export default class FreyaWecomChannelPlugin implements ChannelPlugin {
 
     this.syncTimer = setInterval(() => {
       this.syncWecomBots(ctx).catch((err) => {
-        ctx.logger.error("企业微信机器人配置热更新检测异常:", err.message);
+        ctx.logger.error("WeCom bot config hot reload detection error:", err.message);
       });
     }, 5000);
 
-    ctx.logger.debug("企业微信频道插件已成功初始化。");
+    ctx.logger.debug("WeCom channel plugin initialized successfully.");
   }
 
   async start(ctx: FreyaContext): Promise<void> {
     if (this.bots.length === 0) {
-      ctx.logger.debug("未检测到企业微信机器人配置，热重载轮询已就绪。");
+      ctx.logger.debug("No WeCom bot configurations detected, hot reload polling ready.");
       return;
     }
 
@@ -150,14 +150,14 @@ export default class FreyaWecomChannelPlugin implements ChannelPlugin {
         const frame = JSON.parse(data.toString());
         this.handleWecomIncomingFrame(ctx, botId, state, frame);
       } catch (err: any) {
-        ctx.logger.error(`企业微信机器人 [${botId}] 解析 WS 数据失败:`, err.message);
+        ctx.logger.error(`WeCom bot [${botId}] failed to parse WS frame:`, err.message);
       }
     });
 
     ws.on("close", (code, reason) => {
       this.clearWecomTimers(state);
       if (state.running) {
-        ctx.logger.warn(`企业微信机器人 [${botId}] 连接已断开 (${code}: ${reason.toString() || "未知原因"})，将于 ${state.retryDelay / 1000} 秒后尝试重新连接...`);
+        ctx.logger.warn(`WeCom bot [${botId}] connection closed (${code}: ${reason.toString() || "unknown"}), reconnecting in ${state.retryDelay / 1000}s...`);
         state.retryTimer = setTimeout(() => {
           state.retryDelay = Math.min(state.retryDelay * 2, 5 * 60 * 1000);
           this.connectWecomBot(ctx, botId, state);
@@ -166,7 +166,7 @@ export default class FreyaWecomChannelPlugin implements ChannelPlugin {
     });
 
     ws.on("error", (err: any) => {
-      ctx.logger.error(`企业微信机器人 [${botId}] WS 连接出现异常:`, err.message);
+      ctx.logger.error(`WeCom bot [${botId}] WS connection error:`, err.message);
     });
   }
 
@@ -178,10 +178,10 @@ export default class FreyaWecomChannelPlugin implements ChannelPlugin {
       const errcode = frame.body?.errcode;
       if (errcode === 0) {
         state.retryDelay = 5000;
-        ctx.logger.info(`企业微信智能机器人 [${botId}] 认证成功，长连接已建立。`);
+        ctx.logger.info(`WeCom bot [${botId}] authenticated successfully, persistent connection established.`);
         this.startPingInterval(botId, state);
       } else {
-        ctx.logger.error(`企业微信智能机器人 [${botId}] 认证授权失败：errcode=${errcode}, errmsg=${frame.body?.errmsg || "未知错误"}`);
+        ctx.logger.error(`WeCom bot [${botId}] authentication failed: errcode=${errcode}, errmsg=${frame.body?.errmsg || "unknown error"}`);
         state.retryDelay = 30000;
         state.ws?.close();
       }
@@ -459,7 +459,7 @@ export default class FreyaWecomChannelPlugin implements ChannelPlugin {
         mimeType
       };
     } catch (err: any) {
-      ctx.logger.error(`下载或解密企业微信媒体附件失败 [${fileName}]:`, err.message);
+      ctx.logger.error(`Failed to download or decrypt WeCom media attachment [${fileName}]:`, err.message);
       return undefined;
     }
   }
@@ -483,11 +483,11 @@ export default class FreyaWecomChannelPlugin implements ChannelPlugin {
   private async sendWecomMessage(botId: string, chatId: string, content: string): Promise<void> {
     const state = this.activeBots.get(botId);
     if (!state) {
-      this.context.logger.error(`[企业微信发信失败] 未找到机器人实例状态: ${botId}`);
+      this.context.logger.error(`[WeCom Send Failed] Bot instance state not found: ${botId}`);
       return;
     }
     if (!state.ws || state.ws.readyState !== WebSocket.OPEN) {
-      this.context.logger.error(`[企业微信发信失败] 机器人 [${botId}] 连接未建立或已断开 (readyState: ${state.ws ? state.ws.readyState : "未定义"})`);
+      this.context.logger.error(`[WeCom Send Failed] Bot [${botId}] connection not established or disconnected (readyState: ${state.ws ? state.ws.readyState : "undefined"})`);
       return;
     }
 
@@ -511,11 +511,11 @@ export default class FreyaWecomChannelPlugin implements ChannelPlugin {
     try {
       state.ws.send(JSON.stringify(respondFrame), (err) => {
         if (err) {
-          this.context.logger.error(`[企业微信发信失败] 机器人 [${botId}] 发送 WS 帧物理失败:`, err.message);
+          this.context.logger.error(`[WeCom Send Failed] Bot [${botId}] failed to send WS frame:`, err.message);
         }
       });
     } catch (err: any) {
-      this.context.logger.error(`[企业微信发信异常] 机器人 [${botId}] 发信异常:`, err.message);
+      this.context.logger.error(`[WeCom Send Exception] Bot [${botId}] message send exception:`, err.message);
     }
   }
 
@@ -532,7 +532,7 @@ export default class FreyaWecomChannelPlugin implements ChannelPlugin {
       if (!target || target.secret !== activeState.config.secret) {
         this.closeWecomBot(activeState);
         this.activeBots.delete(botId);
-        ctx.logger.info(`[企业微信热更新] 成功热停用智能机器人: ${botId}`);
+        ctx.logger.info(`[WeCom Hot Reload] Hot deactivated bot: ${botId}`);
       }
     }
 
@@ -542,7 +542,7 @@ export default class FreyaWecomChannelPlugin implements ChannelPlugin {
 
       if (!this.activeBots.has(botId)) {
         this.startBot(ctx, config);
-        ctx.logger.info(`[企业微信热更新] 检测到新配置，正在热加载启动机器人: ${botId}`);
+        ctx.logger.info(`[WeCom Hot Reload] New config detected, hot starting bot: ${botId}`);
       }
     }
   }

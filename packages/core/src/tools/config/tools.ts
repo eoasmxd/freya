@@ -17,7 +17,7 @@ function requestUserAuthorization(
 
   return new Promise<boolean>((resolve) => {
     const timer = setTimeout(() => {
-      ctx.logger.error(`[ConfigTool] 授权超时（15秒），默认执行 Fail-Closed 拒绝操作。`);
+      ctx.logger.error('[ConfigTool] Authorization timeout (15s), default fail-closed rejected.');
       pendingAuths.delete(authId);
       resolve(false);
     }, 15000);
@@ -88,7 +88,7 @@ export class ReadConfigTool implements FreyaTool {
         }
 
         if (hasSensitiveData) {
-          ctx.logger.warn(`[ConfigTool] 大模型尝试读取敏感明文，发起用户二级鉴权...`);
+          ctx.logger.warn('[ConfigTool] LLM attempting to read sensitive plaintext, initiating secondary user authorization...');
           const approved = await requestUserAuthorization(ctx, 'read', configName, sensitiveKeys.join(', '), this.pendingAuths);
           if (!approved) {
             return `❌ 授权失败：用户拒绝了大模型读取核心配置敏感明文的请求。`;
@@ -180,7 +180,7 @@ export class UpdateConfigTool implements FreyaTool {
       }
 
       if (isSensitive) {
-        ctx.logger.warn(`[ConfigTool] 检测到写入敏感字段 "${keyPath}"，发起用户二级鉴权...`);
+        ctx.logger.warn(`[ConfigTool] Detected write to sensitive field "${keyPath}", initiating secondary user authorization...`);
         const approved = await requestUserAuthorization(ctx, 'write', configName, keyPath, this.pendingAuths, '******');
         if (!approved) {
           return `❌ 授权失败：用户拒绝了大模型修改核心配置敏感字段 "${keyPath}" 的请求。`;

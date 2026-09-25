@@ -48,7 +48,7 @@ export class FreyaKernel {
     const ctx = this.context;
 
     ctx.logger = new FreyaLogger();
-    ctx.logger.info('Freya 核心服务正在启动...');
+    ctx.logger.info('Starting Freya core service...');
     ctx.eventBus = new FreyaEventBus();
 
     const configSchemaRegistry = new FreyaConfigSchemaRegistry();
@@ -87,7 +87,7 @@ export class FreyaKernel {
 
     const defaultLLM = llmRegistry.getDefault();
     if (!defaultLLM) {
-      ctx.logger.warn('未检测到可用的大模型配置。请在核心服务启动后，通过 Web 设置页面或物理配置文件配置大模型密钥与 models.default，以恢复对话功能。');
+      ctx.logger.warn('No available LLM configuration detected. Please configure LLM provider keys and models.default in settings to enable chat functionality.');
     }
 
     ctx.llm = new FreyaLLMProxy(llmRegistry, ctx);
@@ -152,7 +152,7 @@ export class FreyaKernel {
 
     await this.pluginManager.setupAndStartAll(ctx);
 
-    ctx.logger.info(`Freya 核心服务启动成功。共加载了 ${this.pluginManager.getLoadedPlugins().length} 个物理插件。`);
+    ctx.logger.info(`Freya core service started successfully. Loaded ${this.pluginManager.getLoadedPlugins().length} plugins.`);
 
     ctx.eventBus.on('system:exit', async () => {
       await this.stop();
@@ -166,6 +166,6 @@ export class FreyaKernel {
     await this.cliChannel?.stop(this.context);
     await this.wsChannel?.stop();
     await this.webContainer?.stop();
-    this.context.logger.info('Freya 核心服务已停止。');
+    this.context.logger.info('Freya core service stopped.');
   }
 }

@@ -117,12 +117,12 @@ export class FreyaWebContainer {
         });
 
         this.httpServer.on('error', (err: any) => {
-            ctx.logger.error(`[WebContainer] HTTP 服务监听遭遇异常: ${err.message}`);
+            ctx.logger.error(`[WebContainer] HTTP server encountered an error: ${err.message}`);
         });
 
         return new Promise((resolve) => {
             this.httpServer?.listen(this.port, () => {
-                ctx.logger.info(`[WebContainer] Web 容器启动成功，监听端口: ${this.port}`);
+                ctx.logger.info(`[WebContainer] Server listening on port ${this.port}`);
                 resolve();
             });
         });

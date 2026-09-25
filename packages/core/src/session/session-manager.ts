@@ -59,11 +59,11 @@ export class FreyaSessionManager {
             singleCost: number;
         }) => {
             this.handleSessionBillingAdd(payload).catch((err) => {
-                this.logger?.error(`[SessionManager] 异步处理增量计费失败:`, err);
+                this.logger?.error('[SessionManager] Failed to process incremental billing asynchronously:', err);
             });
         });
 
-        this.logger?.info(`[SessionManager] 初始化完成，已加载 ${this.sessionIndices.size} 个会话`);
+        this.logger?.info(`[SessionManager] Initialized, loaded ${this.sessionIndices.size} sessions`);
     }
 
     private async initMainSession(): Promise<void> {
@@ -72,7 +72,7 @@ export class FreyaSessionManager {
             const main = this.newSession('main', crypto.randomUUID());
             await this.persistence.saveIndex(Array.from(this.sessionIndices.values()));
             await this.persistence.saveSessionData(main);
-            this.logger?.info('[SessionManager] 首次启动，创建主会话 main');
+            this.logger?.info('[SessionManager] First run, created main session');
         }
     }
 
@@ -127,7 +127,7 @@ export class FreyaSessionManager {
         };
         this.sessionIndices.set(uuid, idx);
 
-        this.logger?.info(`[SessionManager] 新建会话: ${id} (${uuid})`);
+        this.logger?.info(`[SessionManager] Created session: ${id} (${uuid})`);
         return session;
     }
 
@@ -166,7 +166,7 @@ export class FreyaSessionManager {
             cost: idx.cost,
         };
         this.sessions.set(id, session);
-        this.logger?.info(`[SessionManager] 延迟加载会话: ${id}`);
+        this.logger?.info(`[SessionManager] Lazy loaded session: ${id}`);
         return session;
     }
 
@@ -212,7 +212,7 @@ export class FreyaSessionManager {
             }
         }
 
-        this.logger?.warn(`[SessionManager] 检测到无活跃会话 ID ${id}，将自动创建新物理会话以保持连接弹性。`);
+        this.logger?.warn(`[SessionManager] No active session found with ID ${id}, creating new session for connection resilience.`);
         const session = this.newSession(id, crypto.randomUUID(), { archived: false });
         await this.persistSession(session);
         return session;
@@ -284,7 +284,7 @@ export class FreyaSessionManager {
                         });
                     }
                 }).catch((err) => {
-                    this.logger?.error(`[SessionManager] 后置异步会话压缩发生异常:`, err);
+                    this.logger?.error('[SessionManager] Error during post-chat session compaction:', err);
                 });
             }
         });
@@ -351,7 +351,7 @@ export class FreyaSessionManager {
             activeSkillId
         });
 
-        this.logger?.info(`[SessionManager] 会话已归档并重建: ${id} → ${oldId}`);
+        this.logger?.info(`[SessionManager] Session archived and recreated: ${id} → ${oldId}`);
         return { oldId, newId: id };
     }
 

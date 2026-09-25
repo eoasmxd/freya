@@ -215,7 +215,7 @@ export default class FreyaWeixinChannelPlugin implements ChannelPlugin {
       }
     });
 
-    this.context.logger.debug("微信频道插件已成功初始化，等待冷启动装载会话缓存。");
+    this.context.logger.debug("WeChat channel plugin initialized, waiting for session cache restore.");
   }
 
   async start(ctx: FreyaContext): Promise<void> {
@@ -233,7 +233,7 @@ export default class FreyaWeixinChannelPlugin implements ChannelPlugin {
 
   async stop(ctx: FreyaContext): Promise<void> {
     for (const [accountId, state] of this.activeAccounts) {
-      ctx.logger.debug(`正在停用并移除微信账号 [${accountId}]...`);
+      ctx.logger.debug(`Deactivating and removing WeChat account [${accountId}]...`);
       state.running = false;
       state.abortController.abort();
       if (state.isLoggedIn && state.token && state.baseUrl) {
@@ -263,9 +263,9 @@ export default class FreyaWeixinChannelPlugin implements ChannelPlugin {
     try {
       await this.callWeixinApi(config, "ilink/bot/msg/notifystart", {}, undefined, state.baseUrl, state.token);
       this.startWeixinLoop(ctx, accountId, state);
-      ctx.logger.debug(`微信账号 [${accountId}] 登录态冷启动恢复成功，已开启长轮询。`);
+      ctx.logger.debug(`WeChat account [${accountId}] session restored, long polling started.`);
     } catch (err: any) {
-      ctx.logger.error(`微信账号 [${accountId}] 登录凭证冷启动恢复失败，连接已失效。请手动执行 \`/weixin login ${accountId}\` 重新扫码登录。`, err.message);
+      ctx.logger.error(`WeChat account [${accountId}] session restore failed. Please run \`/weixin login ${accountId}\` to scan QR code again.`, err.message);
       state.isLoggedIn = false;
     }
   }
@@ -290,7 +290,7 @@ export default class FreyaWeixinChannelPlugin implements ChannelPlugin {
       });
 
       this.pollWeixinQrStatus(ctx, accountId, config, qrcode).catch((err) => {
-        ctx.logger.error(`微信账号 [${accountId}] 后台监听扫码绑定失败:`, err.message);
+        ctx.logger.error(`WeChat account [${accountId}] background QR code polling failed:`, err.message);
       });
 
       return (
@@ -302,7 +302,7 @@ export default class FreyaWeixinChannelPlugin implements ChannelPlugin {
         `*(提示：若字符二维码未能正常显示或无法扫描，您可以直接点击 [打开微信二维码网页](${scanUrl}) 扫码绑定)*`
       );
     } catch (err: any) {
-      ctx.logger.error(`微信账号 [${accountId}] 拉取扫码登录失败:`, err.message);
+      ctx.logger.error(`WeChat account [${accountId}] failed to fetch QR code login:`, err.message);
       return `❌ 拉取微信登录二维码失败: ${err.message}`;
     }
   }
@@ -439,7 +439,7 @@ export default class FreyaWeixinChannelPlugin implements ChannelPlugin {
               }
             }
           } else if (res.errcode === -14 || res.ret === -14) {
-            ctx.logger.error(`微信账号 [${accountId}] 服务连接已失效 (ErrorCode -14)，自动注销缓存。请手动运行 \`/weixin login ${accountId}\` 重新扫码上线。`);
+            ctx.logger.error(`WeChat account [${accountId}] connection invalidated (ErrorCode -14), cache cleared. Please run \`/weixin login ${accountId}\` to re-login.`);
             state.isLoggedIn = false;
 
             const sessions = await this.loadWeixinSessions(ctx);
@@ -447,12 +447,12 @@ export default class FreyaWeixinChannelPlugin implements ChannelPlugin {
             await this.saveWeixinSessions(ctx, sessions);
             break;
           } else {
-            ctx.logger.warn(`微信账号 [${accountId}] 长轮询异常: errcode=${res.errcode}, ret=${res.ret}`);
+            ctx.logger.warn(`WeChat account [${accountId}] long polling exception: errcode=${res.errcode}, ret=${res.ret}`);
             await new Promise((resolve) => setTimeout(resolve, 5000));
           }
         } catch (err: any) {
           if (err.name === "AbortError") break;
-          ctx.logger.error(`微信账号 [${accountId}] 轮询网络异常:`, err.message);
+          ctx.logger.error(`WeChat account [${accountId}] polling network error:`, err.message);
           await new Promise((resolve) => setTimeout(resolve, 5000));
         }
       }
@@ -474,7 +474,7 @@ export default class FreyaWeixinChannelPlugin implements ChannelPlugin {
     let loginConfirmed = false;
     while (state.running && !loginConfirmed) {
       if (Date.now() - startTime > TIMEOUT_MS) {
-        ctx.logger.warn(`微信账号 [${accountId}] 扫码绑定超时（已监听超过 5 分钟），已自动停止监听。`);
+        ctx.logger.warn(`WeChat account [${accountId}] QR code polling timed out (>5 min), stopped listening.`);
         break;
       }
 
@@ -508,9 +508,9 @@ export default class FreyaWeixinChannelPlugin implements ChannelPlugin {
           await this.callWeixinApi(config, "ilink/bot/msg/notifystart", {}, undefined, state.baseUrl, state.token);
           this.startWeixinLoop(ctx, accountId, state);
           loginConfirmed = true;
-          ctx.logger.info(`微信账号 [${accountId}] 扫码绑定成功！长轮询已开启。`);
+          ctx.logger.info(`WeChat account [${accountId}] login bound successfully! Long polling started.`);
         } else if (res.status === "expired") {
-          ctx.logger.warn(`微信账号 [${accountId}] 登录二维码已失效过期，已停止监听。`);
+          ctx.logger.warn(`WeChat account [${accountId}] login QR code expired, stopped listening.`);
           break;
         } else {
           await new Promise((resolve, reject) => {
@@ -523,7 +523,7 @@ export default class FreyaWeixinChannelPlugin implements ChannelPlugin {
         }
       } catch (err: any) {
         if (err.name === "AbortError") break;
-        ctx.logger.error(`微信账号 [${accountId}] 监听扫码状态错误:`, err.message);
+        ctx.logger.error(`WeChat account [${accountId}] QR polling status error:`, err.message);
         await new Promise((resolve) => setTimeout(resolve, 5000));
       }
     }
@@ -569,7 +569,7 @@ export default class FreyaWeixinChannelPlugin implements ChannelPlugin {
       }
     } catch (err: any) {
       this.contextTokens.delete(connectionId);
-      this.context.logger.error(`向微信用户 [${chatId}] 发送消息失败:`, err.message);
+      this.context.logger.error(`Failed to send message to WeChat user [${chatId}]:`, err.message);
     }
   }
 
@@ -657,7 +657,7 @@ export default class FreyaWeixinChannelPlugin implements ChannelPlugin {
         mimeType
       };
     } catch (err: any) {
-      ctx.logger.error(`下载或解密微信媒体附件失败 [${fileName}]:`, err.message);
+      ctx.logger.error(`Failed to download or decrypt WeChat media attachment [${fileName}]:`, err.message);
       return undefined;
     }
   }

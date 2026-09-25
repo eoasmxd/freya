@@ -121,7 +121,7 @@ export class MysqlPoolManager {
         dateStrings: true
       });
       this.pools.set(connectionName, pool);
-      this.ctx.logger.info(`MySQL 连接池已创建: [${connectionName}] -> ${conf.user}@${conf.host}:${conf.port}/${conf.database || ''}`);
+      this.ctx.logger.info(`MySQL connection pool created: [${connectionName}] -> ${conf.user}@${conf.host}:${conf.port}/${conf.database || ''}`);
     }
 
     return { pool, config: conf };
@@ -143,9 +143,9 @@ export class MysqlPoolManager {
     for (const [name, pool] of this.pools.entries()) {
       try {
         await pool.end();
-        this.ctx.logger.info(`MySQL 连接池已释放: [${name}]`);
+        this.ctx.logger.info(`MySQL connection pool released: [${name}]`);
       } catch (err: any) {
-        this.ctx.logger.warn(`关闭 MySQL 连接池 [${name}] 时发生异常: ${err?.message || err}`);
+        this.ctx.logger.warn(`Error closing MySQL connection pool [${name}]: ${err?.message || err}`);
       }
     }
     this.pools.clear();

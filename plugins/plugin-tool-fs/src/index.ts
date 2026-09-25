@@ -19,9 +19,9 @@ export default class FsToolsPlugin implements ToolPlugin {
 
     try {
       await fs.mkdir(workspaceAbs, { recursive: true });
-      ctx.logger.info(`工作区目录已就绪: "${workspaceAbs}"`);
+      ctx.logger.info(`Workspace directory ready: "${workspaceAbs}"`);
     } catch (err: any) {
-      ctx.logger.error(`创建工作区目录失败: "${workspaceAbs}"`, err);
+      ctx.logger.error(`Failed to create workspace directory: "${workspaceAbs}"`, err);
     }
   }
 

@@ -10,7 +10,7 @@ export default class GeminiPlugin implements LLMPlugin {
 
   async setup(ctx: FreyaContext): Promise<void> {
     this.context = ctx;
-    this.context.logger.info('Gemini 模型插件初始化就绪。');
+    this.context.logger.info('Gemini model plugin initialized.');
   }
 
   async chat(
@@ -110,7 +110,7 @@ export default class GeminiPlugin implements LLMPlugin {
                 } catch { }
 
                 if (!fileExists) {
-                  this.context.logger.info(`正在异步下载远程附件并写入物理缓存 [${att.url}]...`);
+                  this.context.logger.info(`Downloading remote attachment to physical cache [${att.url}]...`);
                   const response = await fetch(att.url);
                   if (!response.ok) {
                     throw new Error(`HTTP 错误 ${response.status}`);
@@ -124,7 +124,7 @@ export default class GeminiPlugin implements LLMPlugin {
 
                 att.path = cacheRelPath;
               } catch (err: any) {
-                this.context.logger.error(`建立远程附件本地物理缓存失败 [${att.url}]:`, err.message);
+                this.context.logger.error(`Failed to cache remote attachment locally [${att.url}]:`, err.message);
               }
             }
 
@@ -144,7 +144,7 @@ export default class GeminiPlugin implements LLMPlugin {
                 const buffer = await fs.readFile(targetAbs);
                 base64Data = buffer.toString('base64');
               } catch (err: any) {
-                this.context.logger.error(`读取本地附件失败 [${att.path}]:`, err.message);
+                this.context.logger.error(`Failed to read local attachment [${att.path}]:`, err.message);
               }
             }
             if (base64Data) {

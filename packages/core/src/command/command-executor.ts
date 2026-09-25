@@ -49,7 +49,7 @@ export class FreyaCommandExecutor {
         this.context.eventBus.emit('session:reply:text', { sessionId, content: replyContent });
       }
     } catch (err: any) {
-      this.context.logger.error(`指令 /${commandName} 执行异常:`, err);
+      this.context.logger.error(`Error executing command /${commandName}:`, err);
       this.context.eventBus.emit('session:reply:error', {
         sessionId,
         message: `❌ 指令执行失败: ${err.message || err}`

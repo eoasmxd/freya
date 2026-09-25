@@ -49,7 +49,7 @@ export class FreyaAgentExecutor {
 
       const maxTurns = options?.maxTurns ?? 20;
       if (turnCount++ >= maxTurns) {
-        this.context.logger.warn(`会话 ${sessionId} 超出最大迭代决策轮数 (${maxTurns})，正在生成最终总结...`);
+        this.context.logger.warn(`Session ${sessionId} exceeded maximum iterations (${maxTurns}), generating final summary...`);
         const finalPayload: LLMMessage[] = [
           { role: 'system', content: systemPrompt },
           ...history,
@@ -65,7 +65,7 @@ export class FreyaAgentExecutor {
           billingContext: { ownerType: 'session', ownerId: sessionId },
           onModelSelected: (providerId: string, modelId: string) => {
             this.sessionManager.updateSession(sessionId, { providerId, modelId }).catch((err: any) => {
-              this.context.logger.error(`[FreyaAgentExecutor] 异步更新会话模型失败:`, err);
+              this.context.logger.error('[FreyaAgentExecutor] Failed to update session model asynchronously:', err);
             });
           }
         });
@@ -89,7 +89,7 @@ export class FreyaAgentExecutor {
         billingContext: { ownerType: 'session', ownerId: sessionId },
         onModelSelected: (providerId: string, modelId: string) => {
           this.sessionManager.updateSession(sessionId, { providerId, modelId }).catch((err: any) => {
-            this.context.logger.error(`[FreyaAgentExecutor] 异步更新会话模型失败:`, err);
+            this.context.logger.error('[FreyaAgentExecutor] Failed to update session model asynchronously:', err);
           });
         }
       });
@@ -105,7 +105,7 @@ export class FreyaAgentExecutor {
         const toolPromises = replyMessage.toolCalls.map(async (toolCall: any) => {
           const tool = tools.get(toolCall.name);
           if (!tool) {
-            this.context.logger.warn(`未注册的工具指令: ${toolCall.name}`);
+            this.context.logger.warn(`Unregistered tool call: ${toolCall.name}`);
             return {
               role: 'tool' as const,
               content: `Error: Tool "${toolCall.name}" not found.`,
@@ -118,7 +118,7 @@ export class FreyaAgentExecutor {
           try {
             args = JSON.parse(toolCall.arguments);
           } catch (parseErr: any) {
-            this.context.logger.error(`[FreyaAgentExecutor] 解析工具参数失败: ${toolCall.arguments}`, parseErr);
+            this.context.logger.error(`[FreyaAgentExecutor] Failed to parse tool arguments: ${toolCall.arguments}`, parseErr);
             this.context.eventBus.emit('tool:status', {
               sessionId,
               toolCallId: toolCall.id,
@@ -219,7 +219,7 @@ export class FreyaAgentExecutor {
     for (const id of activeToolboxIds) {
       if (!this.toolRegistry.isToolboxEnabled(id)) {
         deactivatedIds.push(id);
-        this.context.logger.info(`[FreyaAgentExecutor] 工具箱 [${id}] 已被全局禁用，自动从当前会话卸载。`);
+        this.context.logger.info(`[FreyaAgentExecutor] Toolbox [${id}] is globally disabled, automatically unmounted from session.`);
         continue;
       }
       const boxTools = this.toolRegistry.getToolsInBox(id);
@@ -232,7 +232,7 @@ export class FreyaAgentExecutor {
         const idleCount = (toolboxIdleRounds[id] ?? 0) + 1;
         if (idleCount >= threshold) {
           deactivatedIds.push(id);
-          this.context.logger.info(`[FreyaAgentExecutor] 工具箱 [${id}] 连续闲置达到 ${idleCount} 轮，已自动执行卸载。`);
+          this.context.logger.info(`[FreyaAgentExecutor] Toolbox [${id}] idle for ${idleCount} rounds, automatically unmounted.`);
         } else {
           nextToolboxIdleRounds[id] = idleCount;
           nextActiveToolboxIds.push(id);

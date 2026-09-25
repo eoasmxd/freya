@@ -46,7 +46,7 @@ export class SqlAuditService {
       this.cachedPrompt = content;
       return content;
     } catch (err: any) {
-      ctx.logger.error(`加载内置 SQL 审计提示词模板失败: ${packageDefaultPath}`, err);
+      ctx.logger.error(`Failed to load built-in SQL audit prompt template: ${packageDefaultPath}`, err);
       return '';
     }
   }
@@ -103,7 +103,7 @@ export class SqlAuditService {
         reason: `审查响应结构不符合预期: ${rawOutput}`
       };
     } catch (err: any) {
-      ctx.logger.error('前置 LLM SQL 审计过程发生异常', err);
+      ctx.logger.error('Error during pre-LLM SQL audit process:', err);
       return {
         passed: false,
         reason: `SQL 安全审查服务调用失败: ${err?.message || err}`

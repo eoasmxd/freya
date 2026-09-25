@@ -65,7 +65,7 @@ export class FreyaPluginManager {
     ctx: FreyaContext
   ): Promise<FreyaPlugin> {
     const fileUrl = pathToFileURL(pluginPath).toString();
-    ctx.logger.info(`正在加载插件模块: ${pluginPath}`);
+    ctx.logger.debug(`Loading plugin module: ${pluginPath}`);
 
     const module = await import(fileUrl);
     const PluginClass = module.default || module.Plugin;
@@ -98,7 +98,7 @@ export class FreyaPluginManager {
       }
     }
 
-    ctx.logger.info(`插件组件挂载成功: ${plugin.name} (ID: ${plugin.id})`);
+    ctx.logger.info(`Plugin mounted successfully: ${plugin.name} (${plugin.id})`);
     return plugin;
   }
 
@@ -108,12 +108,12 @@ export class FreyaPluginManager {
    */
   async setupAndStartAll(ctx: FreyaContext): Promise<void> {
     for (const plugin of this.plugins.values()) {
-      ctx.logger.debug(`正在初始化插件: ${plugin.name}`);
+      ctx.logger.debug(`Initializing plugin: ${plugin.name}`);
       await plugin.setup(ctx);
     }
     for (const plugin of this.plugins.values()) {
       if (plugin.start) {
-        ctx.logger.debug(`正在启动插件: ${plugin.name}`);
+        ctx.logger.debug(`Starting plugin: ${plugin.name}`);
         await plugin.start(ctx);
       }
     }
@@ -126,7 +126,7 @@ export class FreyaPluginManager {
   async stopAll(ctx: FreyaContext): Promise<void> {
     for (const plugin of this.plugins.values()) {
       if (plugin.stop) {
-        ctx.logger.debug(`正在停止插件: ${plugin.name}`);
+        ctx.logger.debug(`Stopping plugin: ${plugin.name}`);
         await plugin.stop(ctx);
       }
     }
@@ -196,12 +196,12 @@ export class FreyaPluginManager {
           }
           this.pluginRegistry.register(loadedPlugin, this.ctx);
           this.plugins.set(pluginId, loadedPlugin);
-          this.ctx.logger.info(`[FreyaPluginManager] 插件 "${pluginId}" 热激活成功。`);
+          this.ctx.logger.info(`[FreyaPluginManager] Plugin "${pluginId}" hot activated successfully.`);
         } catch (err: any) {
           entry.status = 'error';
           entry.valid = false;
           entry.errorReason = `热激活载入代码失败: ${err.message}`;
-          this.ctx.logger.error(`[FreyaPluginManager] 插件 "${pluginId}" 热激活失败:`, err.message);
+          this.ctx.logger.error(`[FreyaPluginManager] Failed to hot activate plugin "${pluginId}":`, err.message);
           return `❌ 插件 "${pluginId}" 开启失败: ${err.message}`;
         }
       }
@@ -222,9 +222,9 @@ export class FreyaPluginManager {
           }
 
           this.plugins.delete(pluginId);
-          this.ctx.logger.info(`[FreyaPluginManager] 插件 "${pluginId}" 热停用成功并移除挂载。`);
+          this.ctx.logger.info(`[FreyaPluginManager] Plugin "${pluginId}" hot deactivated and unmounted successfully.`);
         } catch (err: any) {
-          this.ctx.logger.error(`[FreyaPluginManager] 插件 "${pluginId}" 卸载时异常:`, err.message);
+          this.ctx.logger.error(`[FreyaPluginManager] Error unmounting plugin "${pluginId}":`, err.message);
         }
       }
     }
@@ -492,7 +492,7 @@ export class FreyaPluginManager {
       configList = JSON.parse(raw);
       if (!Array.isArray(configList)) configList = [];
     } catch {
-      ctx.logger.info('config/plugins.json 未读取到现有配置，将自动进行扫描初始化。');
+      ctx.logger.info('No existing configuration in config/plugins.json, initiating auto-scan initialization.');
       configList = [];
     }
 
@@ -506,7 +506,7 @@ export class FreyaPluginManager {
     }
 
     const discovered = await this.scanAllChannels(configuredIds);
-    ctx.logger.info(`三通道共扫描检测到 ${discovered.length} 个插件模块。`);
+    ctx.logger.info(`Discovered ${discovered.length} plugin modules across cascading scan paths.`);
 
     this.pluginPaths.clear();
     this.pluginPrompts.clear();
@@ -561,10 +561,10 @@ export class FreyaPluginManager {
       await fs.mkdir(path.dirname(configPluginsPath), { recursive: true });
       await fs.writeFile(configPluginsPath, JSON.stringify(rawToPersist, null, 2) + '\n', 'utf-8');
       if (configChanged) {
-        ctx.logger.info('插件控制配置 plugins.json 已完成更新落地。');
+        ctx.logger.info('Plugin configuration plugins.json updated and persisted.');
       }
     } catch (err: any) {
-      ctx.logger.error('持久化写入 plugins.json 出现异常:', err.message);
+      ctx.logger.error('Error persisting plugins.json:', err.message);
     }
 
     this.pluginEntries = finalEntries;
@@ -572,7 +572,7 @@ export class FreyaPluginManager {
     for (const entry of finalEntries) {
       if (!entry.enabled || !entry.valid) {
         if (entry.enabled && !entry.valid) {
-          ctx.logger.warn(`插件 "${entry.id}" 已使能，但诊断未通过: ${entry.errorReason}`);
+          ctx.logger.warn(`Plugin "${entry.id}" is enabled but failed diagnostics: ${entry.errorReason}`);
         }
         continue;
       }
@@ -594,7 +594,7 @@ export class FreyaPluginManager {
         entry.valid = false;
         entry.status = 'error';
         entry.errorReason = `载入运行失败: ${err.message}`;
-        ctx.logger.error(`插件 "${entry.id}" 实例化抛错: ${err.message}`);
+        ctx.logger.error(`Error instantiating plugin "${entry.id}": ${err.message}`);
       }
     }
   }

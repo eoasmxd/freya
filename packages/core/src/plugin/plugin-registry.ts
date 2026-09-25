@@ -35,7 +35,7 @@ export class FreyaPluginRegistry {
           break;
         }
         default: {
-          ctx.logger.warn(`未知类型的能力试图注册: ${plugin.name} (ID: ${plugin.id}, Type: ${type})`);
+          ctx.logger.warn(`Attempting to register unknown capability type: ${plugin.name} (ID: ${plugin.id}, Type: ${type})`);
         }
       }
     }

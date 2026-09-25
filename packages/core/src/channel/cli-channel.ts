@@ -58,7 +58,7 @@ export class FreyaCliChannel {
         });
 
         this.rl.on('close', () => {
-            ctx.logger.info('[CliChannel] 频道关闭。');
+            ctx.logger.info('[CliChannel] Channel closed.');
         });
 
         this.promptUser();

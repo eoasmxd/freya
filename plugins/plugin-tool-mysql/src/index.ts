@@ -21,7 +21,7 @@ export default class MysqlToolsPlugin implements ToolPlugin {
     ];
 
     const available = this.poolManager.getAvailableConnectionNames();
-    ctx.logger.info(`MySQL 工具箱插件初始化就绪，已注册连接: [${available.join(', ') || '暂未配置'}]`);
+    ctx.logger.info(`MySQL toolbox plugin initialized, registered connections: [${available.join(', ') || 'none'}]`);
   }
 
   getId(): string {
@@ -39,7 +39,7 @@ export default class MysqlToolsPlugin implements ToolPlugin {
   async stop(ctx: FreyaContext): Promise<void> {
     if (this.poolManager) {
       await this.poolManager.closeAll();
-      ctx.logger.info('MySQL 工具箱连接资源已全部释放。');
+      ctx.logger.info('MySQL toolbox connection resources fully released.');
     }
   }
 }

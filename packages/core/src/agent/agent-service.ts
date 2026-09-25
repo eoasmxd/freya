@@ -33,7 +33,7 @@ export class FreyaAgentService {
       queue.push(message);
 
       this.processQueue(message.sessionId).catch((err) => {
-        this.context.logger.error('AgentService 消息队列处理异常:', err);
+        this.context.logger.error('AgentService message queue processing error:', err);
       });
     });
 
@@ -43,7 +43,7 @@ export class FreyaAgentService {
       const controller = this.abortControllers.get(payload.sessionId);
       if (controller) {
         controller.abort();
-        this.context.logger.warn(`[AgentService] 已打断会话 ${payload.sessionId} 的生成流。`);
+        this.context.logger.warn(`[AgentService] Interrupted generation stream for session ${payload.sessionId}.`);
         this.abortControllers.delete(payload.sessionId);
       }
 
@@ -53,7 +53,7 @@ export class FreyaAgentService {
           this.abortControllers.delete(key);
           const subSessionId = key.substring(`${payload.sessionId}_sub_`.length);
           this.sessionManager.updateSession(subSessionId, { status: 'failed', durationMs: 0 }).catch(() => { });
-          this.context.logger.warn(`[AgentService] 已级联打断子智能体会话 ${subSessionId}`);
+          this.context.logger.warn(`[AgentService] Cascadely interrupted subagent session ${subSessionId}.`);
         }
       }
     });
@@ -76,7 +76,7 @@ export class FreyaAgentService {
         try {
           await this.run(message);
         } catch (err) {
-          this.context.logger.error(`[AgentService] 执行会话 ${sessionId} 出错:`, err);
+          this.context.logger.error(`[AgentService] Error executing session ${sessionId}:`, err);
         }
       }
     } finally {
@@ -180,7 +180,7 @@ export class FreyaAgentService {
           }
 
           if (recentMediaMessages.length > 0) {
-            this.context.logger.info(`检测到 10 分钟内存在 ${recentMediaMessages.length} 条历史媒体消息，触发二次归纳优化描述...`);
+            this.context.logger.info(`Detected ${recentMediaMessages.length} historical media messages within 10 minutes, optimizing descriptions...`);
             const secondaryContext = {
               prevUserText: prevText,
               currentUserText: currentText
@@ -254,7 +254,7 @@ export class FreyaAgentService {
     } catch (err: any) {
       this.abortControllers.delete(message.sessionId);
       if (err.name === 'AbortError') {
-        this.context.logger.warn(`会话 ${message.sessionId} 因用户取消已中止生成流。`);
+        this.context.logger.warn(`Session ${message.sessionId} generation aborted by user.`);
         if (partialResponse.trim()) {
           await this.sessionManager.appendMessage(message.sessionId, {
             role: 'assistant',
@@ -263,7 +263,7 @@ export class FreyaAgentService {
         }
         this.context.eventBus.emit('session:reply:completed', { sessionId: message.sessionId });
       } else {
-        this.context.logger.error('执行对话流处理出错:', err);
+        this.context.logger.error('Error processing chat stream:', err);
         this.context.eventBus.emit('session:reply:error', { sessionId: message.sessionId, message: `❌ 【内核执行出错】${err.message || '未知故障'}` });
         this.context.eventBus.emit('session:reply:completed', { sessionId: message.sessionId });
       }

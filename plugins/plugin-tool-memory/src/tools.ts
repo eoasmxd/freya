@@ -168,7 +168,7 @@ export class AddMemoryTool implements FreyaTool {
       }
       await writeIndex(dataDir, indexData);
 
-      ctx.logger.debug(`[add_memory] 成功写入多文件记忆: [${id}] keywords=${JSON.stringify(args.keywords)}`);
+      ctx.logger.debug(`[add_memory] Successfully written memory: [${id}] keywords=${JSON.stringify(args.keywords)}`);
       return `ℹ️ 记忆保存成功！(ID: ${id}, 日期: ${date})`;
     } catch (err: any) {
       return handleMemoryError('保存记忆', err, ctx);
@@ -304,7 +304,7 @@ export class DeleteMemoryTool implements FreyaTool {
       }
       await writeIndex(dataDir, indexData);
 
-      ctx.logger.debug(`[delete_memory] 成功从物理多文件中擦除记忆: [${args.id}]`);
+      ctx.logger.debug(`[delete_memory] Successfully purged memory from disk: [${args.id}]`);
       return `ℹ️ ID 为 "${args.id}" 的长期记忆已被成功删除，索引已同步修剪。`;
     } catch (err: any) {
       return handleMemoryError('删除记忆', err, ctx);

@@ -73,9 +73,9 @@ export class FreyaSkillRegistry {
       }
 
       const enabledCount = Array.from(this.skills.values()).filter((s) => s.enabled).length;
-      context.logger.info(`动态技能扫描完成。共加载 ${this.skills.size} 个物理技能 (已启用: ${enabledCount})。`);
+      context.logger.info(`Dynamic skill scan completed. Loaded ${this.skills.size} physical skills (${enabledCount} enabled).`);
     } catch (err: any) {
-      context.logger.error('扫描物理技能 skills 目录遭遇故障:', err);
+      context.logger.error('Failed to scan physical skills directory:', err);
     }
   }
 
@@ -111,7 +111,7 @@ export class FreyaSkillRegistry {
         }
       }
     } catch (err) {
-      context.logger.warn(`扫描技能目录失败: ${dirPath}`, err);
+      context.logger.warn(`Failed to scan skill directory: ${dirPath}`, err);
     }
   }
 
@@ -158,7 +158,7 @@ export class FreyaSkillRegistry {
     const configSkillsPath = path.join(FREYA_HOME, 'config', 'skills.json');
     try {
       await this.persistSkillsConfig(configSkillsPath);
-      this.context?.logger.info(`技能 "${skill.name || skillId}" 已切换为: ${enabled ? '启用' : '禁用'}`);
+      this.context?.logger.info(`Skill "${skill.name || skillId}" status changed to: ${enabled ? 'enabled' : 'disabled'}`);
       return `✅ 技能 "${skill.name || skillId}" 已成功${enabled ? '启用' : '禁用'}。`;
     } catch (err: any) {
       return `❌ 技能状态变更成功，但写入 skills.json 失败: ${err.message}`;

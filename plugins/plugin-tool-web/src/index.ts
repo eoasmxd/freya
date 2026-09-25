@@ -20,7 +20,7 @@ export default class WebToolboxPlugin implements ToolPlugin {
     }
 
     async setup(ctx: FreyaContext): Promise<void> {
-        ctx.logger.info('Web 网络工具箱插件初始化就绪。');
+        ctx.logger.info('Web network toolbox plugin initialized.');
     }
 
     getId(): string {

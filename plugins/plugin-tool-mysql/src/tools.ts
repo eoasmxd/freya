@@ -99,7 +99,7 @@ export class MysqlQueryTool implements FreyaTool {
       }, null, 2);
     } catch (err: any) {
       const safeMessage = sanitizeErrorMessage(err, currentPassword);
-      ctx.logger.error(`MySQL 查询执行异常: ${safeMessage}`);
+      ctx.logger.error(`MySQL query execution error: ${safeMessage}`);
       return `❌ MySQL 查询执行失败: ${safeMessage}`;
     }
   }

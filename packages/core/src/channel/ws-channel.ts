@@ -53,12 +53,12 @@ export class FreyaWsChannel {
             const acceptLang = String(req.headers['accept-language'] || '').toLowerCase();
             const defaultLanguage = acceptLang.includes('zh') ? 'zh' : 'en';
 
-            ctx.logger.info(`[WsChannel] 物理连接上线，分配临时 ID: ${tempConnId}`);
+            ctx.logger.info(`[WsChannel] Connection established, assigned temporary ID: ${tempConnId}`);
             this.connections.add(ws);
 
             const pingTimer = setInterval(() => {
                 if (Date.now() - meta.lastPongTime > PING_INTERVAL_MS * 2) {
-                    ctx.logger.warn(`[WsChannel] 连接心跳超时，强制终止，连接ID: ${meta.connId}`);
+                    ctx.logger.warn(`[WsChannel] Connection heartbeat timed out, terminating connection ID: ${meta.connId}`);
                     ws.terminate();
                     return;
                 }
@@ -135,21 +135,21 @@ export class FreyaWsChannel {
                         };
                         ctx.eventBus.emit('connection:message', messagePayload);
                     } else if (payload.event === 'client:interrupt') {
-                        ctx.logger.info(`[WsChannel] 收到中断生成指令，会话 ID: ${payload.data?.sessionId}`);
+                        ctx.logger.info(`[WsChannel] Received interrupt generation signal for session: ${payload.data?.sessionId}`);
                         ctx.eventBus.emit('session:interrupt', payload.data);
                     }
                 } catch (err) {
-                    ctx.logger.error('[WsChannel] 解析客户端消息失败:', err);
+                    ctx.logger.error('[WsChannel] Failed to parse client message:', err);
                 }
             });
 
             ws.on('close', () => {
-                ctx.logger.info(`[WsChannel] 物理连接断开，ID: ${meta.connId}`);
+                ctx.logger.info(`[WsChannel] Connection closed, ID: ${meta.connId}`);
                 this.cleanupConnection(ctx, meta);
             });
 
             ws.on('error', () => {
-                ctx.logger.debug(`[WsChannel] 连接异常，ID: ${meta.connId}`);
+                ctx.logger.debug(`[WsChannel] Connection error, ID: ${meta.connId}`);
             });
         });
     }
@@ -160,7 +160,7 @@ export class FreyaWsChannel {
 
         const oldMeta = this.wsMetaMap.get(stableConnId);
         if (oldMeta && oldMeta.ws !== meta.ws) {
-            ctx.logger.info(`[WsChannel] 发现挂起的旧物理连接，强制物理释放资源...`);
+            ctx.logger.info('[WsChannel] Stale connection detected, releasing resources...');
             if (oldMeta.pingTimer) {
                 clearInterval(oldMeta.pingTimer);
             }
@@ -190,7 +190,7 @@ export class FreyaWsChannel {
             defaultLanguage: meta.defaultLanguage
         });
 
-        ctx.logger.info(`[WsChannel] 客户端断线重连成功，clientId: ${clientId}, 连接ID: ${stableConnId}`);
+        ctx.logger.info(`[WsChannel] Client reconnected successfully, clientId: ${clientId}, connectionId: ${stableConnId}`);
 
         if (meta.ws.readyState === WebSocket.OPEN) {
             meta.ws.send(JSON.stringify({
@@ -264,7 +264,7 @@ export class FreyaWsChannel {
                         data: { role: 'assistant', text: payload.content }
                     }));
                 } catch (err: any) {
-                    this.ctx?.logger.error(`[WsChannel] 发送 server:reply 失败: ${err.message}`);
+                    this.ctx?.logger.error(`[WsChannel] Failed to send server:reply: ${err.message}`);
                 }
             }
         }
@@ -280,7 +280,7 @@ export class FreyaWsChannel {
                         data: { role: 'assistant', text: payload.text }
                     }));
                 } catch (err: any) {
-                    this.ctx?.logger.error(`[WsChannel] 发送 server:delta 失败: ${err.message}`);
+                    this.ctx?.logger.error(`[WsChannel] Failed to send server:delta: ${err.message}`);
                 }
             }
         }
@@ -296,7 +296,7 @@ export class FreyaWsChannel {
                         data: payload.data
                     }));
                 } catch (err: any) {
-                    this.ctx?.logger.error(`[WsChannel] 发送自定义事件 ${payload.event} 失败: ${err.message}`);
+                    this.ctx?.logger.error(`[WsChannel] Failed to send custom event ${payload.event}: ${err.message}`);
                 }
             }
         }
@@ -312,7 +312,7 @@ export class FreyaWsChannel {
                         data: {}
                     }));
                 } catch (err: any) {
-                    this.ctx?.logger.error(`[WsChannel] 发送 server:completed 失败: ${err.message}`);
+                    this.ctx?.logger.error(`[WsChannel] Failed to send server:completed: ${err.message}`);
                 }
             }
         }

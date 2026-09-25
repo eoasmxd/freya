@@ -40,7 +40,7 @@ export class FreyaSessionPersistence {
             return list;
         } catch (err: any) {
             if (err.code !== 'ENOENT') {
-                this.logger?.error('加载 sessions.json 索引文件失败:', err);
+                this.logger?.error('Failed to load session index sessions.json:', err);
             }
             return [];
         }
@@ -68,7 +68,7 @@ export class FreyaSessionPersistence {
             await fs.mkdir(path.dirname(INDEX_FILE), { recursive: true });
             await fs.writeFile(INDEX_FILE, JSON.stringify(list, null, 2), 'utf-8');
         } catch (err) {
-            this.logger?.error('保存 sessions.json 索引失败:', err);
+            this.logger?.error('Failed to save session index sessions.json:', err);
         }
     }
 
@@ -82,7 +82,7 @@ export class FreyaSessionPersistence {
             };
             await fs.writeFile(sessionFileByUuid(session.uuid), JSON.stringify(data, null, 2), 'utf-8');
         } catch (err) {
-            this.logger?.error(`保存会话数据文件 ${session.uuid}/session.json 失败:`, err);
+            this.logger?.error(`Failed to save session data file ${session.uuid}/session.json:`, err);
         }
     }
 
@@ -103,7 +103,7 @@ export class FreyaSessionPersistence {
             };
         } catch (err: any) {
             if (err.code !== 'ENOENT') {
-                this.logger?.error(`读取会话数据文件 ${uuid}/session.json 失败:`, err);
+                this.logger?.error(`Failed to read session data file ${uuid}/session.json:`, err);
             }
             return { history: [], lastSnapshotId: null };
         }

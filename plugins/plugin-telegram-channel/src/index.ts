@@ -152,16 +152,16 @@ export default class TelegramChannelPlugin implements ChannelPlugin {
 
         this.syncTimer = setInterval(() => {
             this.syncBots(ctx).catch((err) => {
-                ctx.logger.error("Telegram 机器人热重载同步失败:", err.message);
+                ctx.logger.error("Telegram bot hot reload sync failed:", err.message);
             });
         }, 5000);
 
-        ctx.logger.info(`Telegram 频道插件初始化完成，已发现 ${this.bots.length} 个机器人配置，热更新服务就绪。`);
+        ctx.logger.info(`Telegram channel plugin initialized, found ${this.bots.length} bot configurations, hot reload ready.`);
     }
 
     async start(ctx: FreyaContext): Promise<void> {
         if (this.bots.length === 0) {
-            ctx.logger.warn("Telegram 机器人配置未检测到，将等待心跳同步。");
+            ctx.logger.warn("No Telegram bot configuration detected, waiting for heartbeat sync.");
             return;
         }
 
@@ -180,7 +180,7 @@ export default class TelegramChannelPlugin implements ChannelPlugin {
 
             await this.callApi(token, "deleteWebhook", { drop_pending_updates: true }).catch(() => { });
             this.startSingleBotLoop(ctx, botId, state);
-            ctx.logger.info(`Telegram 机器人 [${botId}] 轮询服务已拉起。`);
+            ctx.logger.info(`Telegram bot [${botId}] polling service started.`);
         }
     }
     private startSingleBotLoop(
@@ -288,7 +288,7 @@ export default class TelegramChannelPlugin implements ChannelPlugin {
                 } catch (err) {
                     if (!state.running) break;
                     const message = err instanceof Error ? err.message : String(err);
-                    ctx.logger.error(`Telegram 机器人 [${botId}] 轮询出错（将在 ${retryDelay / 1000} 秒后重试）:`, message);
+                    ctx.logger.error(`Telegram bot [${botId}] polling error (retrying in ${retryDelay / 1000}s):`, message);
                     await new Promise((resolve) => setTimeout(resolve, retryDelay));
 
                     // 指数退避：每次失败翻倍，最大为 5 分钟 (300,000 毫秒)
@@ -296,7 +296,7 @@ export default class TelegramChannelPlugin implements ChannelPlugin {
                     retryDelay = Math.min(retryDelay * 2, 5 * 60 * 1000);
                 }
             }
-            ctx.logger.info(`Telegram 机器人 [${botId}] 轮询循环已安全结束。`);
+            ctx.logger.info(`Telegram bot [${botId}] polling loop ended safely.`);
         })();
     }
     private async syncBots(ctx: FreyaContext): Promise<void> {
@@ -310,7 +310,7 @@ export default class TelegramChannelPlugin implements ChannelPlugin {
                 active.running = false;
                 active.abortController.abort();
                 this.activeBots.delete(botId);
-                ctx.logger.info(`[Telegram热更新] 成功热停用机器人: ${botId}`);
+                ctx.logger.info(`[Telegram Hot Reload] Hot deactivated bot: ${botId}`);
 
                 for (const connectionId of this.registeredConnections) {
                     if (connectionId.startsWith(`telegram:${botId}:`)) {
@@ -337,7 +337,7 @@ export default class TelegramChannelPlugin implements ChannelPlugin {
 
                 await this.callApi(token, "deleteWebhook", { drop_pending_updates: true }).catch(() => { });
                 this.startSingleBotLoop(ctx, botId, state);
-                ctx.logger.info(`[Telegram热更新] 成功热连接拉起新机器人: ${botId}`);
+                ctx.logger.info(`[Telegram Hot Reload] Hot connected and started new bot: ${botId}`);
             }
         }
 
@@ -353,7 +353,7 @@ export default class TelegramChannelPlugin implements ChannelPlugin {
         for (const [botId, state] of this.activeBots.entries()) {
             state.running = false;
             state.abortController.abort();
-            ctx.logger.info(`Telegram 机器人 [${botId}] 轮询线程已中止。`);
+            ctx.logger.info(`Telegram bot [${botId}] polling thread terminated.`);
         }
         this.activeBots.clear();
 
@@ -361,7 +361,7 @@ export default class TelegramChannelPlugin implements ChannelPlugin {
             ctx.eventBus.emit('connection:inactive', { connectionId });
         }
         this.registeredConnections.clear();
-        ctx.logger.info("Telegram 频道插件已彻底停止所有服务。");
+        ctx.logger.info("Telegram channel plugin stopped all services.");
     }
 
     private async sendToChat(botId: string, chatId: string, text: string): Promise<void> {

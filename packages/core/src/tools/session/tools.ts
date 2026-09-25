@@ -294,7 +294,7 @@ export class SpawnSubagentTool implements FreyaTool {
     const parentSessionId = args.__sessionId || 'unknown_parent';
     const childSessionId = `${parentSessionId}_sub_${Date.now()}`;
 
-    ctx.logger.info(`[SubagentTool] 派生子会话任务: 父会话 "${parentSessionId}" -> 子会话 "${childSessionId}"`);
+    ctx.logger.info(`[SubagentTool] Spawning subagent task: parent "${parentSessionId}" -> child "${childSessionId}"`);
     return await this.agentService.runSubAgent(parentSessionId, childSessionId, args.prompt, args);
   }
 }
