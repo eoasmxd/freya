@@ -1,121 +1,125 @@
-# AGENTS.md — Freya AI Agent 行为规范
+# AGENTS.md — Freya AI Agent Guidelines
 
-面向在 Freya 仓库中工作的 AI 编程助手（Codex、Claude、Copilot 等）的行为准则。
+Behavioral guidelines for AI programming assistants (Codex, Claude, Copilot, etc.) working in the Freya repository.
 
-## 语言与交互
+## Language and Interaction
 
-- 所有代码注释、文档、提交信息均使用 **中文**。
-- 代码中的用户可见文本（日志、提示、UI）使用中文。
+- **Development Language & Internal Text**: Code must be written in **English**. Internal and non-user-facing text (e.g., logger outputs, internal exceptions, low-level trace information) defaults to English.
+- **Code Comments**: Comments for core interfaces, classes, methods, and critical algorithms must be written in **bilingual (Chinese and English)** format.
+- **User-Facing Text and Internationalization (I18n)**:
+  - All user-facing text (UI interactions, CLI prompts, client error messages, configuration schema names and descriptions, etc.) **must be integrated into the I18n** system; hardcoding is strictly prohibited.
+  - Internationalization uses **English (`en`)** as the code baseline and default fallback, while synchronously maintaining language dictionaries (such as Chinese `zh`) in `locales/`.
+- **Prompts & Skills**:
+  - Physical AI prompt templates use **English** for baseline files without language suffixes (e.g., `*.prompt.<name>.md`), and localized versions use language-suffixed filenames (e.g., `*.prompt.<name>.zh.md`).
 
-## 项目架构
+## Project Architecture
 
-Freya 采用轻量级的 Monorepo 结构进行管理。需要特别注意：**系统运行时默认以用户主目录下的 `~/.freya/` 作为配置与持久化存储主目录**（若定义了 `FREYA_HOME` 环境变量，则以该绝对路径为基准），以使运行时脏数据与代码仓库目录安全物理隔离。
+Freya is organized as a lightweight Monorepo. Note: **The system runtime defaults to `~/.freya/` under the user's home directory as the primary directory for configuration and persistent storage** (or the absolute path defined by the `FREYA_HOME` environment variable), isolating runtime data from the code repository.
 
-### 仓库源码与物理分发结构
+### Repository Source & Distribution Structure
 ```
 freya/
 ├── packages/
-│   ├── core/       # 后端单服务核心
-│   ├── sdk/        # 插件开发标准 SDK
-│   └── ui/         # 独立前端 Web 交互页面
-├── plugins/        # 插件根目录
-└── skills/         # 动态扫描加载的技能卡 Markdown 目录
+│   ├── core/       # Backend single-service core
+│   ├── sdk/        # Standard SDK for plugin development
+│   └── ui/         # Standalone frontend Web UI
+├── plugins/        # Plugins root directory
+└── skills/         # Dynamically scanned and loaded skill Markdown directory
 ```
 
-### 运行时沙箱与持久化数据结构
+### Runtime Sandbox & Persistent Data Structure
 ```
-~/.freya/           # 运行时主目录 (默认创建于用户主目录下)
-├── config/         # 运行时用户配置与覆盖提示词目录 (freya.json, IDENTITY.md 等)
-├── data/           # 运行时持久化数据目录 (sessions/, memories.json, memories/ 长期记忆)
-└── workspace/      # 宿主与大模型交互隔离的文件读写沙箱 (download/ 网页大响应保存区)
+~/.freya/           # Runtime home directory (created in user home by default)
+├── config/         # User configuration and prompt override directory (freya.json, IDENTITY.md, etc.)
+├── data/           # Persistent runtime data directory (sessions/, memories.json, memories/ long-term memory)
+└── workspace/      # Isolated file read/write sandbox for model interactions (download/ for large web responses)
 ```
 
-### 依赖边界（硬约束）
+### Dependency Boundaries (Hard Constraints)
 
-- **插件只能依赖 `@eoasmxd/freya-sdk`**，绝对禁止直接导入 `@eoasmxd/freya-core` 的内部实现。
-- **内核不依赖任何插件**，内核负责生命周期管理、插件加载与路由、事件总线，并内建 CLI/WebSocket 双通道及配置与会话管理基础工具集。
-- **单向依赖链**：`plugins` → `@eoasmxd/freya-sdk` ← `@eoasmxd/freya-core`
+- **Plugins may only depend on `@eoasmxd/freya-sdk`**; directly importing internal implementations of `@eoasmxd/freya-core` is strictly forbidden.
+- **Core does not depend on any plugins**. Core handles lifecycle management, plugin loading and routing, the event bus, and provides built-in CLI/WebSocket dual channels along with configuration and session management utilities.
+- **Unidirectional Dependency Chain**: `plugins` → `@eoasmxd/freya-sdk` ← `@eoasmxd/freya-core`
 
-### 事件驱动通信
+### Event-Driven Communication
 
-- 内核与插件之间不采用直接方法调用，统一通过进程内 EventEmitter 发布/订阅异步事件。
-- 核心事件模式：
-  - `connection:reply` / `connection:message` → 统一连接管理器与各通道插件间收发消息
-  - `token:consumed` → 计费组件 / WSS 推送账单
+- Core and plugins do not use direct method calls; they communicate asynchronously via an in-process EventEmitter publish/subscribe model.
+- Core event patterns:
+  - `connection:reply` / `connection:message` → Unified connection manager exchanges messages with channel plugins
+  - `token:consumed` → Billing component / WSS push bill
 
-## 编码规范
+## Coding Standards
 
-### 零硬编码提示词（Zero Hardcoded Prompt）
+### Zero Hardcoded Prompts
 
-- `packages/core` 及任何插件的 TypeScript 源码中，**绝对不允许**硬编码中文自然语言提示词或兜底文本。
-- 所有提示词模板必须放在物理 Markdown 文件中（如 `packages/core/config/prompts/`）。
-- 提示词模板在启动时通过三层级联探针机制（Cascading Read: FREYA_HOME -> FREYA_LAUNCH -> FREYA_APP）优先读取运行时与宿主启动目录 `config/` 目录，若不存在则回退加载包内默认配置入内存，仅在用户显式编辑保存时落盘写入 `FREYA_HOME/config/` 目录。
-- 其它配置文件（`freya.json`、`plugins.json`、`providers.json`）不走拷贝机制，而是分别通过 Schema 声明合并、目录扫描合并、空初始化生成。
-- 如果提示词注册表返回空，代码只能保持空字符串 `''` 或使用纯变量占位符（如 `'{text}'`），不得使用硬编码兜底文案。
+- In TypeScript source code across `packages/core` and any plugin, hardcoding any natural language prompts or fallback text is **strictly prohibited**.
+- All prompt templates must reside in physical Markdown files (e.g., `packages/core/config/prompts/`). Suffix-less template files (e.g., `core.prompt.identity.md`) serve as the English baseline, while localized versions use language suffixes (e.g., `core.prompt.identity.zh.md`).
+- Prompt templates are loaded during startup and runtime via a three-tier cascading probe (Cascading Read: FREYA_HOME -> FREYA_LAUNCH -> FREYA_APP) that prioritizes templates matching the current environment language suffix, smoothly falling back to the English baseline template when not found. If neither exists, packaged default configurations are loaded into memory and written to disk under `FREYA_HOME/config/` only when explicitly saved by the user.
+- Other configuration files (`freya.json`, `plugins.json`, `providers.json`) do not use file copying; they are generated via Schema declaration merge, directory scan merge, or empty initialization respectively.
+- If the prompt registry returns empty, code must keep an empty string `''` or use pure variable placeholders (such as `'{text}'`), never hardcoded fallback copy.
 
+### Path Hierarchy & Configuration Separation (Three-Tier Model)
 
-### 路径体系与配置分离（三层模型）
+- **FREYA_APP (Application Root Directory)**: Read-only physical installation root directory, containing the core engine, UI static assets, fully aggregated source (`src/` in release state), and official built-in plugins/skills.
+- **FREYA_LAUNCH (Host Launch Directory)**: The execution directory where the host command is triggered, defaulting to `process.cwd()`. The system scans `plugins/` and `skills/` under this directory during startup for host-level business extensions.
+- **FREYA_HOME (Runtime Data Directory)**: Root directory for user persistent configurations and runtime data, located at `~/.freya/` by default (`/data/` in Docker). It contains user-specific `config/`, `data/` (sessions and long-term memory), agent-dedicated read/write `workspace/`, and user-defined `skills/` and `plugins/`.
+- **Dynamic Scanning & Merging**: Upon system startup, Plugins and Skills are automatically discovered and loaded via three-tier cascading: `FREYA_APP` (built-in) -> `FREYA_LAUNCH` (host extension) -> `FREYA_HOME` (user custom).
 
-- **FREYA_APP（程序根目录）**：程序代码物理安装根目录，只读，包含引擎核心、UI 静态资源、全量聚合源码（发布态 `src/`）及官方内置 plugins/skills。
-- **FREYA_LAUNCH（宿主启动目录）**：宿主命令发起启动执行目录，默认为 `process.cwd()`。系统在启动时会扫描此目录下的 `plugins/` 与 `skills/` 进行就近业务层扩展。
-- **FREYA_HOME（运行时数据目录）**：用户持久化配置与运行态数据主目录，默认位于 `~/.freya/`（Docker 中为 `/data/`），包含用户个性化 `config/`、`data/`（会话与长期记忆）、智能体专属读写工作区 `workspace/` 以及用户自建的 `skills/` 与 `plugins/`。
-- **动态扫描与合并**：系统启动时，Plugins 与 Skills 均按 `FREYA_APP`（内置） -> `FREYA_LAUNCH`（宿主扩展） -> `FREYA_HOME`（用户自建）三层级联自动发现并载入。
+### Naming Conventions
 
-### 命名规范
+- All class names, file names, variables, log outputs, and configuration prefixes in the project consistently use the `freya` naming scheme.
+- Examples: `FreyaPlugin`, `FreyaContext`, `freya.json`.
 
-- 项目中所有的类名、文件名、变量、日志输出和配置前缀，统一使用 `freya` 命名。
-- 示例：`FreyaPlugin`、`FreyaContext`、`freya.json`。
+## Development Workflow
 
-## 开发流程
+### Environment Requirements
 
-### 环境要求
+- **Node.js**: >= 22.0.0 (Node 22 or 24 recommended)
+- **Package Manager**: pnpm@9.x
 
-- **Node.js**：>= 22.0.0（推荐 Node 22 或 24）
-- **包管理器**：pnpm@9.x
-
-### 常用命令
+### Common Commands
 
 ```bash
-pnpm install       # 安装依赖
-pnpm build         # 编译所有包
-pnpm freya         # 启动本地服务与 CLI 交互 (或使用 pnpm start)
+pnpm install       # Install dependencies
+pnpm build         # Build all packages
+pnpm freya         # Start local service and CLI interaction (or use pnpm start)
 ```
 
-### 提交规范
+### Commit Conventions
 
-提交信息遵循 [Conventional Commits](https://www.conventionalcommits.org/zh-hans/) 格式：
+Commit messages follow the [Conventional Commits](https://www.conventionalcommits.org/) format:
 
 ```
-type: 中文简要描述
+type: short description
 ```
 
-类型（type）：`feat`、`fix`、`improve`、`refactor`、`docs`、`chore`。
+Types (`type`): `feat`, `fix`, `improve`, `refactor`, `docs`, `chore`.
 
-示例：
+Examples:
 ```
-feat: CLI 通道插件支持历史命令回翻
-fix: 修复插件加载失败时无错误日志的问题
-docs: 补充插件开发入门文档
+feat: CLI channel plugin supports command history navigation
+fix: resolve missing error logs when plugin loading fails
+docs: add getting started guide for plugin development
 ```
 
-## 添加新插件与插件规范
+## Adding New Plugins & Plugin Standards
 
-1. 在 `plugins/` 下创建新目录，如 `plugins/plugin-<name>/`。
-2. **包名规范**：`package.json` 中的 `name` 使用官方 NPM 包名格式（如 `@eoasmxd/freya-plugin-<name>`），作为插件的唯一全局 ID。
-3. **静态元数据规范**：插件配置与元数据统一下沉至 `package.json` 的 `"freya"` 声明块：
-   - `displayName`：插件显示名称。
-   - `defaultEnabled`：默认启停策略。严格遵循安全优先原则（Security by Default），仅程序内置物理目录（`FREYA_APP/plugins`）且显式置为 `true` 的插件初始启用；其余环境及外置插件统一默认禁用 (`false`)。
-   - `schema`：静态配置 Schema 物理定义路径（如 `"./schema.json"`）。
-   - `prompts`：提示词 Markdown 模板文件名数组（如 `["plugin.prompt.<name>.md"]`）。
-4. **代码纯净与严格契约**：
-   - 插件只能依赖 `@eoasmxd/freya-sdk`，实现 SDK 抽象契约接口（`FreyaPlugin`、`LLMPlugin`、`ToolPlugin` 等）。
-   - 插件 Class 仅包含 `type` 多态标签与生命周期/业务方法。
-   - `ToolPlugin` 内部的 `FreyaToolbox.getId(): string` 为必选硬性契约，用于逻辑解耦与工具箱路由。
-5. 插件仅作为全局配置的只读消费端，不感知也不执行配置落盘动作。
+1. Create a new directory under `plugins/`, such as `plugins/plugin-<name>/`.
+2. **Package Naming Convention**: The `name` in `package.json` uses the official NPM package name format (e.g., `@eoasmxd/freya-plugin-<name>`), serving as the plugin's unique global ID.
+3. **Static Metadata Specifications**: Plugin configuration and metadata must be defined in the `"freya"` declaration block of `package.json`:
+   - `displayName`: Plugin display name, supporting either a string or a `LocalizedText` multilingual object (e.g., `{"en": "...", "zh": "..."}`).
+   - `defaultEnabled`: Default enable/disable strategy. Strictly follow Security by Default: only built-in physical directories (`FREYA_APP/plugins`) with `true` explicitly set are enabled initially; all other environments and external plugins are disabled (`false`) by default.
+   - `schema`: Physical definition path to the static configuration Schema (e.g., `"./schema.json"`), where field `label` and `description` support `LocalizedText` multilingual objects.
+   - `prompts`: Array of prompt Markdown template filenames (e.g., `["plugin.prompt.<name>.md"]`, where baseline templates are written in English, and localized `*.zh.md` templates are automatically linked and loaded via cascading probe).
+4. **Code Cleanliness & Strict Contracts**:
+   - Plugins may only depend on `@eoasmxd/freya-sdk` and implement SDK abstract contract interfaces (`FreyaPlugin`, `LLMPlugin`, `ToolPlugin`, etc.).
+   - Plugin classes only contain `type` polymorphic tags and lifecycle/business methods.
+   - `FreyaToolbox.getId(): string` inside `ToolPlugin` is a mandatory contract for logical decoupling and toolbox routing.
+5. Plugins act only as read-only consumers of global configuration and do not perceive or execute configuration disk-write operations.
 
-## 新增/修改 SDK 接口
+## Adding/Modifying SDK Interfaces
 
-1. 在 `packages/sdk/src/types/` 中定义接口。
-2. 确保接口是抽象契约，不引入具体实现细节。
-3. 所有现有插件如果受影响，本次变更中一同适配。
-4. 更新相关文档。
+1. Define interfaces in `packages/sdk/src/types/`.
+2. Ensure interfaces are abstract contracts without introducing concrete implementation details.
+3. If any existing plugins are affected, adapt them together in the current change.
+4. Update corresponding documentation.

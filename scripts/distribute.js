@@ -192,14 +192,23 @@ async function main() {
     console.warn('Warning: Failed to copy LICENSE file:', err.message);
   }
 
-  console.log('📝 Copying README.md file...');
-  try {
-    await fs.copyFile(
-      path.join(PROJECT_ROOT, 'README.md'),
-      path.join(distDir, 'README.md')
-    );
-  } catch (err) {
-    console.warn('Warning: Failed to copy README.md file:', err.message);
+  console.log('📝 Copying root documentation files (bilingual)...');
+  const rootDocs = [
+    'README.md',
+    'README.zh.md',
+    'SECURITY.md',
+    'SECURITY.zh.md',
+    'THIRD_PARTY_NOTICES.md'
+  ];
+  for (const docFile of rootDocs) {
+    try {
+      await fs.copyFile(
+        path.join(PROJECT_ROOT, docFile),
+        path.join(distDir, docFile)
+      );
+    } catch {
+      // 忽略可选文档不存在的异常
+    }
   }
 
   console.log('📝 Collecting and merging distribution dependencies...');
@@ -231,6 +240,10 @@ async function main() {
   const filesToInclude = [
     "LICENSE",
     "README.md",
+    "README.zh.md",
+    "SECURITY.md",
+    "SECURITY.zh.md",
+    "THIRD_PARTY_NOTICES.md",
     "freya.js",
     "core",
     "plugins",

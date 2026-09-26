@@ -1,51 +1,51 @@
-# 安全政策与威胁模型 (SECURITY.md)
+# Security Policy and Threat Model (SECURITY.md)
 
-Freya 是一个本地优先（Local-first）的微内核智能体系统。本文件旨在明确 Freya 的安全边界和信任模型，防范大模型在遭遇提示词注入（Prompt Injection）时对本地宿主机或内网造成破坏。
+Freya is a local-first microkernel AI Agent system. This document defines the security boundaries and trust model of Freya, mitigating the risk of damages to the local host machine or internal networks caused by LLM prompt injection attacks.
 
 ---
 
-## 1. 威胁模型与内置逻辑沙箱
+## 1. Threat Model & Built-in Logical Sandboxes
 
 > [!NOTE]
-> **关于系统虚拟化说明**：为了保持代码的轻量化，Freya 默认没有使用操作系统虚拟化容器（如 Docker、虚拟机）做进程级硬隔离。
-> 但为了确保智能体的自主安全性，官方提供的内置工具集实现了以下三层逻辑沙箱防御网关：
+> **System Virtualization Notice**: To keep the codebase lightweight, the Freya monolithic microkernel runs directly within the host process by default. Official production-ready Docker images (`ghcr.io/eoasmxd/freya:latest`) are available, and **we strongly recommend using Docker container isolation for production and multi-tenant environments**.
+> Meanwhile, to ensure autonomous agent safety across diverse environments, official built-in tools implement the following three layers of logical sandbox defense gateways:
 
-*   **工作区文件沙箱（Workspace Sandbox）**：
-    官方文件系统插件（`plugin-tool-fs`）将大模型的读写动作强行锁定在 `~/.freya/workspace/`（或自定义工作区）物理目录下。**绝对禁止**大模型使用绝对路径或 `../` 等越级相对路径访问工作区外部的宿主机敏感文件。
-*   **网络请求 SSRF 防御沙箱（SSRF Guard）**：
-    官方网络请求插件（`plugin-tool-web`）在发起 HTTP/HTTPS 请求前，会强制执行域名与 IP 审计。**绝对禁止**大模型访问 `localhost`、`127.0.0.1` 以及内网私有网段（如 `192.168.x`、`10.x`、`172.x`），防止大模型通过网络请求工具攻击本地其他端口服务或横向渗透内网资产。
-*   **敏感配置写锁防护（Config Write Shield）**：
-    核心底座在 `UpdateConfigTool` 工具网关中，对关键路径（如 `workspace` 工作区目录）的修改请求进行了硬性强力拦截，防范大模型通过配置接口篡改沙箱边界。
+*   **Workspace Sandbox**:
+    The official filesystem plugin (`plugin-tool-fs`) enforces strict sandbox boundaries: **write operations (create, modify files) are strictly restricted** to the `~/.freya/workspace/` (or configured custom workspace) directory. **Read operations** default to the workspace, while supporting controlled whitelist read-only scopes (`src` source code, `doc` documentation) when explicitly configured. LLMs are **strictly prohibited** from using absolute paths or traversing relative paths (such as `../`) to access host sensitive files outside the workspace or permitted scopes.
+*   **SSRF Guard**:
+    The official web request plugin (`plugin-tool-web`) enforces hostname and IP address auditing before issuing HTTP/HTTPS requests. LLMs are **strictly prohibited** from accessing `localhost`, `127.0.0.1`, and private/internal network ranges (e.g., `192.168.x`, `10.x`, `172.x`), preventing unauthorized local port exploitation or internal network lateral movement.
+*   **Config Write Shield**:
+    Within the `UpdateConfigTool` gateway, the core engine hard-blocks modification requests targeting critical paths (such as the `workspace` directory) to prevent LLMs from tampering with sandbox boundaries via configuration APIs.
 
 ---
 
-## 2. ⚠️ 核心警告：第三方插件越权绕过风险
+## 2. ⚠️ Critical Warning: Privilege Escalation via Third-Party Plugins
 
 > [!WARNING]
-> **任何不受信任的外部第三方插件均可直接且彻底绕过官方插件的逻辑沙箱限制。**
+> **Any untrusted third-party plugin can directly and completely bypass logical sandbox restrictions enforced by official plugins.**
 
-*   **越权成因**：由于 Freya 采用轻量化微内核设计，所有扫描加载的插件均与内核直接运行在**同一个 Node.js 宿主进程**和**当前相同的操作系统用户权限**下，目前未做多进程硬隔离。
-*   **绕过手段**：任何第三方的技能或工具插件代码，均可以直接导入 Node.js 原生的系统级 API（如 `node:child_process` 执行终端命令，或 `node:fs` 物理读写文件），这会**彻底穿透并绕过**官方插件设置的工作区与网络逻辑沙箱屏障。
-*   **安全防范**：
-    1.  **严禁**直接加载和加载运行任何来源不明或未经过人工源码安全审计的第三方技能或工具插件。
-    2.  如果必须使用不可信的插件或进行开发测试，请务必将 Freya 主服务进程部署在物理隔离的虚拟机或严格限制的 Docker 隔离容器内。
-
----
-
-## 3. 安全使用与开发规范
-
-1.  **仅在受信任的本地环境中运行**：
-    切勿将 Freya 的 WebSocket 端口（默认 `3000`）或前端 Web UI 暴露在公共互联网上。
-2.  **最小权限原则运行**：
-    **绝对禁止**使用 `root`、`sudo` 或 `Administrator` 等管理员权限运行 Freya 服务进程。
-3.  **凭证保护**：
-    切勿在插件源码或 Skill markdown 中硬编码任何 API 密钥。所有密钥均应存放在 `config/` 目录下的配置文件中，或通过 `.env` 环境变量注入。
+*   **Root Cause**: Due to Freya's lightweight microkernel design, all loaded plugins run inside the **same Node.js host process** and share the **same operating system user permissions** as the core runtime. Multi-process hardware/OS-level isolation is not implemented.
+*   **Bypass Vectors**: Untrusted third-party skill or tool plugins can directly import Node.js native system APIs (such as `node:child_process` for shell command execution, or `node:fs` for arbitrary filesystem I/O), **completely circumventing** the logical workspace and network sandboxes.
+*   **Preventative Measures**:
+    1.  **Strictly avoid** loading and executing any third-party plugins from unknown sources or without thorough manual code security audits.
+    2.  **Deploy via Official Docker Images**: When running in production or testing untrusted third-party plugins, it is strongly recommended to use the official Docker image (`ghcr.io/eoasmxd/freya:latest`), mounting only necessary persistent data directories (e.g., `-v $(pwd)/freya-data:/data`) to achieve process-level and filesystem isolation from the host.
 
 ---
 
-## 4. 报告安全漏洞
+## 3. Secure Usage & Development Guidelines
 
-如果您在 Freya 的核心逻辑或官方插件中发现了安全漏洞，请通过以下方式联系：
+1.  **Run in Trusted Local Environments Only**:
+    Never expose the Freya WebSocket port (default `3000`) or Web UI directly to the public Internet without access protection.
+2.  **Principle of Least Privilege**:
+    **Never** run the Freya service process with administrative or superuser privileges (`root`, `sudo`, or `Administrator`).
+3.  **Credential Protection**:
+    Never hardcode API keys or secrets in plugin source code or Skill Markdown files. All credentials must be stored in configuration files under `config/` or injected via `.env` environment variables.
 
-*   **漏洞反馈路径**：请在项目的 GitHub 仓库中开启私密 Issue 进行反馈。
-*   为了保护广大开发者的安全，在漏洞被修复并发布补丁之前，请勿在公共 Issue 或 Pull Request 中直接公开漏洞的利用方法或 PoC（概念验证代码）。
+---
+
+## 4. Reporting Vulnerabilities
+
+If you discover a security vulnerability in the Freya core or official plugins, please report it via:
+
+*   **Reporting Channel**: Please open a private security advisory/issue on GitHub.
+*   To protect other users and developers, please do not disclose vulnerability details or exploit code in public issues or pull requests until a patch has been released.
