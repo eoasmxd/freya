@@ -202,7 +202,8 @@ export default class FreyaWeixinChannelPlugin implements ChannelPlugin {
 
     if (!response.ok) {
       const errText = await response.text();
-      throw new Error(`微信 iLink 接口 ${endpoint} 失败 (${response.status}): ${errText}`);
+      // 微信 iLink 接口请求失败异常
+      throw new Error(`WeChat iLink API request failed for endpoint "${endpoint}" (${response.status}): ${errText}`);
     }
 
     return await response.json();
@@ -289,7 +290,8 @@ export default class FreyaWeixinChannelPlugin implements ChannelPlugin {
       const qrcode = res.qrcode;
       const scanUrl = res.qrcode_img_content;
       if (!qrcode) {
-        throw new Error("获取微信登录二维码失败：服务端未返回 qrcode");
+        // 获取微信登录二维码失败异常
+        throw new Error("Failed to get WeChat login QR code: server did not return qrcode");
       }
 
       const qrAscii = await QRCode.toString(scanUrl, {
@@ -367,7 +369,8 @@ export default class FreyaWeixinChannelPlugin implements ChannelPlugin {
                       path: result.path
                     });
                   } else {
-                    text = `[图片]${imgUrl ? `(${imgUrl})` : " (无法获取图片链接)"}`;
+                    // 无法获取或解密图片时的提示词
+                    text = `[Image]${imgUrl ? `(${imgUrl})` : " (Unable to obtain image URL)"}`;
                     if (imgUrl) {
                       attachments.push({
                         type: "image",
@@ -378,10 +381,12 @@ export default class FreyaWeixinChannelPlugin implements ChannelPlugin {
                   }
                 } else if (item.type === 3) {
                   const voiceText = item.voice_item?.text || "";
-                  text = `[语音转文字: ${voiceText || "未识别到语音内容"}]`;
+                  // 语音转文字提示词
+                  text = `[Voice-to-Text: ${voiceText || "No voice content recognized"}]`;
                 } else if (item.type === 4 && item.file_item) {
                   const fileUrl = item.file_item.media?.full_url || "";
-                  const fileName = item.file_item.file_name || "未命名文件";
+                  // 默认未命名文件名
+                  const fileName = item.file_item.file_name || "untitled_file";
                   const aesKey = item.file_item.media?.aes_key || "";
                   let result: { path: string; mimeType: string } | undefined;
                   if (fileUrl) {
@@ -394,7 +399,8 @@ export default class FreyaWeixinChannelPlugin implements ChannelPlugin {
                       path: result.path
                     });
                   } else {
-                    text = `[文件附件: ${fileName}]${fileUrl ? `(${fileUrl})` : " (无法获取下载链接)"}`;
+                    // 无法获取或解密文件时的提示词
+                    text = `[File Attachment: ${fileName}]${fileUrl ? `(${fileUrl})` : " (Unable to obtain download URL)"}`;
                     if (fileUrl) {
                       attachments.push({
                         type: "file",
@@ -417,7 +423,8 @@ export default class FreyaWeixinChannelPlugin implements ChannelPlugin {
                       path: result.path
                     });
                   } else {
-                    text = `[视频]${videoUrl ? `(${videoUrl})` : " (无法获取视频链接)"}`;
+                    // 无法获取或解密视频时的提示词
+                    text = `[Video]${videoUrl ? `(${videoUrl})` : " (Unable to obtain video URL)"}`;
                     if (videoUrl) {
                       attachments.push({
                         type: "file",
@@ -574,7 +581,8 @@ export default class FreyaWeixinChannelPlugin implements ChannelPlugin {
         const res = await this.callWeixinApi(state.config, "ilink/bot/sendmessage", payload, undefined, state.baseUrl, state.token);
         const hasError = (res.errcode !== undefined && res.errcode !== 0) || (res.ret !== undefined && res.ret !== 0);
         if (hasError) {
-          throw new Error(`微信网关拒绝投递: errcode=${res.errcode}, errmsg=${res.errmsg}`);
+          // 微信网关拒绝投递异常
+          throw new Error(`WeChat gateway rejected delivery: errcode=${res.errcode}, errmsg=${res.errmsg}`);
         }
       }
     } catch (err: any) {
@@ -595,7 +603,8 @@ export default class FreyaWeixinChannelPlugin implements ChannelPlugin {
     if (decoded.length === 32 && /^[0-9a-fA-F]{32}$/.test(decoded.toString("ascii"))) {
       return Buffer.from(decoded.toString("ascii"), "hex");
     }
-    throw new Error(`无效的 AES 密钥格式`);
+    // 无效的 AES 密钥格式异常
+    throw new Error("Invalid WeChat AES key format");
   }
 
   private detectMimeType(buffer: Buffer): { mimeType: string; ext: string } {
@@ -629,7 +638,8 @@ export default class FreyaWeixinChannelPlugin implements ChannelPlugin {
     try {
       const res = await fetch(url);
       if (!res.ok) {
-        throw new Error(`下载微信媒体文件 HTTP 状态码异常: ${res.status}`);
+        // 下载微信媒体文件 HTTP 状态码异常
+        throw new Error(`Failed to download WeChat media file, HTTP status: ${res.status}`);
       }
       const rawBuffer = Buffer.from(await res.arrayBuffer());
       let finalBuffer = rawBuffer;

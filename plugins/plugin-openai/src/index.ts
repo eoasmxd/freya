@@ -1,6 +1,9 @@
 import type { FreyaContext, LLMMessage, LLMPlugin, LLMPluginOptions, LLMTokenUsage, ToolDefinition } from '@eoasmxd/freya-sdk';
 import path from 'node:path';
 import fs from 'node:fs/promises';
+import { I18n } from './i18n/index.js';
+import zh from './i18n/locales/zh.js';
+import en from './i18n/locales/en.js';
 
 /**
  * OpenAI 兼容模型插件，支持流式传输与 Abort 中断
@@ -10,9 +13,11 @@ export default class OpenAICompatiblePlugin implements LLMPlugin {
   type = 'llm' as const;
   providerTypes = ['openai'];
   private context!: FreyaContext;
+  private readonly i18n = new I18n({ zh, en });
 
   async setup(ctx: FreyaContext): Promise<void> {
     this.context = ctx;
+    this.i18n.setContext(ctx);
     ctx.logger.info('OpenAI-compatible model plugin initialized.');
   }
 
@@ -25,11 +30,17 @@ export default class OpenAICompatiblePlugin implements LLMPlugin {
     const modelId = options?.modelId;
 
     if (!apiKey || apiKey.trim() === '') {
-      throw new Error('未配置有效的大模型授权密钥，请在配置中检查。');
+      // 未配置有效的 API 密钥
+      throw new Error(
+        this.i18n.t('error.missingApiKey', 'API key is not configured or empty. Please check provider settings.')
+      );
     }
 
     if (!modelId || modelId.trim() === '') {
-      throw new Error('未配置有效的模型 ID (modelId)，请在配置中检查。');
+      // 未配置有效的模型 ID
+      throw new Error(
+        this.i18n.t('error.missingModelId', 'Model ID (modelId) is not configured. Please check provider settings.')
+      );
     }
 
     const openAiMessages = await Promise.all(messages.map(async (msg, idx) => {
@@ -76,14 +87,16 @@ export default class OpenAICompatiblePlugin implements LLMPlugin {
           } else if (!url && img.path) {
             try {
               if (path.isAbsolute(img.path)) {
-                throw new Error('安全拒绝：只能访问工作区以内的相对路径。');
+                // 安全拒绝访问工作区外路径
+                throw new Error('Security rejection: Only relative paths within workspace are allowed.');
               }
               const workspaceAbs = this.context.paths.workspaceDir;
               const targetAbs = path.resolve(workspaceAbs, img.path);
               const workspacePrefix = workspaceAbs.endsWith(path.sep) ? workspaceAbs : workspaceAbs + path.sep;
 
               if (targetAbs !== workspaceAbs && !targetAbs.startsWith(workspacePrefix)) {
-                throw new Error(`安全越界拒绝：无法访问工作区以外的相对路径 "${img.path}"。`);
+                // 安全越界拒绝
+                throw new Error(`Security rejection: Out of workspace bounds path "${img.path}".`);
               }
 
               const buffer = await fs.readFile(targetAbs);
@@ -191,14 +204,26 @@ export default class OpenAICompatiblePlugin implements LLMPlugin {
         if (options?.signal?.aborted) {
           throw err;
         }
-        throw new Error(`连接大模型服务超时 (${timeoutMs / 1000}s)，请检查 API 网络连通性或 baseURL: ${baseURL}`);
+        // 连接大模型服务超时
+        throw new Error(
+          this.i18n.t('error.timeout', 'LLM service connection timeout ({timeout}s). Check API connectivity or baseURL: {baseURL}', {
+            timeout: timeoutMs / 1000,
+            baseURL: baseURL || ''
+          })
+        );
       }
       throw err;
     }
 
     if (!response.ok) {
       const errText = await response.text();
-      throw new Error(`模型服务端返回错误 (HTTP ${response.status}): ${errText}`);
+      // 模型服务端返回错误
+      throw new Error(
+        this.i18n.t('error.serverError', 'LLM server returned error (HTTP {status}): {detail}', {
+          status: response.status,
+          detail: errText
+        })
+      );
     }
 
     if (isStream && response.body) {
@@ -261,7 +286,10 @@ export default class OpenAICompatiblePlugin implements LLMPlugin {
     const json = await response.json() as any;
     const choice = json.choices?.[0];
     if (!choice) {
-      throw new Error('模型服务未响应有效选项选择。');
+      // 模型服务未响应有效选项
+      throw new Error(
+        this.i18n.t('error.noChoices', 'LLM service responded without valid choices.')
+      );
     }
 
     const message: LLMMessage = {

@@ -2,6 +2,9 @@ import type { FreyaContext } from '@eoasmxd/freya-sdk';
 import crypto from 'node:crypto';
 import http from 'node:http';
 import { WebSocket, WebSocketServer } from 'ws';
+import { I18n } from '../i18n/index.js';
+import { zh } from '../i18n/locales/zh.js';
+import { en } from '../i18n/locales/en.js';
 
 const WSS_HANDLER_ID = 'built-in-ws-channel';
 
@@ -32,6 +35,7 @@ export class FreyaWsChannel {
     private reconnectTimers = new Map<string, ReturnType<typeof setTimeout>>();
     private ctx?: FreyaContext;
     private isSetup = false;
+    private readonly i18n = new I18n({ zh, en });
 
     constructor(private httpServer: http.Server) { }
 
@@ -39,6 +43,7 @@ export class FreyaWsChannel {
         if (this.isSetup) return;
         this.isSetup = true;
         this.ctx = ctx;
+        this.i18n.setContext(ctx);
         ctx.eventBus.on('connection:reply', this.handleConnectionReply);
         ctx.eventBus.on('connection:reply:delta', this.handleConnectionReplyDelta);
         ctx.eventBus.on('connection:event', this.handleConnectionEvent);
@@ -98,7 +103,12 @@ export class FreyaWsChannel {
             ws.send(JSON.stringify({
                 event: 'server:connected',
                 data: {
-                    message: '已成功与 Freya 后端服务建立 WebSocket 链接。',
+                    message: this.i18n.t(
+                        'channel.ws.connected',
+                        'Connected to Freya backend WebSocket service successfully.',
+                        undefined,
+                        effectiveLanguage
+                    ),
                     connectionId: tempConnId,
                     language: effectiveLanguage
                 }

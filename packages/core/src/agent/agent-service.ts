@@ -5,12 +5,16 @@ import type { FreyaPromptRegistry } from '../prompt/prompt-registry.js';
 import { FreyaSessionManager } from '../session/session-manager.js';
 import type { FreyaAgentExecutor } from './agent-executor.js';
 import { preprocessAudio, preprocessImages } from './agent-preprocessor.js';
+import { I18n } from '../i18n/index.js';
+import { zh } from '../i18n/locales/zh.js';
+import { en } from '../i18n/locales/en.js';
 
 export class FreyaAgentService {
   private abortControllers = new Map<string, AbortController>();
   private messageQueues = new Map<string, ChannelMessage[]>();
   private processingSessions = new Set<string>();
   private llm: ILLMService;
+  private readonly i18n: I18n;
 
   constructor(
     private context: DefaultFreyaContext,
@@ -20,6 +24,7 @@ export class FreyaAgentService {
     private promptRegistry: FreyaPromptRegistry
   ) {
     this.llm = context.llm;
+    this.i18n = new I18n({ zh, en }, context);
     this.setupListeners();
   }
 
@@ -265,7 +270,15 @@ export class FreyaAgentService {
         this.context.eventBus.emit('session:reply:completed', { sessionId: message.sessionId });
       } else {
         this.context.logger.error('Error processing chat stream:', err);
-        this.context.eventBus.emit('session:reply:error', { sessionId: message.sessionId, message: `❌ 【内核执行出错】${err.message || '未知故障'}` });
+        const errDetail = err.message || 'Unknown error';
+        this.context.eventBus.emit('session:reply:error', {
+          sessionId: message.sessionId,
+          message: this.i18n.t(
+            'agent.error.kernelError',
+            '❌ [Kernel Execution Error] {message}',
+            { message: errDetail }
+          )
+        });
         this.context.eventBus.emit('session:reply:completed', { sessionId: message.sessionId });
       }
     }

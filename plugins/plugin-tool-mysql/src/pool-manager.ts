@@ -102,8 +102,9 @@ export class MysqlPoolManager {
     const conf = this.connectionConfigs.get(connectionName);
 
     if (!conf) {
-      const available = Array.from(this.connectionConfigs.keys()).join(', ') || '无配置';
-      throw new Error(`未找到名为 "${connectionName}" 的 MySQL 连接配置。当前可用连接: [${available}]`);
+      // 未找到指定名称的 MySQL 连接配置
+      const available = Array.from(this.connectionConfigs.keys()).join(', ') || 'none';
+      throw new Error(`MySQL connection configuration named "${connectionName}" not found. Available connections: [${available}]`);
     }
 
     let pool = this.pools.get(connectionName);

@@ -229,7 +229,8 @@ export default class FreyaWecomChannelPlugin implements ChannelPlugin {
               path: result.path
             });
           } else {
-            textResult = `🤖 [收到图片] 收到用户发送的一张图片 (media_id: "${mediaId}")。由于安全加密通道限制目前无法下载解密，请用户将关键问题改用文字描述。`;
+            // 无法解密的图片提示词
+            textResult = `[Received Image] The user sent an image (media_id: "${mediaId}"). Due to secure channel encryption constraints, it cannot be downloaded. Please ask the user to describe their question or request in text.`;
             attachList.push({
               type: "image",
               mimeType: "image/jpeg",
@@ -253,7 +254,8 @@ export default class FreyaWecomChannelPlugin implements ChannelPlugin {
               path: result.path
             });
           } else {
-            textResult = `🤖 [收到语音] 收到用户发送的一段语音消息 (media_id: "${mediaId}")。由于当前通道安全限制，本通道目前无法解密还原，请引导用户使用文本与您对话。`;
+            // 无法解密的语音提示词
+            textResult = `[Received Voice] The user sent a voice message (media_id: "${mediaId}"). Due to channel security constraints, voice cannot be decrypted. Please guide the user to communicate with text.`;
             attachList.push({
               type: "file",
               mimeType: "audio/ogg",
@@ -263,7 +265,8 @@ export default class FreyaWecomChannelPlugin implements ChannelPlugin {
         } else if (type === "file" && item.file) {
           const file = item.file;
           const mediaId = file.media_id || "";
-          const fileName = file.file_name || "未命名文件";
+          // 默认未命名文件名
+          const fileName = file.file_name || "untitled_file";
           const url = file.url || "";
           const aesKey = file.aeskey || "";
           let result: { path: string; mimeType: string } | undefined;
@@ -277,7 +280,8 @@ export default class FreyaWecomChannelPlugin implements ChannelPlugin {
               path: result.path
             });
           } else {
-            textResult = `🤖 [收到文件: "${fileName}"] 用户发送了一份文件 (media_id: "${mediaId}")。由于 WebSocket 协议的安全隔离策略暂无法直接下载解密此临时媒体文件，请告知用户您已收到了文件事件但目前无法直接打开，礼貌引导用户直接发送文本内容。`;
+            // 无法下载的文件提示词
+            textResult = `[Received File: "${fileName}"] The user sent a file (media_id: "${mediaId}"). Due to security isolation policy, this media file cannot be downloaded directly. Please acknowledge receiving the file event, inform the user that it cannot be opened directly, and politely guide them to send the text content.`;
             attachList.push({
               type: "file",
               mimeType: "application/octet-stream",
@@ -301,7 +305,8 @@ export default class FreyaWecomChannelPlugin implements ChannelPlugin {
               path: result.path
             });
           } else {
-            textResult = `🤖 [收到视频] 收到用户发送的一段视频消息 (media_id: "${mediaId}")。由于当前安全机制，您无法直接播放此媒体，请礼貌引导其发送文本交流。`;
+            // 无法播放的视频提示词
+            textResult = `[Received Video] The user sent a video message (media_id: "${mediaId}"). Due to current security mechanisms, you cannot view this media. Please guide the user to communicate in text.`;
             attachList.push({
               type: "file",
               mimeType: "video/mp4",
@@ -335,7 +340,8 @@ export default class FreyaWecomChannelPlugin implements ChannelPlugin {
       }
 
       if (!content) {
-        content = `🤖 [未知消息] 用户发来了一个不支持的协议格式消息 (msgtype: "${msgtype || "unknown"}")。`;
+        // 不支持的消息类型提示词
+        content = `[Unsupported Message] The user sent an unsupported message format (msgtype: "${msgtype || "unknown"}").`;
       }
 
       if (content) {
@@ -397,7 +403,8 @@ export default class FreyaWecomChannelPlugin implements ChannelPlugin {
     try {
       const res = await fetch(url);
       if (!res.ok) {
-        throw new Error(`下载媒体文件 HTTP 状态码异常: ${res.status}`);
+        // 下载媒体文件 HTTP 状态码异常
+        throw new Error(`Failed to download media file with HTTP status: ${res.status}`);
       }
       const rawBuffer = Buffer.from(await res.arrayBuffer());
       let finalBuffer = rawBuffer;
@@ -425,11 +432,13 @@ export default class FreyaWecomChannelPlugin implements ChannelPlugin {
 
         const padLen = decrypted[decrypted.length - 1];
         if (padLen < 1 || padLen > 32 || padLen > decrypted.length) {
-          throw new Error(`解密失败: 不合规的填充长度 (${padLen})`);
+          // 解密填充长度异常
+          throw new Error(`Decryption failed: invalid padding length (${padLen})`);
         }
         for (let i = decrypted.length - padLen; i < decrypted.length; i++) {
           if (decrypted[i] !== padLen) {
-            throw new Error("解密失败: 填充字节不匹配");
+            // 解密填充字节不匹配
+            throw new Error("Decryption failed: padding bytes mismatch");
           }
         }
         finalBuffer = decrypted.subarray(0, decrypted.length - padLen);

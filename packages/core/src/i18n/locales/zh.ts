@@ -270,4 +270,13 @@ export const zh: Record<string, string> = {
   'agent.error.noValidResponse': '无法获得合法的模型响应结果。',
   'agent.error.jsonParseFailed': 'JSON 解析失败: {message}',
   'agent.error.executionFailed': '运行失败',
+
+  // 核心服务与指令交互提示
+  // Core service and command interaction messages
+  'cmd.error.unknown': '❌ 未知指令 "/{commandName}"，您可以输入 "/help" 查看所有可用指令。',
+  'cmd.error.disabled': '❌ 权限拒绝：系统指令 "/{commandName}" 已被系统管理员全局禁用。',
+  'cmd.error.executionFailed': '❌ 指令执行失败: {message}',
+  'agent.error.kernelError': '❌ 【内核执行出错】{message}',
+  'channel.ws.connected': '已成功与 Freya 后端服务建立 WebSocket 链接。',
+  'llm.candidate.default': '默认',
 };

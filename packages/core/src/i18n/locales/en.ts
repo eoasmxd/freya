@@ -270,5 +270,14 @@ export const en: Record<string, string> = {
   'agent.error.noValidResponse': 'Failed to obtain a valid model response.',
   'agent.error.jsonParseFailed': 'JSON parsing failed: {message}',
   'agent.error.executionFailed': 'Execution failed',
+
+  // 核心服务与指令交互提示
+  // Core service and command interaction messages
+  'cmd.error.unknown': '❌ Unknown command "/{commandName}". Type "/help" to view all available commands.',
+  'cmd.error.disabled': '❌ Permission denied: Command "/{commandName}" is disabled by administrator.',
+  'cmd.error.executionFailed': '❌ Command execution failed: {message}',
+  'agent.error.kernelError': '❌ [Kernel Execution Error] {message}',
+  'channel.ws.connected': 'Connected to Freya backend WebSocket service successfully.',
+  'llm.candidate.default': 'Default',
 };
 

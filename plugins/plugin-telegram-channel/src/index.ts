@@ -107,7 +107,8 @@ export default class TelegramChannelPlugin implements ChannelPlugin {
         });
         const json = (await res.json()) as { ok: boolean; result: T; description?: string };
         if (!json.ok) {
-            throw new Error(`Telegram API ${method} 调用失败: ${json.description ?? "未知错误"}`);
+            // Telegram API 调用失败
+            throw new Error(`Telegram API ${method} failed: ${json.description ?? "Unknown error"}`);
         }
         return json.result;
     }
@@ -226,7 +227,8 @@ export default class TelegramChannelPlugin implements ChannelPlugin {
                             if (text.length > 4096) {
                                 this.callApi(state.token, "sendMessage", {
                                     chat_id: msg.chat.id,
-                                    text: "消息过长，请控制在 4096 字符以内。",
+                                    // 消息过长提示
+                                    text: "Message is too long. Please keep it within 4096 characters.",
                                     reply_to_message_id: msg.message_id,
                                 }).catch(() => { });
                                 continue;

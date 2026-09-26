@@ -295,7 +295,7 @@ export class FreyaLLMProxy implements ILLMService {
     }
 
     if (candidates.length === 0) {
-      return [{ provider: '', model: '', name: '默认' }];
+      return [{ provider: '', model: '', name: this.i18n.t('llm.candidate.default', 'Default') }];
     }
     return candidates;
   }
