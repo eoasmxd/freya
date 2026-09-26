@@ -1,13 +1,10 @@
-# 依赖与构建产物
 node_modules/
 dist/
 *.tsbuildinfo
 
-# 环境配置
 .env
 .env.local
 
-# 编辑器与系统
 .vscode/
 *.log
 .DS_Store

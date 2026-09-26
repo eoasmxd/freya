@@ -203,6 +203,7 @@ export const GlobalConfigPanel: React.FC<GlobalConfigPanelProps> = ({ getApiUrl 
           }
         }
         if (matchedField) {
+          if (matchedField.readonly) continue;
           if (matchedField.type === 'number') {
             typedVal = Number(val);
           } else if (matchedField.type === 'boolean') {

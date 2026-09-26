@@ -374,15 +374,13 @@ export class FreyaConfigManager {
   }
 
   async updateConfigs(updates: Record<string, any>): Promise<string> {
-    for (const keyPath of Object.keys(updates)) {
-      if (this.isFieldReadonly(keyPath)) {
-        return this.i18n.t(
-          'config.error.readonlyRejected',
-          '❌ Property "{keyPath}" is currently read-only (locked by startup arguments or disabled plugin) and cannot be modified.',
-          { keyPath }
-        );
+    const writableUpdates: Record<string, any> = {};
+    for (const [keyPath, value] of Object.entries(updates)) {
+      if (!this.isFieldReadonly(keyPath)) {
+        writableUpdates[keyPath] = value;
       }
     }
+    updates = writableUpdates;
     const jsonObj = await this.fileHandler.readFreyaConfig();
 
     const restoreMaskedValues = (newValue: any, oldVal: any): any => {
