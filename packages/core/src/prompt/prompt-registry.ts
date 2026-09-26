@@ -199,12 +199,8 @@ export class FreyaPromptRegistry {
     // 当前系统时间
     const timeStr = `${nowStr} (${weekday}, TimeZone: ${timeZone}, ${utcOffset})`;
 
-    const rawLang = this.ctx?.getLanguage('en');
-    const isZh = rawLang?.toLowerCase().startsWith('zh');
-    const langName = isZh ? 'Chinese' : 'English';
-    const langCode = isZh ? 'zh' : 'en';
-    // 动态语言引导指令
-    const langDirective = `The user's preferred language is ${langName} ("${langCode}"). Please interact and respond in ${langName} unless the user explicitly requests another language.`;
+    const lang = (this.ctx?.getLanguage('en') ?? 'en').toLowerCase().split('-')[0];
+    const langDirective = `The user's preferred language is "${lang}". Please interact and respond in this language unless the user explicitly requests another language.`;
 
     return `# IDENTITY\n${identity}\n\n` + // 智能体本体定义
       `# SOUL\n${soul}\n\n` + // 智能体灵魂与行为风格
