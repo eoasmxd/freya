@@ -209,6 +209,9 @@ export const en: Record<string, string> = {
   'schema.core.models.item.model.desc': 'Model name',
   'schema.core.models.item.name.desc': 'Display name',
   'schema.core.system.language.desc': 'System UI and interaction language',
+  'schema.core.system.language.enum.auto': 'Auto Detect (auto)',
+  'schema.core.system.language.enum.zh': 'Chinese (zh)',
+  'schema.core.system.language.enum.en': 'English (en)',
   'schema.core.server.port.desc': 'Web gateway service port',
   'schema.core.server.enabled.desc': 'Enable Web gateway service and WebSocket channel',
   'schema.core.cli.enabled.desc': 'Enable command-line terminal interaction channel',
@@ -237,6 +240,7 @@ export const en: Record<string, string> = {
 
   // 配置管理器运行态文案
   // Configuration Manager runtime messages
+  'config.error.readonlyRejected': '❌ Property "{keyPath}" is currently read-only (locked by startup arguments or disabled plugin) and cannot be modified.',
   'config.update.propertySuccess': 'Core configuration property "{keyPath}" updated successfully and took effect immediately.',
   'config.update.globalSuccess': 'Global configuration updated successfully and took effect immediately.',
   'config.provider.missingId': '❌ Missing required parameter: id cannot be empty.',

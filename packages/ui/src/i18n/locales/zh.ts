@@ -89,6 +89,7 @@ export const zh: Record<string, string> = {
   'global.btnCleanConfig': '无修改',
   'global.dirtyHint': '有未保存的修改，点击保存',
   'global.cleanHint': '配置无改变',
+  'global.fieldReadonlyHint': '当前配置项处于只读锁定状态（受启动参数限制或所属插件已禁用）',
 
   'prompt.switchCard': '切换要编辑的主提示词卡片:',
   'prompt.descSoul': '灵魂设定',

@@ -194,6 +194,27 @@ export class FreyaConfigManager {
     return this.schemaRegistry.getManualOnlyKeys();
   }
 
+  /**
+   * 获取只读锁定字段的 keyPath 列表（支持合并 manualOnly 字段）
+   * Get keyPath list of read-only locked fields (supports merging manualOnly fields)
+   */
+  getReadonlyKeys(includeManualOnly = false): string[] {
+    const readonlySet = new Set<string>();
+    for (const [ns, fields] of this.schemaRegistry.getSchema().entries()) {
+      for (const field of fields) {
+        if (this.isFieldReadonly(field.key, ns)) {
+          readonlySet.add(field.key);
+        }
+      }
+    }
+    if (includeManualOnly) {
+      for (const key of this.getManualOnlyKeys()) {
+        readonlySet.add(key);
+      }
+    }
+    return Array.from(readonlySet);
+  }
+
   async loadAndInit(): Promise<void> {
     try {
       const freyaConfig = await this.fileHandler.readFreyaConfig();
@@ -246,17 +267,72 @@ export class FreyaConfigManager {
     } else {
       cloned.workspace = path.join(FREYA_HOME, 'workspace');
     }
+
+    const portIdx = process.argv.indexOf('--port');
+    if (portIdx !== -1 && portIdx + 1 < process.argv.length) {
+      const cliPort = parseInt(process.argv[portIdx + 1], 10);
+      if (!isNaN(cliPort) && cliPort > 0 && cliPort <= 65535) {
+        if (!cloned.server) cloned.server = {};
+        cloned.server.port = cliPort;
+      }
+    }
+
     (this.context as any).config = deepFreeze(cloned);
   }
 
   async readConfig(revealSensitive = false): Promise<any> {
     const jsonObj = await this.fileHandler.readFreyaConfig();
     const filtered = filterConfigBySchema(jsonObj, this.schemaRegistry);
+    if ((this.context?.config as any)?.server?.port !== undefined && process.argv.includes('--port')) {
+      if (!filtered.server) filtered.server = {};
+      filtered.server.port = (this.context.config as any).server.port;
+    }
     const sensitiveKeys = this.schemaRegistry.getSensitiveKeys();
     return revealSensitive ? filtered : maskSensitiveData(filtered, sensitiveKeys);
   }
 
+  /**
+   * 检查指定配置项是否处于只读锁定状态
+   * Check whether specified configuration item is locked as read-only
+   */
+  isFieldReadonly(keyPath: string, namespace?: string): boolean {
+    if (keyPath === 'cli.enabled' && process.argv.includes('--no-cli')) {
+      return true;
+    }
+
+    if ((keyPath === 'server.port' || keyPath === 'server.enabled') && process.argv.includes('--port')) {
+      return true;
+    }
+
+    if (this.pluginManager) {
+      let targetPluginId = namespace;
+      if (!targetPluginId) {
+        for (const [ns, fields] of this.schemaRegistry.getSchema().entries()) {
+          if (ns !== 'core' && fields.some((f) => f.key === keyPath || keyPath.startsWith(`${f.key}.`))) {
+            targetPluginId = ns;
+            break;
+          }
+        }
+      }
+      if (targetPluginId && targetPluginId !== 'core') {
+        const entries = this.pluginManager.getPluginEntries();
+        const entry = entries.find((e) => e.id === targetPluginId);
+        if (entry && (entry.enabled === false || entry.status === 'disabled')) {
+          return true;
+        }
+      }
+    }
+    return false;
+  }
+
   async updateConfig(keyPath: string, value: any): Promise<string> {
+    if (this.isFieldReadonly(keyPath)) {
+      return this.i18n.t(
+        'config.error.readonlyRejected',
+        '❌ Property "{keyPath}" is currently read-only (locked by startup arguments or disabled plugin) and cannot be modified.',
+        { keyPath }
+      );
+    }
     const jsonObj = await this.fileHandler.readFreyaConfig();
     const oldValue = getValueByKeyPath(jsonObj, keyPath);
 
@@ -298,6 +374,15 @@ export class FreyaConfigManager {
   }
 
   async updateConfigs(updates: Record<string, any>): Promise<string> {
+    for (const keyPath of Object.keys(updates)) {
+      if (this.isFieldReadonly(keyPath)) {
+        return this.i18n.t(
+          'config.error.readonlyRejected',
+          '❌ Property "{keyPath}" is currently read-only (locked by startup arguments or disabled plugin) and cannot be modified.',
+          { keyPath }
+        );
+      }
+    }
     const jsonObj = await this.fileHandler.readFreyaConfig();
 
     const restoreMaskedValues = (newValue: any, oldVal: any): any => {
@@ -660,7 +745,11 @@ export class FreyaConfigManager {
         defaultValue: 'auto',
         description: this.i18n.all('schema.core.system.language.desc', 'System UI and interaction language'),
         type: 'string',
-        enumValues: ['auto', 'zh', 'en'],
+        enumValues: [
+          { value: 'auto', label: this.i18n.all('schema.core.system.language.enum.auto', 'Auto Detect (auto)') },
+          { value: 'zh', label: this.i18n.all('schema.core.system.language.enum.zh', 'Chinese (zh)') },
+          { value: 'en', label: this.i18n.all('schema.core.system.language.enum.en', 'English (en)') }
+        ],
         uiHint: 'select',
         category: this.i18n.all('schema.core.category.system', 'System Parameters')
       },
@@ -874,7 +963,7 @@ export class FreyaConfigManager {
     this.schemaRegistry.register('core', coreFields);
   }
 
-  getSchema(): Map<string, any> {
+  getSchema(): Map<string, ConfigFieldSchema[]> {
     return this.schemaRegistry.getSchema();
   }
 }

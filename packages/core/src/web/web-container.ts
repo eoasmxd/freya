@@ -70,7 +70,17 @@ export class FreyaWebContainer {
      */
     async start(ctx: FreyaContext, configManager: FreyaConfigManager): Promise<void> {
         this.i18n.setContext(ctx);
-        this.port = (ctx.config as any)?.server?.port ?? 3000;
+        const portIdx = process.argv.indexOf('--port');
+        if (portIdx !== -1 && portIdx + 1 < process.argv.length) {
+            const cliPort = parseInt(process.argv[portIdx + 1], 10);
+            if (!isNaN(cliPort) && cliPort > 0 && cliPort <= 65535) {
+                this.port = cliPort;
+            } else {
+                this.port = (ctx.config as any)?.server?.port ?? 3000;
+            }
+        } else {
+            this.port = (ctx.config as any)?.server?.port ?? 3000;
+        }
         this.configApi = new FreyaConfigApi(configManager, ctx);
         const uiDist = this.getUiDistPath(FREYA_APP);
         const safePrefix = uiDist.endsWith(path.sep) ? uiDist : uiDist + path.sep;

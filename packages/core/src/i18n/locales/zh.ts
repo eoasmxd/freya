@@ -209,6 +209,9 @@ export const zh: Record<string, string> = {
   'schema.core.models.item.model.desc': '模型名称',
   'schema.core.models.item.name.desc': '显示名称',
   'schema.core.system.language.desc': '系统界面与交互语言',
+  'schema.core.system.language.enum.auto': '跟随系统 (auto)',
+  'schema.core.system.language.enum.zh': '简体中文 (zh)',
+  'schema.core.system.language.enum.en': 'English (en)',
   'schema.core.server.port.desc': 'Web 网关服务端口',
   'schema.core.server.enabled.desc': '是否启用 Web 网关服务与 WebSocket 频道',
   'schema.core.cli.enabled.desc': '是否启用命令行终端交互频道',
@@ -237,6 +240,7 @@ export const zh: Record<string, string> = {
 
   // 配置管理器运行态文案
   // Configuration Manager runtime messages
+  'config.error.readonlyRejected': '❌ 属性 "{keyPath}" 当前处于只读锁定状态（受启动参数限制或所属插件已禁用），禁止修改。',
   'config.update.propertySuccess': '核心配置中的属性 "{keyPath}" 已成功修改，已实时生效。',
   'config.update.globalSuccess': '全量全局配置已成功修改，并实时热更新生效。',
   'config.provider.missingId': '❌ 缺少必要参数：id 不能为空。',

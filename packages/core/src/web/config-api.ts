@@ -117,16 +117,28 @@ export class FreyaConfigApi {
 
       if (pathname === '/api/config/schema' && req.method === 'GET') {
         const schemaMap = this.configManager.getSchema();
-        const resolveField = (f: ConfigFieldSchema): any => ({
+        const resolveEnumOption = (opt: any): any => {
+          if (typeof opt === 'object' && opt !== null && opt.value !== undefined) {
+            return {
+              value: opt.value,
+              label: opt.label ? this.i18n.resolve(opt.label, defaultLang) : opt.value
+            };
+          }
+          return opt;
+        };
+
+        const resolveField = (f: ConfigFieldSchema, ns: string): any => ({
           ...f,
+          readonly: this.configManager.isFieldReadonly(f.key, ns) || f.readonly || false,
           description: this.i18n.resolve(f.description, defaultLang),
           category: f.category ? this.i18n.resolve(f.category, defaultLang) : undefined,
-          children: f.children ? f.children.map(resolveField) : undefined
+          enumValues: f.enumValues ? f.enumValues.map(resolveEnumOption) : undefined,
+          children: f.children ? f.children.map(c => resolveField(c, ns)) : undefined
         });
 
         const data: Record<string, any> = {};
         for (const [ns, fields] of schemaMap.entries()) {
-          data[ns] = fields.map(resolveField);
+          data[ns] = Array.isArray(fields) ? fields.map((f: ConfigFieldSchema) => resolveField(f, ns)) : [];
         }
         res.writeHead(200, this.headers);
         res.end(JSON.stringify({ success: true, data }));

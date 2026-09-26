@@ -48,7 +48,7 @@ export class ReadConfigTool implements FreyaTool {
     return {
       name: 'read_config',
       // 读取系统核心配置
-      description: 'Read core system configuration. For security reasons, sensitive config values are masked by default unless revealSensitive is set to true and approved via user authorization.',
+      description: 'Read core system configuration. Sensitive config values are masked by default. Includes a "_readonly" list of property paths that are read-only and locked from modification.',
       parameters: {
         type: 'object',
         properties: {
@@ -101,7 +101,12 @@ export class ReadConfigTool implements FreyaTool {
       }
 
       const outputData = await this.configService.readConfig(revealSensitive);
-      return JSON.stringify(outputData, null, 2);
+      const readonlyKeys = this.configService.getReadonlyKeys(true);
+      const result = {
+        ...outputData,
+        _readonly: readonlyKeys
+      };
+      return JSON.stringify(result, null, 2);
     } catch (err: any) {
       // 读取配置失败错误提示
       return `❌ Failed to read core configuration: ${err.message}`;

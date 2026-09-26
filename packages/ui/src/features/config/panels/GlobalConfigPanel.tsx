@@ -26,8 +26,9 @@ interface ConfigFieldSchema {
   required?: boolean;
   sensitive?: boolean;
   manualOnly?: boolean;
+  readonly?: boolean;
   uiHint?: string;
-  enumValues?: string[];
+  enumValues?: (string | { value: string; label?: string })[];
   children?: ConfigFieldSchema[];
 }
 
@@ -454,8 +455,9 @@ export const GlobalConfigPanel: React.FC<GlobalConfigPanelProps> = ({ getApiUrl 
                         <div key={field.key} className="config-group" style={{ margin: '0.4rem 0' }}>
                           <div className="crud-form-card" style={{ margin: 0, borderStyle: 'solid', borderColor: 'rgba(255,255,255,0.04)', padding: '1rem', gap: '0.8rem' }}>
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(255,255,255,0.02)', paddingBottom: '0.4rem' }}>
-                              <label className="config-label" style={{ fontSize: '0.82rem', color: 'rgba(255, 255, 255, 0.85)', fontWeight: 500, margin: 0 }}>
+                              <label className="config-label" style={{ fontSize: '0.82rem', color: field.readonly ? 'rgba(255, 255, 255, 0.45)' : 'rgba(255, 255, 255, 0.85)', fontWeight: 500, margin: 0, display: 'flex', alignItems: 'center', gap: '6px' }}>
                                 {field.description || field.key}
+                                {field.readonly && <span title={t('global.fieldReadonlyHint', 'Current item is locked as read-only')} style={{ fontSize: '12px', cursor: 'help' }}>🔒</span>}
                               </label>
                               <span style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>{t('global.fallbackChainHint', 'Fallback Chain (Higher has greater priority)')}</span>
                             </div>
@@ -475,65 +477,69 @@ export const GlobalConfigPanel: React.FC<GlobalConfigPanelProps> = ({ getApiUrl 
                                         ({b.provider} / {b.model})
                                       </span>
                                     </div>
-                                    <div style={{ display: 'flex', gap: '0.4rem' }}>
-                                      <button
-                                        className="btn-action edit"
-                                        title={t('global.moveUp', 'Move up')}
-                                        disabled={idx === 0}
-                                        onClick={() => handleMoveBinding(field.key, idx, 'up')}
-                                      >
-                                        ▲
-                                      </button>
-                                      <button
-                                        className="btn-action edit"
-                                        title={t('global.moveDown', 'Move down')}
-                                        disabled={idx === bindings.length - 1}
-                                        onClick={() => handleMoveBinding(field.key, idx, 'down')}
-                                      >
-                                        ▼
-                                      </button>
-                                      <button
-                                        className="btn-action delete"
-                                        title={t('common.remove', 'Remove')}
-                                        onClick={() => handleRemoveBinding(field.key, idx)}
-                                      >
-                                        {t('common.remove', 'Remove')}
-                                      </button>
-                                    </div>
+                                    {!field.readonly && (
+                                      <div style={{ display: 'flex', gap: '0.4rem' }}>
+                                        <button
+                                          className="btn-action edit"
+                                          title={t('global.moveUp', 'Move up')}
+                                          disabled={idx === 0}
+                                          onClick={() => handleMoveBinding(field.key, idx, 'up')}
+                                        >
+                                          ▲
+                                        </button>
+                                        <button
+                                          className="btn-action edit"
+                                          title={t('global.moveDown', 'Move down')}
+                                          disabled={idx === bindings.length - 1}
+                                          onClick={() => handleMoveBinding(field.key, idx, 'down')}
+                                        >
+                                          ▼
+                                        </button>
+                                        <button
+                                          className="btn-action delete"
+                                          title={t('common.remove', 'Remove')}
+                                          onClick={() => handleRemoveBinding(field.key, idx)}
+                                        >
+                                          {t('common.remove', 'Remove')}
+                                        </button>
+                                      </div>
+                                    )}
                                   </div>
                                 ))
                               )}
                             </div>
 
-                            <div style={{ display: 'flex', gap: '0.65rem', alignItems: 'center', marginTop: '0.4rem', marginLeft: '0.6rem' }}>
-                              <select
-                                className="config-input"
-                                style={{ flex: 1, fontSize: '0.78rem', padding: '0.4rem 0.6rem', height: '32px' }}
-                                value={selectedSource}
-                                onChange={(e) => setTempSelectedSources(prev => ({ ...prev, [field.key]: e.target.value }))}
-                              >
-                                {availableModels.map((opt) => (
-                                  <option key={`${opt.providerId}:::${opt.modelId}`} value={`${opt.providerId}:::${opt.modelId}`}>
-                                    {opt.displayName}
-                                  </option>
-                                ))}
-                              </select>
-                              <input
-                                type="text"
-                                placeholder={t('global.aliasPlaceholder', 'Custom alias (optional)')}
-                                className="config-input"
-                                style={{ width: '160px', fontSize: '0.78rem', padding: '0.4rem 0.6rem', height: '32px', boxSizing: 'border-box' }}
-                                value={alias}
-                                onChange={(e) => setTempAliases(prev => ({ ...prev, [field.key]: e.target.value }))}
-                              />
-                              <button
-                                className="btn-primary"
-                                style={{ padding: '0.4rem 1rem', fontSize: '0.78rem', height: '32px' }}
-                                onClick={() => handleAddBinding(field.key, selectedSource, alias)}
-                              >
-                                {t('global.btnBind', 'Bind')}
-                              </button>
-                            </div>
+                            {!field.readonly && (
+                              <div style={{ display: 'flex', gap: '0.65rem', alignItems: 'center', marginTop: '0.4rem', marginLeft: '0.6rem' }}>
+                                <select
+                                  className="config-input"
+                                  style={{ flex: 1, fontSize: '0.78rem', padding: '0.4rem 0.6rem', height: '32px' }}
+                                  value={selectedSource}
+                                  onChange={(e) => setTempSelectedSources(prev => ({ ...prev, [field.key]: e.target.value }))}
+                                >
+                                  {availableModels.map((opt) => (
+                                    <option key={`${opt.providerId}:::${opt.modelId}`} value={`${opt.providerId}:::${opt.modelId}`}>
+                                      {opt.displayName}
+                                    </option>
+                                  ))}
+                                </select>
+                                <input
+                                  type="text"
+                                  placeholder={t('global.aliasPlaceholder', 'Custom alias (optional)')}
+                                  className="config-input"
+                                  style={{ width: '160px', fontSize: '0.78rem', padding: '0.4rem 0.6rem', height: '32px', boxSizing: 'border-box' }}
+                                  value={alias}
+                                  onChange={(e) => setTempAliases(prev => ({ ...prev, [field.key]: e.target.value }))}
+                                />
+                                <button
+                                  className="btn-primary"
+                                  style={{ padding: '0.4rem 1rem', fontSize: '0.78rem', height: '32px' }}
+                                  onClick={() => handleAddBinding(field.key, selectedSource, alias)}
+                                >
+                                  {t('global.btnBind', 'Bind')}
+                                </button>
+                              </div>
+                            )}
                           </div>
                         </div>
                       );
@@ -548,8 +554,9 @@ export const GlobalConfigPanel: React.FC<GlobalConfigPanelProps> = ({ getApiUrl 
                         <div key={field.key} className="config-group" style={{ margin: '0.6rem 0' }}>
                           <div className="crud-form-card" style={{ margin: 0, borderStyle: 'solid', borderColor: 'rgba(255,255,255,0.06)', padding: '1rem', gap: '0.8rem' }}>
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(255,255,255,0.04)', paddingBottom: '0.5rem' }}>
-                              <label className="config-label" style={{ fontSize: '0.84rem', color: 'rgba(255, 255, 255, 0.9)', fontWeight: 600, margin: 0 }}>
+                              <label className="config-label" style={{ fontSize: '0.84rem', color: field.readonly ? 'rgba(255, 255, 255, 0.45)' : 'rgba(255, 255, 255, 0.9)', fontWeight: 600, margin: 0, display: 'flex', alignItems: 'center', gap: '6px' }}>
                                 {field.description || field.key}
+                                {field.readonly && <span title={t('global.fieldReadonlyHint', 'Current item is locked as read-only')} style={{ fontSize: '12px', cursor: 'help' }}>🔒</span>}
                               </label>
                               <span style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>{t('global.configuredItemsCount', '{count} items configured', { count: itemsList.length })}</span>
                             </div>
@@ -571,7 +578,7 @@ export const GlobalConfigPanel: React.FC<GlobalConfigPanelProps> = ({ getApiUrl 
                                           <span>{item[field.children![0].key] ? String(item[field.children![0].key]) : t('global.defaultItemLabel', 'Item')}</span>
                                         </div>
                                         <div style={{ display: 'flex', gap: '0.5rem', flexShrink: 0 }}>
-                                          {isEditing ? (
+                                          {!field.readonly && (isEditing ? (
                                             <>
                                               <button
                                                 className="btn-action edit"
@@ -605,7 +612,7 @@ export const GlobalConfigPanel: React.FC<GlobalConfigPanelProps> = ({ getApiUrl 
                                                 {t('common.delete', 'Delete')}
                                               </button>
                                             </>
-                                          )}
+                                          ))}
                                         </div>
                                       </div>
 
@@ -744,7 +751,7 @@ export const GlobalConfigPanel: React.FC<GlobalConfigPanelProps> = ({ getApiUrl 
                               )}
                             </div>
 
-                            {!isAddingThisField && (
+                            {!field.readonly && !isAddingThisField && (
                               <div style={{ marginTop: '0.5rem', marginLeft: '1.2rem' }}>
                                 <button
                                   type="button"
@@ -766,13 +773,15 @@ export const GlobalConfigPanel: React.FC<GlobalConfigPanelProps> = ({ getApiUrl 
 
                     return (
                       <div key={field.key} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.75rem 0.25rem', borderBottom: '1px solid rgba(255, 255, 255, 0.025)' }}>
-                        <label className="config-label" style={{ fontSize: '0.84rem', color: 'rgba(255, 255, 255, 0.85)', fontWeight: 500, margin: 0 }}>
+                        <label className="config-label" style={{ fontSize: '0.84rem', color: field.readonly ? 'rgba(255, 255, 255, 0.45)' : 'rgba(255, 255, 255, 0.85)', fontWeight: 500, margin: 0, display: 'flex', alignItems: 'center', gap: '6px' }}>
                           {displayLabel}
+                          {field.readonly && <span title={t('global.fieldReadonlyHint', 'Current item is locked as read-only')} style={{ fontSize: '12px', cursor: 'help' }}>🔒</span>}
                         </label>
                         {isBoolean ? (
-                          <label className="switch" style={{ margin: 0 }}>
+                          <label className="switch" style={{ margin: 0, opacity: field.readonly ? 0.5 : 1, cursor: field.readonly ? 'not-allowed' : 'pointer' }}>
                             <input
                               type="checkbox"
+                              disabled={field.readonly}
                               checked={Boolean(currentValue)}
                               onChange={(e) => setDynamicValues(prev => ({ ...prev, [field.key]: e.target.checked }))}
                             />
@@ -780,28 +789,35 @@ export const GlobalConfigPanel: React.FC<GlobalConfigPanelProps> = ({ getApiUrl 
                           </label>
                         ) : field.enumValues && field.enumValues.length > 0 ? (
                           <select
+                            disabled={field.readonly}
                             className="config-input"
-                            style={{ width: '280px', height: '34px', boxSizing: 'border-box', margin: 0 }}
-                            value={currentValue ?? field.defaultValue ?? field.enumValues[0]}
+                            style={{ width: '280px', height: '34px', boxSizing: 'border-box', margin: 0, opacity: field.readonly ? 0.5 : 1, cursor: field.readonly ? 'not-allowed' : undefined }}
+                            value={currentValue ?? field.defaultValue ?? (typeof field.enumValues[0] === 'object' ? field.enumValues[0]?.value : field.enumValues[0])}
                             onChange={(e) => setDynamicValues(prev => ({ ...prev, [field.key]: e.target.value }))}
                           >
-                            {field.enumValues.map((opt: string) => (
-                              <option key={opt} value={opt}>{opt}</option>
-                            ))}
+                            {field.enumValues.map((opt) => {
+                              const val = typeof opt === 'object' && opt !== null ? opt.value : opt;
+                              const label = typeof opt === 'object' && opt !== null && opt.label ? opt.label : val;
+                              return (
+                                <option key={val} value={val}>{label}</option>
+                              );
+                            })}
                           </select>
                         ) : field.type === 'number' ? (
                           <input
                             type="number"
+                            disabled={field.readonly}
                             className="config-input"
-                            style={{ width: '280px', height: '34px', boxSizing: 'border-box', margin: 0 }}
+                            style={{ width: '280px', height: '34px', boxSizing: 'border-box', margin: 0, opacity: field.readonly ? 0.5 : 1, cursor: field.readonly ? 'not-allowed' : undefined }}
                             value={currentValue ?? ''}
                             onChange={(e) => setDynamicValues(prev => ({ ...prev, [field.key]: Number(e.target.value) }))}
                           />
                         ) : (
                           <input
                             type="text"
+                            disabled={field.readonly}
                             className="config-input"
-                            style={{ width: '280px', height: '34px', boxSizing: 'border-box', margin: 0 }}
+                            style={{ width: '280px', height: '34px', boxSizing: 'border-box', margin: 0, opacity: field.readonly ? 0.5 : 1, cursor: field.readonly ? 'not-allowed' : undefined }}
                             value={typeof currentValue === 'object' ? JSON.stringify(currentValue) : (currentValue ?? '')}
                             onChange={(e) => {
                               let val: any = e.target.value;

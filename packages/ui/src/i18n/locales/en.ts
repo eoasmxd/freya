@@ -89,6 +89,7 @@ export const en: Record<string, string> = {
   'global.btnCleanConfig': 'No Changes',
   'global.dirtyHint': 'Unsaved changes, click to save',
   'global.cleanHint': 'No changes',
+  'global.fieldReadonlyHint': 'Current configuration item is locked as read-only (locked by startup arguments or disabled plugin)',
 
   'prompt.switchCard': 'Select prompt to edit:',
   'prompt.descSoul': 'Soul Definition',
