@@ -3,13 +3,21 @@ import { FreyaPromptRegistry } from '../prompt/prompt-registry.js';
 import type { FreyaSessionManager } from '../session/session-manager.js';
 import type { FreyaSkillRegistry } from '../skill/skill-registry.js';
 import type { FreyaToolRegistry } from '../tools/tool-registry.js';
+import { I18n } from '../i18n/index.js';
+import { zh } from '../i18n/locales/zh.js';
+import { en } from '../i18n/locales/en.js';
 
 export interface FreyaAgentExecutorOptions extends LLMOptions {
   maxTurns?: number;
 }
 
+/**
+ * 智能体执行引擎，编排多轮 ReAct 工具调用与自主循环
+ * Agent execution engine, orchestrating multi-turn ReAct tool calls and autonomous loops
+ */
 export class FreyaAgentExecutor {
   private llmPlugin: any;
+  private readonly i18n: I18n;
 
   constructor(
     private context: FreyaContext,
@@ -19,8 +27,13 @@ export class FreyaAgentExecutor {
     private skillRegistry: FreyaSkillRegistry
   ) {
     this.llmPlugin = context.llm;
+    this.i18n = new I18n({ zh, en }, context);
   }
 
+  /**
+   * 启动智能体针对指定会话的 ReAct 执行循环
+   * Start the agent ReAct execution loop for the specified session
+   */
   async run(
     sessionId: string,
     options?: FreyaAgentExecutorOptions,
@@ -41,7 +54,7 @@ export class FreyaAgentExecutor {
       const history = await this.sessionManager.getHistory(sessionId);
 
       if (signal?.aborted) {
-        throw new Error('对话运行已被用户主动中断。');
+        throw new Error(this.i18n.t('agent.error.aborted', 'Chat generation was aborted by user.'));
       }
 
       const activeSkill = skills.find((s) => s.id === session.activeSkillId);
@@ -125,7 +138,9 @@ export class FreyaAgentExecutor {
               toolName: toolCall.name,
               status: 'failed',
               arguments: {},
-              result: `JSON 解析失败: ${parseErr.message}`
+              result: this.i18n.t('agent.error.jsonParseFailed', 'JSON parsing failed: {message}', {
+                message: parseErr.message
+              })
             });
             return {
               role: 'tool' as const,
@@ -167,7 +182,7 @@ export class FreyaAgentExecutor {
               toolName: toolCall.name,
               status: 'failed',
               arguments: args,
-              result: err.message || '运行失败'
+              result: err.message || this.i18n.t('agent.error.executionFailed', 'Execution failed')
             });
             return {
               role: 'tool' as const,
@@ -186,7 +201,7 @@ export class FreyaAgentExecutor {
     }
 
     if (!lastLlmMessage) {
-      throw new Error('无法获得合法的模型响应结果。');
+      throw new Error(this.i18n.t('agent.error.noValidResponse', 'Failed to obtain a valid model response.'));
     }
 
     await this.evaluateAndDeactivateIdleToolboxes(sessionId, executedToolNames);

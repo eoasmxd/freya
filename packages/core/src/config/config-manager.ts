@@ -290,7 +290,11 @@ export class FreyaConfigManager {
       this.context.eventBus.emit('config:language_changed', { language: safeValue });
     }
 
-    return `核心配置中的属性 "${keyPath}" 已成功修改，已实时生效。`;
+    return this.i18n.t(
+      'config.update.propertySuccess',
+      'Property "{keyPath}" in core configuration has been modified and took effect immediately.',
+      { keyPath }
+    );
   }
 
   async updateConfigs(updates: Record<string, any>): Promise<string> {
@@ -333,7 +337,10 @@ export class FreyaConfigManager {
       this.context.eventBus.emit('config:language_changed', { language: updates['system.language'] });
     }
 
-    return '全量全局配置已成功修改，并实时热更新生效。';
+    return this.i18n.t(
+      'config.update.globalSuccess',
+      'Global configuration has been updated and hot reloaded successfully.'
+    );
   }
 
   async listProviders(): Promise<any[]> {
@@ -342,9 +349,13 @@ export class FreyaConfigManager {
 
   async addProvider(data: { id: string; name: string; type: string; baseURL: string; apiKey?: string }): Promise<string> {
     const id = String(data.id || '').trim();
-    if (!id) return '❌ 缺少必要参数：id 不能为空。';
+    if (!id) {
+      return this.i18n.t('config.provider.missingId', '❌ Missing required parameter: id cannot be empty.');
+    }
     const providers = await this.fileHandler.readProviders();
-    if (providers.find((p) => p.id === id)) return `❌ 提供商 ID "${id}" 已存在。`;
+    if (providers.find((p) => p.id === id)) {
+      return this.i18n.t('config.provider.alreadyExists', '❌ Provider ID "{id}" already exists.', { id });
+    }
     providers.push({
       id,
       name: String(data.name || '').trim(),
@@ -356,34 +367,44 @@ export class FreyaConfigManager {
     await this.fileHandler.writeProviders(providers);
     if (this.llmRegistry) this.llmRegistry.setProviders(providers);
     this.context.logger.info(`[FreyaConfigManager] Added model provider: ${id}`);
-    return `模型提供商 "${id}" 已成功新增。`;
+    return this.i18n.t('config.provider.addSuccess', 'Model provider "{id}" added successfully.', { id });
   }
 
   async editProvider(providerId: string, updates: Record<string, any>): Promise<string> {
     const providers = await this.fileHandler.readProviders();
     const provider = providers.find((p) => p.id === providerId);
-    if (!provider) return `❌ 未找到提供商 ID 为 "${providerId}" 的配置条目。`;
+    if (!provider) {
+      return this.i18n.t('config.provider.notFound', '❌ Provider with ID "{id}" not found.', { id: providerId });
+    }
     const updatedKeys: string[] = [];
     if (updates.name !== undefined) { provider.name = String(updates.name).trim(); updatedKeys.push('name'); }
     if (updates.type !== undefined) { provider.type = String(updates.type).trim(); updatedKeys.push('type'); }
     if (updates.baseURL !== undefined) { provider.baseURL = String(updates.baseURL).trim(); updatedKeys.push('baseURL'); }
     if (updates.apiKey !== undefined) { provider.apiKey = String(updates.apiKey); updatedKeys.push('apiKey'); }
-    if (updatedKeys.length === 0) return '⚠️ 未指定任何需要修改的属性。';
+    if (updatedKeys.length === 0) {
+      return this.i18n.t('config.provider.noUpdates', '⚠️ No attributes specified to update.');
+    }
     await this.fileHandler.writeProviders(providers);
     if (this.llmRegistry) this.llmRegistry.setProviders(providers);
     this.context.logger.info(`[FreyaConfigManager] Updated model provider "${providerId}" attributes: ${updatedKeys.join(', ')}`);
-    return `提供商 "${providerId}" 的属性 [${updatedKeys.join(', ')}] 已成功修改。`;
+    return this.i18n.t(
+      'config.provider.updateSuccess',
+      'Provider "{id}" attributes [{keys}] updated successfully.',
+      { id: providerId, keys: updatedKeys.join(', ') }
+    );
   }
 
   async removeProvider(providerId: string): Promise<string> {
     const providers = await this.fileHandler.readProviders();
     const index = providers.findIndex((p) => p.id === providerId);
-    if (index === -1) return `❌ 未找到提供商 ID 为 "${providerId}" 的配置条目。`;
+    if (index === -1) {
+      return this.i18n.t('config.provider.notFound', '❌ Provider with ID "{id}" not found.', { id: providerId });
+    }
     providers.splice(index, 1);
     await this.fileHandler.writeProviders(providers);
     if (this.llmRegistry) this.llmRegistry.setProviders(providers);
     this.context.logger.info(`[FreyaConfigManager] Deleted model provider: ${providerId}`);
-    return `模型提供商 "${providerId}" 及其所有模型配置已删除。`;
+    return this.i18n.t('config.provider.deleteSuccess', 'Model provider "{id}" and all its models deleted.', { id: providerId });
   }
 
   async getAvailableProviderTypes(): Promise<string[]> {
@@ -414,14 +435,22 @@ export class FreyaConfigManager {
 
   async addModel(providerId: string, data: Record<string, any>): Promise<string> {
     const modelId = String(data.id || '').trim();
-    if (!modelId) return '❌ 缺少必要参数：id 不能为空。';
+    if (!modelId) {
+      return this.i18n.t('config.model.missingId', '❌ Missing required parameter: id cannot be empty.');
+    }
     const providers = await this.fileHandler.readProviders();
     const provider = providers.find((p) => p.id === providerId);
-    if (!provider) return `❌ 未找到提供商 ID 为 "${providerId}" 的配置条目。`;
+    if (!provider) {
+      return this.i18n.t('config.provider.notFound', '❌ Provider with ID "{id}" not found.', { id: providerId });
+    }
 
     if (!Array.isArray(provider.models)) provider.models = [];
     if (provider.models.find((m: any) => m.id === modelId)) {
-      return `❌ 模型 ID "${modelId}" 在提供商 "${providerId}" 下已存在。`;
+      return this.i18n.t(
+        'config.model.alreadyExists',
+        '❌ Model ID "{modelId}" already exists under provider "{providerId}".',
+        { modelId, providerId }
+      );
     }
 
     provider.models.push({
@@ -439,17 +468,29 @@ export class FreyaConfigManager {
     await this.fileHandler.writeProviders(providers);
     if (this.llmRegistry) this.llmRegistry.setProviders(providers);
     this.context.logger.info(`[FreyaConfigManager] Added model: ${providerId}/${modelId}`);
-    return `模型 "${modelId}" 已成功新增至提供商 "${providerId}"。`;
+    return this.i18n.t(
+      'config.model.addSuccess',
+      'Model "{modelId}" added to provider "{providerId}" successfully.',
+      { modelId, providerId }
+    );
   }
 
   async editModel(providerId: string, modelId: string, updates: Record<string, any>): Promise<string> {
     const providers = await this.fileHandler.readProviders();
     const provider = providers.find((p) => p.id === providerId);
-    if (!provider) return `❌ 未找到提供商 ID 为 "${providerId}" 的配置条目。`;
+    if (!provider) {
+      return this.i18n.t('config.provider.notFound', '❌ Provider with ID "{id}" not found.', { id: providerId });
+    }
 
     const models = Array.isArray(provider.models) ? provider.models : [];
     const model = models.find((m: any) => m.id === modelId);
-    if (!model) return `❌ 未找到模型 ID 为 "${modelId}" 的配置条目（提供商 "${providerId}"）。`;
+    if (!model) {
+      return this.i18n.t(
+        'config.model.notFound',
+        '❌ Model ID "{modelId}" not found (provider "{providerId}").',
+        { modelId, providerId }
+      );
+    }
 
     const updatedKeys: string[] = [];
     if (updates.name !== undefined) { model.name = String(updates.name).trim(); updatedKeys.push('name'); }
@@ -461,28 +502,46 @@ export class FreyaConfigManager {
     if (updates.maxTokens !== undefined) { model.maxTokens = Number(updates.maxTokens); updatedKeys.push('maxTokens'); }
     if (updates.capabilities !== undefined) { model.capabilities = updates.capabilities; updatedKeys.push('capabilities'); }
 
-    if (updatedKeys.length === 0) return '⚠️ 未指定任何需要修改的属性。';
+    if (updatedKeys.length === 0) {
+      return this.i18n.t('config.provider.noUpdates', '⚠️ No attributes specified to update.');
+    }
 
     await this.fileHandler.writeProviders(providers);
     if (this.llmRegistry) this.llmRegistry.setProviders(providers);
     this.context.logger.info(`[FreyaConfigManager] Updated model "${providerId}/${modelId}" attributes: ${updatedKeys.join(', ')}`);
-    return `模型 "${modelId}"（提供商 "${providerId}"）的属性 [${updatedKeys.join(', ')}] 已成功修改。`;
+    return this.i18n.t(
+      'config.model.updateSuccess',
+      'Model "{modelId}" (provider "{providerId}") attributes [{keys}] updated successfully.',
+      { modelId, providerId, keys: updatedKeys.join(', ') }
+    );
   }
 
   async removeModel(providerId: string, modelId: string): Promise<string> {
     const providers = await this.fileHandler.readProviders();
     const provider = providers.find((p) => p.id === providerId);
-    if (!provider) return `❌ 未找到提供商 ID 为 "${providerId}" 的配置条目。`;
+    if (!provider) {
+      return this.i18n.t('config.provider.notFound', '❌ Provider with ID "{id}" not found.', { id: providerId });
+    }
 
     const models = Array.isArray(provider.models) ? provider.models : [];
     const index = models.findIndex((m: any) => m.id === modelId);
-    if (index === -1) return `❌ 未找到模型 ID 为 "${modelId}" 的配置条目（提供商 "${providerId}"）。`;
+    if (index === -1) {
+      return this.i18n.t(
+        'config.model.notFound',
+        '❌ Model ID "{modelId}" not found (provider "{providerId}").',
+        { modelId, providerId }
+      );
+    }
 
     models.splice(index, 1);
     await this.fileHandler.writeProviders(providers);
     if (this.llmRegistry) this.llmRegistry.setProviders(providers);
     this.context.logger.info(`[FreyaConfigManager] Deleted model: ${providerId}/${modelId}`);
-    return `模型 "${modelId}"（提供商 "${providerId}"）已成功删除。`;
+    return this.i18n.t(
+      'config.model.deleteSuccess',
+      'Model "{modelId}" (provider "{providerId}") deleted successfully.',
+      { modelId, providerId }
+    );
   }
 
   async listPlugins(): Promise<any[]> {
@@ -503,7 +562,9 @@ export class FreyaConfigManager {
   }
 
   async togglePlugin(pluginId: string, enabled: boolean): Promise<string> {
-    if (!this.pluginManager) return '❌ 插件服务未初始化。';
+    if (!this.pluginManager) {
+      return this.i18n.t('config.plugin.notInit', '❌ Plugin service is not initialized.');
+    }
     return await this.pluginManager.togglePlugin(pluginId, enabled);
   }
 
@@ -513,44 +574,76 @@ export class FreyaConfigManager {
   }
 
   async toggleSkill(skillId: string, enabled: boolean): Promise<string> {
-    if (!this.skillRegistry) return '❌ 技能注册表服务未初始化。';
+    if (!this.skillRegistry) {
+      return this.i18n.t('config.skill.notInit', '❌ Skill registry service is not initialized.');
+    }
     return await this.skillRegistry.toggleSkill(skillId, enabled);
   }
 
   async readPrompt(name: string): Promise<string> {
     const promptName = String(name).trim().toUpperCase();
     if (!ALLOWED_PROMPTS.has(promptName)) {
-      return `❌ 拒绝访问：主提示词文档 "${promptName}" 不在安全白名单中（只允许: IDENTITY, SOUL, USER, TOOLS, AGENTS, MEMORY）。`;
+      return this.i18n.t(
+        'config.prompt.notAllowed',
+        '❌ Access denied: prompt document "{name}" is not in whitelist (allowed: IDENTITY, SOUL, USER, TOOLS, AGENTS, MEMORY).',
+        { name: promptName }
+      );
     }
-    if (!this.promptManager) return '❌ 提示词服务未初始化。';
+    if (!this.promptManager) {
+      return this.i18n.t('config.prompt.notInit', '❌ Prompt service is not initialized.');
+    }
     return await this.promptManager.readPrompt(promptName);
   }
 
   async writePrompt(name: string, content: string): Promise<string> {
     const promptName = String(name).trim().toUpperCase();
     if (!ALLOWED_PROMPTS.has(promptName)) {
-      return '❌ 拒绝访问：主提示词文档不在安全白名单中，拒绝修改。';
+      return this.i18n.t(
+        'config.prompt.notAllowed',
+        '❌ Access denied: prompt document "{name}" is not in whitelist (allowed: IDENTITY, SOUL, USER, TOOLS, AGENTS, MEMORY).',
+        { name: promptName }
+      );
     }
-    if (!this.promptManager) return '❌ 提示词服务未初始化。';
+    if (!this.promptManager) {
+      return this.i18n.t('config.prompt.notInit', '❌ Prompt service is not initialized.');
+    }
 
     await this.promptManager.writePrompt(promptName, content);
     this.context.logger.info(`[FreyaConfigManager] Primary prompt "${promptName}" fully overridden and hot reloaded into core.`);
-    return `主提示词文档 [${promptName}] 已覆盖写入并实时生效。`;
+    return this.i18n.t(
+      'config.prompt.overwriteSuccess',
+      'Primary prompt [{name}] overridden and hot reloaded.',
+      { name: promptName }
+    );
   }
 
   async editPrompt(name: string, targetContent: string, replacementContent: string): Promise<string> {
     const promptName = String(name).trim().toUpperCase();
     if (!ALLOWED_PROMPTS.has(promptName)) {
-      return `❌ 拒绝访问：主提示词文档 "${promptName}" 不在允许读写的安全白名单中（只允许: IDENTITY, SOUL, USER, TOOLS, AGENTS, MEMORY）。`;
+      return this.i18n.t(
+        'config.prompt.notAllowed',
+        '❌ Access denied: prompt document "{name}" is not in whitelist (allowed: IDENTITY, SOUL, USER, TOOLS, AGENTS, MEMORY).',
+        { name: promptName }
+      );
     }
-    if (!this.promptManager) return '❌ 提示词服务未初始化。';
+    if (!this.promptManager) {
+      return this.i18n.t('config.prompt.notInit', '❌ Prompt service is not initialized.');
+    }
 
     try {
       await this.promptManager.editPrompt(promptName, targetContent, replacementContent);
       this.context.logger.info(`[FreyaConfigManager] Primary prompt "${promptName}" partial update hot reloaded.`);
-      return `主提示词文档 [${promptName}] 局部替换成功，已实时应用。`;
+      return this.i18n.t(
+        'config.prompt.editSuccess',
+        'Primary prompt [{name}] partially replaced and applied.',
+        { name: promptName }
+      );
     } catch (err: any) {
-      return `❌ 修改失败：${err.message}`;
+      return this.i18n.t(
+        'config.prompt.editFailed',
+        '❌ Modification failed: {message}',
+        { message: err.message }
+      );
     }
   }
 

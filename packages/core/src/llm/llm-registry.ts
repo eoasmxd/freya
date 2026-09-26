@@ -1,10 +1,18 @@
 import type { LLMPlugin, FreyaContext } from '@eoasmxd/freya-sdk';
 import type { ProviderConfig, ModelConfig } from '../config/types.js';
+import { I18n } from '../i18n/index.js';
+import { zh } from '../i18n/locales/zh.js';
+import { en } from '../i18n/locales/en.js';
 
 export class FreyaLLMRegistry {
   private _providers: ProviderConfig[] = [];
   private llmPlugins = new Map<string, LLMPlugin>();
   private defaultLLMPlugin?: LLMPlugin;
+  private readonly i18n: I18n;
+
+  constructor(ctx?: FreyaContext) {
+    this.i18n = new I18n({ zh, en }, ctx);
+  }
 
   findModelConfig(modelId: string, providerId?: string): ModelConfig | undefined {
     if (providerId) {
@@ -79,7 +87,7 @@ export class FreyaLLMRegistry {
    */
   getPluginForProvider(providerId?: string): LLMPlugin {
     if (!this.defaultLLMPlugin) {
-      throw new Error('未加载到任何有效的大模型插件。');
+      throw new Error(this.i18n.t('llm.error.noPluginLoaded', 'No valid LLM plugin loaded in system. Please check plugin and model configurations.'));
     }
     if (!providerId) {
       return this.defaultLLMPlugin;

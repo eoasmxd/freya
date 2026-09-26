@@ -271,6 +271,10 @@ export class FreyaAgentService {
     }
   }
 
+  /**
+   * 运行子智能体会话并等待执行结果
+   * Run sub-agent session and await execution result
+   */
   async runSubAgent(
     parentSessionId: string,
     childSessionId: string,
@@ -304,6 +308,10 @@ export class FreyaAgentService {
     }
   }
 
+  /**
+   * 取消指定的子智能体会话
+   * Cancel specified sub-agent session
+   */
   cancelSubAgent(childSessionId: string): string {
     let targetKey: string | null = null;
     let controller: AbortController | null = null;

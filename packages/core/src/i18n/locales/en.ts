@@ -159,6 +159,15 @@ export const en: Record<string, string> = {
   'plugin.toggle.writeFailed': '❌ Plugin state changed, but failed to write plugins.json: {message}',
   'plugin.toggle.startFailed': '❌ Failed to start plugin "{id}": {message}',
   'plugin.toggle.success': '✅ Plugin "{id}" has been {state} and took effect immediately.',
+  'plugin.error.missingExport': 'Plugin module at {path} does not define a default or Plugin export.',
+  'plugin.error.missingIdentity': 'Missing Freya identifier (package.json must contain freya field or depend on @eoasmxd/freya-sdk)',
+  'plugin.error.missingMain': 'package.json does not define a main entry point',
+  'plugin.error.entryNotFound': 'Entry file specified in package.json not found: {file}',
+  'plugin.error.schemaCorrupted': 'Schema file {file} is corrupted or invalid JSON: {message}',
+  'plugin.error.npmNotFound': 'NPM package "{name}" not found in system',
+  'plugin.error.npmReadFailed': 'Failed to read package.json for NPM package "{name}"',
+  'plugin.error.npmResolveFailed': 'Error resolving NPM plugin "{name}": {message}',
+  'plugin.error.loadFailed': 'Failed to load and initialize plugin: {message}',
 
   // 技能管理
   // Skill management
@@ -225,5 +234,41 @@ export const en: Record<string, string> = {
   'schema.core.commands.auth.enabled.desc': 'Enable sensitive operation approval commands (/approve and /reject)',
   'schema.core.commands.session.enabled.desc': 'Enable session management commands (/session and subcommands)',
   'schema.core.commands.model.enabled.desc': 'Enable model switching commands (/model and subcommands)',
+
+  // 配置管理器运行态文案
+  // Configuration Manager runtime messages
+  'config.update.propertySuccess': 'Core configuration property "{keyPath}" updated successfully and took effect immediately.',
+  'config.update.globalSuccess': 'Global configuration updated successfully and took effect immediately.',
+  'config.provider.missingId': '❌ Missing required parameter: id cannot be empty.',
+  'config.provider.alreadyExists': '❌ Model provider ID "{id}" already exists.',
+  'config.provider.addSuccess': 'Model provider "{id}" added successfully.',
+  'config.provider.notFound': '❌ Model provider "{id}" not found.',
+  'config.provider.noUpdates': '⚠️ No attributes specified to update.',
+  'config.provider.updateSuccess': 'Attributes [{keys}] of provider "{id}" updated successfully.',
+  'config.provider.deleteSuccess': 'Model provider "{id}" and all its models deleted successfully.',
+  'config.model.missingId': '❌ Missing required parameter: id cannot be empty.',
+  'config.model.alreadyExists': '❌ Model ID "{modelId}" already exists under provider "{providerId}".',
+  'config.model.addSuccess': 'Model "{modelId}" added successfully to provider "{providerId}".',
+  'config.model.notFound': '❌ Model ID "{modelId}" not found under provider "{providerId}".',
+  'config.model.updateSuccess': 'Attributes [{keys}] of model "{modelId}" (provider "{providerId}") updated successfully.',
+  'config.model.deleteSuccess': 'Model "{modelId}" (provider "{providerId}") deleted successfully.',
+  'config.plugin.notInit': '❌ Plugin service is not initialized.',
+  'config.skill.notInit': '❌ Skill registry service is not initialized.',
+  'config.prompt.notAllowed': '❌ Access denied: Primary prompt document "{name}" is not in whitelist (allowed: IDENTITY, SOUL, USER, TOOLS, AGENTS, MEMORY).',
+  'config.prompt.notInit': '❌ Prompt manager service is not initialized.',
+  'config.prompt.overwriteSuccess': 'Primary prompt document [{name}] overwritten successfully and took effect immediately.',
+  'config.prompt.editSuccess': 'Primary prompt document [{name}] partially replaced successfully and took effect immediately.',
+  'config.prompt.editFailed': '❌ Edit failed: {message}',
+
+  // 大模型与执行引擎异常提示
+  // LLM and Agent Executor error messages
+  'llm.error.noPluginLoaded': '❌ No valid LLM plugin loaded in system. Please check plugin and model configurations.',
+  'llm.error.allCandidatesFailed': 'All candidate models failed to invoke, no fallback available.',
+  'llm.error.missingApiKey': 'No available LLM configuration detected or API key is invalid.',
+  'llm.error.noPluginForProvider': 'No LLM plugin instance found to handle provider "{providerId}".',
+  'agent.error.aborted': 'Chat generation was aborted by user.',
+  'agent.error.noValidResponse': 'Failed to obtain a valid model response.',
+  'agent.error.jsonParseFailed': 'JSON parsing failed: {message}',
+  'agent.error.executionFailed': 'Execution failed',
 };
 

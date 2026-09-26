@@ -137,7 +137,8 @@ export class FreyaSessionManager {
 
         const idx = this.findLatestIndexById(id);
         if (!idx) {
-            throw new Error(`会话不存在: ${id}`);
+            // 会话不存在异常
+            throw new Error(`Session not found: ${id}`);
         }
 
         const data = await this.persistence.loadSessionData(idx.uuid);

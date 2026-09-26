@@ -57,12 +57,15 @@ export class FreyaPluginManager {
   private pluginResolvedDirs = new Map<string, string>();
   private ctx!: FreyaContext;
   private pluginRegistry!: FreyaPluginRegistry;
+  private i18n: I18n;
 
   constructor(
     private configSchemaRegistry: FreyaConfigSchemaRegistry,
     private commandRegistry: FreyaCommandRegistry,
     private promptRegistry: FreyaPromptRegistry
-  ) { }
+  ) {
+    this.i18n = new I18n({ zh, en });
+  }
 
   /**
    * 加载指定路径的插件模块并挂载所属 Command 与 Prompt 声明
@@ -79,7 +82,13 @@ export class FreyaPluginManager {
     const module = await import(fileUrl);
     const PluginClass = module.default || module.Plugin;
     if (!PluginClass) {
-      throw new Error(`插件路径 ${pluginPath} 未定义默认导出或 Plugin 命名导出。`);
+      throw new Error(
+        this.i18n.t(
+          'plugin.error.missingExport',
+          'Plugin module at {path} does not define a default or Plugin export.',
+          { path: pluginPath }
+        )
+      );
     }
 
     const plugin: FreyaPlugin = new PluginClass();
@@ -164,22 +173,33 @@ export class FreyaPluginManager {
    * Toggle plugin enabled/disabled status and synchronize physical configuration
    */
   async togglePlugin(pluginId: string, enabled: boolean): Promise<string> {
-    const i18n = new I18n({ zh, en }, this.ctx);
     const entry = this.pluginEntries.find((e: PluginConfigEntry) => e.id === pluginId);
     if (!entry) {
-      return i18n.t('plugin.toggle.notFound', '❌ Plugin with ID "{id}" not found. Please verify the name.', { id: pluginId });
+      return this.i18n.t(
+        'plugin.toggle.notFound',
+        '❌ Plugin with ID "{id}" not found. Please verify the name.',
+        { id: pluginId }
+      );
     }
 
     if (enabled && entry.valid === false) {
-      const reason = entry.errorReason || i18n.t('plugin.toggle.invalidStateDefault', 'plugin is in an invalid state');
-      return i18n.t('plugin.toggle.invalidState', '❌ Cannot enable plugin "{id}": {reason}', { id: pluginId, reason });
+      const reason = entry.errorReason || this.i18n.t('plugin.toggle.invalidStateDefault', 'plugin is in an invalid state');
+      return this.i18n.t(
+        'plugin.toggle.invalidState',
+        '❌ Cannot enable plugin "{id}": {reason}',
+        { id: pluginId, reason }
+      );
     }
 
     if (entry.enabled === enabled) {
       const state = enabled
-        ? i18n.t('plugin.toggle.stateEnabled', 'enabled')
-        : i18n.t('plugin.toggle.stateDisabled', 'disabled');
-      return i18n.t('plugin.toggle.alreadyInState', 'ℹ️ Plugin "{id}" is already {state}.', { id: pluginId, state });
+        ? this.i18n.t('plugin.toggle.stateEnabled', 'enabled')
+        : this.i18n.t('plugin.toggle.stateDisabled', 'disabled');
+      return this.i18n.t(
+        'plugin.toggle.alreadyInState',
+        'ℹ️ Plugin "{id}" is already {state}.',
+        { id: pluginId, state }
+      );
     }
 
     entry.enabled = enabled;
@@ -191,7 +211,11 @@ export class FreyaPluginManager {
       const rawEntries = this.pluginEntries.map((e) => ({ id: e.id, enabled: e.enabled }));
       await fs.writeFile(configPluginsPath, JSON.stringify(rawEntries, null, 2) + '\n', 'utf-8');
     } catch (err: any) {
-      return i18n.t('plugin.toggle.writeFailed', '❌ Plugin state changed, but failed to write plugins.json: {message}', { message: err.message });
+      return this.i18n.t(
+        'plugin.toggle.writeFailed',
+        '❌ Plugin state changed, but failed to write plugins.json: {message}',
+        { message: err.message }
+      );
     }
 
     if (enabled) {
@@ -217,7 +241,11 @@ export class FreyaPluginManager {
           entry.valid = false;
           entry.errorReason = `Hot activate load failed: ${err.message}`;
           this.ctx.logger.error(`[FreyaPluginManager] Failed to hot activate plugin "${pluginId}":`, err.message);
-          return i18n.t('plugin.toggle.startFailed', '❌ Failed to start plugin "{id}": {message}', { id: pluginId, message: err.message });
+          return this.i18n.t(
+            'plugin.toggle.startFailed',
+            '❌ Failed to start plugin "{id}": {message}',
+            { id: pluginId, message: err.message }
+          );
         }
       }
     } else {
@@ -246,9 +274,13 @@ export class FreyaPluginManager {
 
     this.ctx.eventBus.emit('plugin:toggled', { pluginId, enabled });
     const state = enabled
-      ? i18n.t('plugin.toggle.stateEnabled', 'enabled')
-      : i18n.t('plugin.toggle.stateDisabled', 'disabled');
-    return i18n.t('plugin.toggle.success', '✅ Plugin "{id}" has been {state} and took effect immediately.', { id: pluginId, state });
+      ? this.i18n.t('plugin.toggle.stateEnabled', 'enabled')
+      : this.i18n.t('plugin.toggle.stateDisabled', 'disabled');
+    return this.i18n.t(
+      'plugin.toggle.success',
+      '✅ Plugin "{id}" has been {state} and took effect immediately.',
+      { id: pluginId, state }
+    );
   }
 
   /**
@@ -292,7 +324,10 @@ export class FreyaPluginManager {
           version,
           source,
           valid: false,
-          errorReason: `缺少 Freya 身份标识 (package.json 需包含 freya 节点或依赖 @eoasmxd/freya-sdk)`
+          errorReason: this.i18n.t(
+            'plugin.error.missingIdentity',
+            'Missing Freya identifier (package.json must contain freya field or depend on @eoasmxd/freya-sdk)'
+          )
         };
       }
 
@@ -307,7 +342,10 @@ export class FreyaPluginManager {
           version,
           source,
           valid: false,
-          errorReason: `package.json 未定义 main 入口声明`
+          errorReason: this.i18n.t(
+            'plugin.error.missingMain',
+            'package.json does not define a main entry point'
+          )
         };
       }
 
@@ -324,7 +362,11 @@ export class FreyaPluginManager {
           version,
           source,
           valid: false,
-          errorReason: `未找到 package.json 指定的物理入口文件: ${mainFile}`
+          errorReason: this.i18n.t(
+            'plugin.error.entryNotFound',
+            'Entry file specified in package.json not found: {file}',
+            { file: mainFile }
+          )
         };
       }
 
@@ -346,7 +388,11 @@ export class FreyaPluginManager {
             version,
             source,
             valid: false,
-            errorReason: `静态配置声明文件 ${relativeSchemaPath} 损坏解析失败: ${err.message}`
+            errorReason: this.i18n.t(
+              'plugin.error.schemaCorrupted',
+              'Schema file {file} is corrupted or invalid JSON: {message}',
+              { file: relativeSchemaPath, message: err.message }
+            )
           };
         }
         schema = [];
@@ -392,7 +438,11 @@ export class FreyaPluginManager {
           version: '',
           source: 'npm',
           valid: false,
-          errorReason: `系统中未找到名为 "${pkgName}" 的 NPM 包`
+          errorReason: this.i18n.t(
+            'plugin.error.npmNotFound',
+            'NPM package "{name}" not found in system',
+            { name: pkgName }
+          )
         };
       }
 
@@ -408,7 +458,11 @@ export class FreyaPluginManager {
           version: '',
           source: 'npm',
           valid: false,
-          errorReason: `NPM 包 "${pkgName}" 读取 package.json 失败`
+          errorReason: this.i18n.t(
+            'plugin.error.npmReadFailed',
+            'Failed to read package.json for NPM package "{name}"',
+            { name: pkgName }
+          )
         };
       }
       return info;
@@ -422,7 +476,11 @@ export class FreyaPluginManager {
         version: '',
         source: 'npm',
         valid: false,
-        errorReason: `解析 NPM 插件异常: ${err.message}`
+        errorReason: this.i18n.t(
+          'plugin.error.npmResolveFailed',
+          'Error resolving NPM plugin "{name}": {message}',
+          { message: err.message }
+        )
       };
     }
   }
@@ -502,6 +560,7 @@ export class FreyaPluginManager {
   async loadConfiguredPlugins(pluginRegistry: FreyaPluginRegistry, ctx: FreyaContext): Promise<void> {
     this.ctx = ctx;
     this.pluginRegistry = pluginRegistry;
+    this.i18n = new I18n({ zh, en }, ctx);
     const configPluginsPath = path.join(FREYA_HOME, 'config', 'plugins.json');
 
     let configList: Array<{ id: string; enabled: boolean }> = [];
@@ -611,7 +670,11 @@ export class FreyaPluginManager {
       } catch (err: any) {
         entry.valid = false;
         entry.status = 'error';
-        entry.errorReason = `载入运行失败: ${err.message}`;
+        entry.errorReason = this.i18n.t(
+          'plugin.error.loadFailed',
+          'Failed to load and initialize plugin: {message}',
+          { message: err.message }
+        );
         ctx.logger.error(`Error instantiating plugin "${entry.id}": ${err.message}`);
       }
     }

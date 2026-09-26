@@ -53,7 +53,7 @@ export class FreyaKernel {
 
     const configSchemaRegistry = new FreyaConfigSchemaRegistry();
     const toolRegistry = new FreyaToolRegistry(ctx);
-    const llmRegistry = new FreyaLLMRegistry();
+    const llmRegistry = new FreyaLLMRegistry(ctx);
     const promptRegistry = new FreyaPromptRegistry(ctx);
 
     const commandRegistry = new FreyaCommandRegistry(ctx);

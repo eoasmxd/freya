@@ -159,6 +159,15 @@ export const zh: Record<string, string> = {
   'plugin.toggle.writeFailed': '❌ 插件状态变更成功，但写入 plugins.json 失败: {message}',
   'plugin.toggle.startFailed': '❌ 插件 "{id}" 开启失败: {message}',
   'plugin.toggle.success': '✅ 插件 "{id}" 已{state}并立即生效。',
+  'plugin.error.missingExport': '插件路径 {path} 未定义默认导出或 Plugin 命名导出。',
+  'plugin.error.missingIdentity': '缺少 Freya 身份标识 (package.json 需包含 freya 节点或依赖 @eoasmxd/freya-sdk)',
+  'plugin.error.missingMain': 'package.json 未定义 main 入口声明',
+  'plugin.error.entryNotFound': '未找到 package.json 指定的物理入口文件: {file}',
+  'plugin.error.schemaCorrupted': '静态配置声明文件 {file} 损坏解析失败: {message}',
+  'plugin.error.npmNotFound': '系统中未找到名为 "{name}" 的 NPM 包',
+  'plugin.error.npmReadFailed': 'NPM 包 "{name}" 读取 package.json 失败',
+  'plugin.error.npmResolveFailed': '解析 NPM 插件异常: {message}',
+  'plugin.error.loadFailed': '载入运行失败: {message}',
 
   // 技能管理
   // Skill management
@@ -225,4 +234,40 @@ export const zh: Record<string, string> = {
   'schema.core.commands.auth.enabled.desc': '是否启用敏感操作授权审批指令（/approve 与 /reject）',
   'schema.core.commands.session.enabled.desc': '是否启用会话管理与路由指令（/session 及其子命令）',
   'schema.core.commands.model.enabled.desc': '是否启用模型查看与切换指令（/model 及其子命令）',
+
+  // 配置管理器运行态文案
+  // Configuration Manager runtime messages
+  'config.update.propertySuccess': '核心配置中的属性 "{keyPath}" 已成功修改，已实时生效。',
+  'config.update.globalSuccess': '全量全局配置已成功修改，并实时热更新生效。',
+  'config.provider.missingId': '❌ 缺少必要参数：id 不能为空。',
+  'config.provider.alreadyExists': '❌ 提供商 ID "{id}" 已存在。',
+  'config.provider.addSuccess': '模型提供商 "{id}" 已成功新增。',
+  'config.provider.notFound': '❌ 未找到提供商 ID 为 "{id}" 的配置条目。',
+  'config.provider.noUpdates': '⚠️ 未指定任何需要修改的属性。',
+  'config.provider.updateSuccess': '提供商 "{id}" 的属性 [{keys}] 已成功修改。',
+  'config.provider.deleteSuccess': '模型提供商 "{id}" 及其所有模型配置已删除。',
+  'config.model.missingId': '❌ 缺少必要参数：id 不能为空。',
+  'config.model.alreadyExists': '❌ 模型 ID "{modelId}" 在提供商 "{providerId}" 下已存在。',
+  'config.model.addSuccess': '模型 "{modelId}" 已成功新增至提供商 "{providerId}"。',
+  'config.model.notFound': '❌ 未找到模型 ID 为 "{modelId}" 的配置条目（提供商 "{providerId}"）。',
+  'config.model.updateSuccess': '模型 "{modelId}"（提供商 "{providerId}"）的属性 [{keys}] 已成功修改。',
+  'config.model.deleteSuccess': '模型 "{modelId}"（提供商 "{providerId}"）已成功删除。',
+  'config.plugin.notInit': '❌ 插件服务未初始化。',
+  'config.skill.notInit': '❌ 技能注册表服务未初始化。',
+  'config.prompt.notAllowed': '❌ 拒绝访问：主提示词文档 "{name}" 不在安全白名单中（只允许: IDENTITY, SOUL, USER, TOOLS, AGENTS, MEMORY）。',
+  'config.prompt.notInit': '❌ 提示词服务未初始化。',
+  'config.prompt.overwriteSuccess': '主提示词文档 [{name}] 已覆盖写入并实时生效。',
+  'config.prompt.editSuccess': '主提示词文档 [{name}] 局部替换成功，已实时应用。',
+  'config.prompt.editFailed': '❌ 修改失败：{message}',
+
+  // 大模型与执行引擎异常提示
+  // LLM and Agent Executor error messages
+  'llm.error.noPluginLoaded': '❌ 系统尚未加载到任何有效的大模型插件，请检查插件与模型配置。',
+  'llm.error.allCandidatesFailed': '所有候选模型均调用失败，无可用备选。',
+  'llm.error.missingApiKey': '未检测到可用的大模型配置或对应的大模型授权密钥已失效，调用失败。',
+  'llm.error.noPluginForProvider': '未找到能处理提供商 "{providerId}" 的 LLM 插件实例。',
+  'agent.error.aborted': '对话运行已被用户主动中断。',
+  'agent.error.noValidResponse': '无法获得合法的模型响应结果。',
+  'agent.error.jsonParseFailed': 'JSON 解析失败: {message}',
+  'agent.error.executionFailed': '运行失败',
 };

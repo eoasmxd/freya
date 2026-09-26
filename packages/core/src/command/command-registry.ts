@@ -53,10 +53,12 @@ export class FreyaCommandRegistry {
   register(command: FreyaCommand, pluginId?: string): void {
     const name = command.name.toLowerCase();
     if (this.commands.has(name)) {
-      throw new Error(`[CommandRegistry] 指令注册冲突：主指令名 "${name}" 已经被注册。`);
+      // 主指令名冲突异常
+      throw new Error(`[CommandRegistry] Command registration conflict: Primary command name "${name}" is already registered.`);
     }
     if (this.aliasMap.has(name)) {
-      throw new Error(`[CommandRegistry] 指令注册冲突：指令名 "${name}" 已被占用为别名。`);
+      // 别名占用冲突异常
+      throw new Error(`[CommandRegistry] Command registration conflict: Command name "${name}" is already occupied as an alias.`);
     }
 
     this.commands.set(name, command);
@@ -71,7 +73,8 @@ export class FreyaCommandRegistry {
       for (const alias of command.alias) {
         const lowerAlias = alias.toLowerCase();
         if (this.commands.has(lowerAlias) || this.aliasMap.has(lowerAlias)) {
-          throw new Error(`[CommandRegistry] 指令注册冲突：别名 "${alias}" 已经被占用。`);
+          // 别名重复冲突异常
+          throw new Error(`[CommandRegistry] Command registration conflict: Alias "${alias}" is already occupied.`);
         }
         this.aliasMap.set(lowerAlias, name);
         if (pluginId) {

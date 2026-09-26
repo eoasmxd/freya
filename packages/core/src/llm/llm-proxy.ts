@@ -9,6 +9,9 @@ import type {
 } from '@eoasmxd/freya-sdk';
 import { FreyaLLMLogger } from './llm-logger.js';
 import { FreyaLLMRegistry } from './llm-registry.js';
+import { I18n } from '../i18n/index.js';
+import { zh } from '../i18n/locales/zh.js';
+import { en } from '../i18n/locales/en.js';
 
 interface ModelCandidate {
   provider: string;
@@ -30,12 +33,14 @@ interface HealthState {
 export class FreyaLLMProxy implements ILLMService {
   private llmLogger: FreyaLLMLogger;
   private modelHealthRegistry = new Map<string, HealthState>();
+  private readonly i18n: I18n;
 
   constructor(
     private llmRegistry: FreyaLLMRegistry,
     private context: FreyaContext
   ) {
     this.llmLogger = new FreyaLLMLogger(!!this.context.config.log?.llm);
+    this.i18n = new I18n({ zh, en }, this.context);
   }
 
   /**
@@ -92,7 +97,9 @@ export class FreyaLLMProxy implements ILLMService {
       }
     }
 
-    throw lastError || new Error('所有候选模型均调用失败，无可用备选。');
+    throw lastError || new Error(
+      this.i18n.t('llm.error.allCandidatesFailed', 'All candidate models failed to invoke, no fallback available.')
+    );
   }
 
   private async executeChat(
@@ -110,7 +117,7 @@ export class FreyaLLMProxy implements ILLMService {
 
     if (!providerConfig || !providerConfig.apiKey || providerConfig.apiKey.trim() === '') {
       throw new Error(
-        '未检测到可用的大模型配置或对应的大模型授权密钥已失效，调用失败。'
+        this.i18n.t('llm.error.missingApiKey', 'No available LLM configuration detected or API key is invalid.')
       );
     }
 
@@ -118,7 +125,11 @@ export class FreyaLLMProxy implements ILLMService {
     const targetPlugin = this.llmRegistry.getPluginForProvider(providerId);
     if (!targetPlugin) {
       throw new Error(
-        `未找到能处理提供商 "${providerId}" 的 LLM 插件实例。`
+        this.i18n.t(
+          'llm.error.noPluginForProvider',
+          'No LLM plugin instance found to handle provider "{providerId}".',
+          { providerId }
+        )
       );
     }
 
