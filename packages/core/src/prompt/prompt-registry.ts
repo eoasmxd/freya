@@ -9,9 +9,19 @@ import { FREYA_APP, FREYA_HOME, FREYA_LAUNCH } from '../utils/paths.js';
 
 export interface FreyaPrompt {
   key: string;
-  content: string;
   defaultPath: string;
   configFileName?: string;
+}
+
+interface PromptEntry extends FreyaPrompt {
+  defaultContent: string;
+  localizedContents: Map<string, string>;
+}
+
+interface ProbeDirectoryTarget {
+  dir: string;
+  stem: string;
+  ext: string;
 }
 
 /**
@@ -19,81 +29,111 @@ export interface FreyaPrompt {
  * In-memory prompt registry managing classified retrieval of system and plugin prompts
  */
 export class FreyaPromptRegistry {
-  private prompts = new Map<string, FreyaPrompt>();
+  private prompts = new Map<string, PromptEntry>();
   private readonly i18n: I18n;
 
   constructor(private ctx?: FreyaContext) {
     this.i18n = new I18n({ zh, en }, ctx);
   }
 
+  private escapeRegex(str: string): string {
+    return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  }
 
   /**
-   * 解析提示词物理探针路径列表（兼顾用户空间独占、宿主空间多语言覆盖与程序出厂物理基线）
-   * Resolve physical probe paths for prompt (user space exclusivity, host space multilingual overrides, and program baseline)
+   * 注册提示词物理元数据声明并执行五层独立目录探针载入
+   * Register prompt physical metadata descriptor and perform five-tier single-directory probe loading
    */
-  private resolveProbePaths(prompt: Omit<FreyaPrompt, 'content'>): string[] {
-    const baseName = path.basename(prompt.defaultPath);
-    const ext = path.extname(baseName);
-    const stem = ext ? baseName.slice(0, -ext.length) : baseName;
-    const lang = (this.ctx?.getLanguage('en') ?? 'en').toLowerCase().split('-')[0];
+  async register(prompt: FreyaPrompt): Promise<void> {
+    const defaultBaseName = path.basename(prompt.defaultPath);
+    const defaultExt = path.extname(defaultBaseName);
+    const defaultStem = defaultExt ? defaultBaseName.slice(0, -defaultExt.length) : defaultBaseName;
 
     const cfgExt = prompt.configFileName ? path.extname(prompt.configFileName) : '';
     const cfgStem = prompt.configFileName && cfgExt ? prompt.configFileName.slice(0, -cfgExt.length) : (prompt.configFileName || '');
 
-    const rawPaths: string[] = [];
+    const targets: ProbeDirectoryTarget[] = [];
 
-    // 1. 用户私有空间 (FREYA_HOME)：单文件独占，不探测语言后缀
-    if (prompt.configFileName) {
-      rawPaths.push(path.join(FREYA_HOME, 'config', prompt.configFileName));
+    if (cfgStem) {
+      targets.push({ dir: path.join(FREYA_HOME, 'config'), stem: cfgStem, ext: cfgExt });
     }
-    rawPaths.push(path.join(FREYA_HOME, 'config', 'prompts', baseName));
+    targets.push({ dir: path.join(FREYA_HOME, 'config', 'prompts'), stem: defaultStem, ext: defaultExt });
 
-    // 2. 宿主启动空间 (FREYA_LAUNCH)：优先按当前语言寻找特化文件，不存在则平滑回退
-    if (prompt.configFileName) {
-      rawPaths.push(path.join(FREYA_LAUNCH, 'config', `${cfgStem}.${lang}${cfgExt}`));
-      rawPaths.push(path.join(FREYA_LAUNCH, 'config', prompt.configFileName));
+    if (cfgStem) {
+      targets.push({ dir: path.join(FREYA_LAUNCH, 'config'), stem: cfgStem, ext: cfgExt });
     }
-    rawPaths.push(path.join(FREYA_LAUNCH, 'config', 'prompts', `${stem}.${lang}${ext}`));
-    rawPaths.push(path.join(FREYA_LAUNCH, 'config', 'prompts', baseName));
+    targets.push({ dir: path.join(FREYA_LAUNCH, 'config', 'prompts'), stem: defaultStem, ext: defaultExt });
 
-    // 3. 程序内置空间 (defaultPath 所在出厂物理目录)：优先寻找当前语言模板，回退到英文基线默认文件
-    const defaultDir = path.dirname(prompt.defaultPath);
-    rawPaths.push(path.join(defaultDir, `${stem}.${lang}${ext}`));
-    rawPaths.push(prompt.defaultPath);
+    targets.push({ dir: path.dirname(prompt.defaultPath), stem: defaultStem, ext: defaultExt });
 
-    const candidates: string[] = [];
-    const seen = new Set<string>();
-    for (const rawPath of rawPaths) {
-      const normalized = path.resolve(rawPath);
-      if (!seen.has(normalized)) {
-        seen.add(normalized);
-        candidates.push(normalized);
-      }
-    }
-    return candidates;
-  }
+    let defaultContent = '';
+    const localizedContents = new Map<string, string>();
+    const seenDirs = new Set<string>();
 
-  /**
-   * 注册提示词元数据声明并执行三层级联探针载入
-   * Register prompt metadata declaration and perform three-tier cascading probe loading
-   */
-  async register(prompt: Omit<FreyaPrompt, 'content'>): Promise<void> {
-    const probePaths = this.resolveProbePaths(prompt);
-    let content = '';
+    for (const target of targets) {
+      const normalizedDir = path.resolve(target.dir);
+      const dirKey = `${normalizedDir}::${target.stem}`;
+      if (seenDirs.has(dirKey)) continue;
+      seenDirs.add(dirKey);
 
-    for (const filePath of probePaths) {
+      let files: string[] = [];
       try {
-        const text = await fs.readFile(filePath, 'utf-8');
-        if (text.trim().length > 0) {
-          content = text;
-          break;
+        files = await fs.readdir(normalizedDir);
+      } catch {
+        continue;
+      }
+
+      const baseFileName = `${target.stem}${target.ext}`;
+      const langRegex = new RegExp(`^${this.escapeRegex(target.stem)}\\.([a-zA-Z0-9_-]+)${this.escapeRegex(target.ext)}$`, 'i');
+
+      const matchedLangFiles: { lang: string; fileName: string }[] = [];
+      let matchedBaseFileName: string | null = null;
+
+      for (const file of files) {
+        if (file.toLowerCase() === baseFileName.toLowerCase()) {
+          matchedBaseFileName = file;
+          continue;
         }
-      } catch {}
+        const match = file.match(langRegex);
+        if (match) {
+          const lang = match[1].toLowerCase().split('-')[0];
+          matchedLangFiles.push({ lang, fileName: file });
+        }
+      }
+
+      if (!matchedBaseFileName && matchedLangFiles.length === 0) {
+        continue;
+      }
+
+      if (matchedBaseFileName) {
+        try {
+          const text = await fs.readFile(path.join(normalizedDir, matchedBaseFileName), 'utf-8');
+          if (text.trim().length > 0) {
+            defaultContent = text.trim();
+          }
+        } catch { }
+      }
+
+      for (const { lang, fileName } of matchedLangFiles) {
+        try {
+          const text = await fs.readFile(path.join(normalizedDir, fileName), 'utf-8');
+          if (text.trim().length > 0) {
+            localizedContents.set(lang, text.trim());
+          }
+        } catch { }
+      }
+
+      if (!defaultContent && localizedContents.size > 0) {
+        defaultContent = localizedContents.values().next().value || '';
+      }
+
+      break;
     }
 
     this.prompts.set(prompt.key, {
       key: prompt.key,
-      content: content.trim(),
+      defaultContent,
+      localizedContents,
       defaultPath: prompt.defaultPath,
       configFileName: prompt.configFileName
     });
@@ -106,7 +146,9 @@ export class FreyaPromptRegistry {
   updateContent(key: string, content: string): void {
     const existing = this.prompts.get(key);
     if (existing) {
-      existing.content = content.trim();
+      const trimmed = content.trim();
+      existing.defaultContent = trimmed;
+      existing.localizedContents.clear();
     }
   }
 
@@ -118,8 +160,16 @@ export class FreyaPromptRegistry {
     this.prompts.delete(key);
   }
 
-  get(key: string): string {
-    return this.prompts.get(key)?.content || '';
+  get(key: string, lang?: string): string {
+    const prompt = this.prompts.get(key);
+    if (!prompt) return '';
+
+    const targetLang = (this.ctx?.getLanguage(lang) ?? lang ?? 'en').toLowerCase().split('-')[0];
+    const localized = prompt.localizedContents.get(targetLang);
+    if (localized && localized.trim().length > 0) {
+      return localized;
+    }
+    return prompt.defaultContent || '';
   }
 
   getPrompts(): Map<string, FreyaPrompt> {
@@ -169,21 +219,22 @@ export class FreyaPromptRegistry {
             defaultPath: path.join(defaultDirPath, file)
           });
         }
-      } catch {}
-    } catch {}
+      } catch { }
+    } catch { }
   }
 
   /**
    * 获取并拼装完整的核心 System Prompt
    * Retrieve and assemble full core System Prompt
    */
-  getSystemPrompt(): string {
-    const identity = this.get('core.prompt.identity');
-    const soul = this.get('core.prompt.soul');
-    const user = this.get('core.prompt.user');
-    const memory = this.get('core.prompt.memory');
-    const tools = this.get('core.prompt.tools');
-    const agents = this.get('core.prompt.agents');
+  getSystemPrompt(lang?: string): string {
+    const targetLang = (this.ctx?.getLanguage(lang) ?? lang ?? 'en').toLowerCase().split('-')[0];
+    const identity = this.get('core.prompt.identity', targetLang);
+    const soul = this.get('core.prompt.soul', targetLang);
+    const user = this.get('core.prompt.user', targetLang);
+    const memory = this.get('core.prompt.memory', targetLang);
+    const tools = this.get('core.prompt.tools', targetLang);
+    const agents = this.get('core.prompt.agents', targetLang);
 
     const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'Asia/Shanghai';
     const now = new Date();
@@ -198,9 +249,7 @@ export class FreyaPromptRegistry {
 
     // 当前系统时间
     const timeStr = `${nowStr} (${weekday}, TimeZone: ${timeZone}, ${utcOffset})`;
-
-    const lang = (this.ctx?.getLanguage('en') ?? 'en').toLowerCase().split('-')[0];
-    const langDirective = `The user's preferred language is "${lang}". Please interact and respond in this language unless the user explicitly requests another language.`;
+    const langDirective = `The user's preferred language is "${targetLang}". Please interact and respond in this language unless the user explicitly requests another language.`;
 
     return `# IDENTITY\n${identity}\n\n` + // 智能体本体定义
       `# SOUL\n${soul}\n\n` + // 智能体灵魂与行为风格
@@ -219,9 +268,10 @@ export class FreyaPromptRegistry {
   composeSystemPrompt(
     activeSkill?: { id: string; content: string },
     toolInstructions: string[] = [],
-    availableSkills: { id: string; name: LocalizedText; description?: LocalizedText }[] = []
+    availableSkills: { id: string; name: LocalizedText; description?: LocalizedText }[] = [],
+    lang?: string
   ): string {
-    let systemPrompt = this.getSystemPrompt();
+    let systemPrompt = this.getSystemPrompt(lang);
 
     if (toolInstructions.length > 0) {
       systemPrompt += `\n\n# TOOLS ADDITIONAL INSTRUCTIONS\n${toolInstructions.join('\n\n')}`;

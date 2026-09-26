@@ -1,6 +1,33 @@
 import React, { useState } from 'react';
 import { useI18n } from '../../i18n/index.js';
 
+function renderQrCodeMatrix(code: string) {
+  const lines = code.split('\n').filter((line) => line.length > 0);
+  if (lines.length === 0) return null;
+
+  return (
+    <div className="md-qrcode-wrapper">
+      <div className="md-qrcode-matrix">
+        {lines.map((line, rIdx) => (
+          <div key={rIdx} className="md-qrcode-row">
+            {line.split('').map((char, cIdx) => {
+              let typeClass = 'qr-empty';
+              if (char === '█') {
+                typeClass = 'qr-full';
+              } else if (char === '▀') {
+                typeClass = 'qr-upper';
+              } else if (char === '▄') {
+                typeClass = 'qr-lower';
+              }
+              return <span key={cIdx} className={`md-qrcode-cell ${typeClass}`} />;
+            })}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 const CodeBlockContainer: React.FC<{ code: string; lang: string; index: number }> = ({ code, lang, index }) => {
   const { t } = useI18n();
   const [copied, setCopied] = useState(false);
@@ -11,6 +38,8 @@ const CodeBlockContainer: React.FC<{ code: string; lang: string; index: number }
     setTimeout(() => setCopied(false), 2000);
   };
 
+  const isQrcode = (lang || '').toLowerCase() === 'qrcode';
+
   return (
     <div key={`code-${index}`} className="md-code-block-container">
       <div className="md-code-block-header">
@@ -19,29 +48,33 @@ const CodeBlockContainer: React.FC<{ code: string; lang: string; index: number }
           {copied ? `✓ ${t('common.copied', 'Copied')}` : `📋 ${t('common.copy', 'Copy')}`}
         </button>
       </div>
-      <pre className="md-code-block">
-        <code>
-          {code.split('\n').map((line, idx) => {
-            let renderedLine: React.ReactNode = line;
-            if (line.trim().startsWith('//') || line.trim().startsWith('#')) {
-              renderedLine = <span className="md-code-comment">{line}</span>;
-            } else {
-              const words = line.split(/(".*?"|'.*?'|`.*?`|\b(const|let|var|function|return|import|export|class|extends|async|await|try|catch|if|else|for|while|new|default|interface|type)\b)/g);
-              renderedLine = words.map((w, wIdx) => {
-                if (!w) return null;
-                if (/^(const|let|var|function|return|import|export|class|extends|async|await|try|catch|if|else|for|while|new|default|interface|type)$/.test(w)) {
-                  return <span key={wIdx} className="md-code-keyword">{w}</span>;
-                }
-                if ((w.startsWith('"') && w.endsWith('"')) || (w.startsWith("'") && w.endsWith("'")) || (w.startsWith('`') && w.endsWith('`'))) {
-                  return <span key={wIdx} className="md-code-string">{w}</span>;
-                }
-                return w;
-              });
-            }
-            return <div key={idx}>{renderedLine}</div>;
-          })}
-        </code>
-      </pre>
+      {isQrcode ? (
+        renderQrCodeMatrix(code)
+      ) : (
+        <pre className="md-code-block">
+          <code>
+            {code.split('\n').map((line, idx) => {
+              let renderedLine: React.ReactNode = line;
+              if (line.trim().startsWith('//') || line.trim().startsWith('#')) {
+                renderedLine = <span className="md-code-comment">{line}</span>;
+              } else {
+                const words = line.split(/(".*?"|'.*?'|`.*?`|\b(const|let|var|function|return|import|export|class|extends|async|await|try|catch|if|else|for|while|new|default|interface|type)\b)/g);
+                renderedLine = words.map((w, wIdx) => {
+                  if (!w) return null;
+                  if (/^(const|let|var|function|return|import|export|class|extends|async|await|try|catch|if|else|for|while|new|default|interface|type)$/.test(w)) {
+                    return <span key={wIdx} className="md-code-keyword">{w}</span>;
+                  }
+                  if ((w.startsWith('"') && w.endsWith('"')) || (w.startsWith("'") && w.endsWith("'")) || (w.startsWith('`') && w.endsWith('`'))) {
+                    return <span key={wIdx} className="md-code-string">{w}</span>;
+                  }
+                  return w;
+                });
+              }
+              return <div key={idx}>{renderedLine}</div>;
+            })}
+          </code>
+        </pre>
+      )}
     </div>
   );
 };

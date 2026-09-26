@@ -562,11 +562,13 @@ export const GlobalConfigPanel: React.FC<GlobalConfigPanelProps> = ({ getApiUrl 
                               <span style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>{t('global.configuredItemsCount', '{count} items configured', { count: itemsList.length })}</span>
                             </div>
 
-                            <div className="models-list" style={{ margin: '0.6rem 0', marginLeft: '1.2rem', paddingLeft: '1rem', borderLeft: '2px solid rgba(255, 255, 255, 0.1)', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                            <div className="models-list" style={{ margin: (field.readonly && itemsList.length === 0) ? 0 : '0.6rem 0', marginLeft: '1.2rem', paddingLeft: '1rem', borderLeft: (field.readonly && itemsList.length === 0) ? 'none' : '2px solid rgba(255, 255, 255, 0.1)', display: (field.readonly && itemsList.length === 0) ? 'none' : 'flex', flexDirection: 'column', gap: '0.75rem' }}>
                               {itemsList.length === 0 && !isAddingThisField ? (
-                                <div style={{ fontSize: '0.76rem', color: 'var(--text-secondary)', padding: '0.4rem 0', fontStyle: 'italic' }}>
-                                  {t('global.emptyChildList', 'List is empty. Click "+ Add Item" below to create one.')}
-                                </div>
+                                !field.readonly ? (
+                                  <div style={{ fontSize: '0.76rem', color: 'var(--text-secondary)', padding: '0.4rem 0', fontStyle: 'italic' }}>
+                                    {t('global.emptyChildList', 'List is empty. Click "+ Add Item" below to create one.')}
+                                  </div>
+                                ) : null
                               ) : (
                                 itemsList.map((item: any, idx) => {
                                   const isEditing = editingChild?.fieldKey === field.key && editingChild?.index === idx;

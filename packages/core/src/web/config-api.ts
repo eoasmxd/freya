@@ -262,7 +262,7 @@ export class FreyaConfigApi {
       const promptMatch = pathname.match(/^\/api\/config\/prompts\/([^/]+)$/);
       if (promptMatch && req.method === 'GET') {
         const promptName = decodeURIComponent(promptMatch[1]);
-        const content = await this.configManager.readPrompt(promptName);
+        const content = await this.configManager.readPrompt(promptName, defaultLang);
         res.writeHead(200, this.headers);
         res.end(JSON.stringify({
           success: !content.startsWith('❌'),

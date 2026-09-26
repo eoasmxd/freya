@@ -25,7 +25,7 @@ export class FreyaPromptManager {
     this.i18n = new I18n({ zh, en }, this.ctx);
   }
 
-  async readPrompt(name: string): Promise<string> {
+  async readPrompt(name: string, lang?: string): Promise<string> {
     const isCorePrompt = ['IDENTITY', 'SOUL', 'USER', 'TOOLS', 'AGENTS', 'MEMORY'].includes(name.toUpperCase());
     if (!isCorePrompt) {
       // 仅允许管理核心提示词
@@ -36,7 +36,7 @@ export class FreyaPromptManager {
       ));
     }
     const registryKey = `core.prompt.${name.toLowerCase()}`;
-    return this.promptRegistry.get(registryKey);
+    return this.promptRegistry.get(registryKey, lang);
   }
 
   async writePrompt(name: string, content: string): Promise<string> {

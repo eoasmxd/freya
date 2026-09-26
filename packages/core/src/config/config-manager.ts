@@ -663,7 +663,7 @@ export class FreyaConfigManager {
     return await this.skillRegistry.toggleSkill(skillId, enabled);
   }
 
-  async readPrompt(name: string): Promise<string> {
+  async readPrompt(name: string, lang?: string): Promise<string> {
     const promptName = String(name).trim().toUpperCase();
     if (!ALLOWED_PROMPTS.has(promptName)) {
       return this.i18n.t(
@@ -675,7 +675,7 @@ export class FreyaConfigManager {
     if (!this.promptManager) {
       return this.i18n.t('config.prompt.notInit', '❌ Prompt service is not initialized.');
     }
-    return await this.promptManager.readPrompt(promptName);
+    return await this.promptManager.readPrompt(promptName, lang);
   }
 
   async writePrompt(name: string, content: string): Promise<string> {
