@@ -40,7 +40,11 @@ export class DefaultFreyaContext implements FreyaContext {
     if (defaultLang && defaultLang !== 'auto') {
       return defaultLang.toLowerCase();
     }
-    return detectSystemLanguage();
+    const detected = detectSystemLanguage();
+    if (detected) {
+      return detected;
+    }
+    return 'en';
   }
 
   getConnection(): ConnectionInfo | undefined {
