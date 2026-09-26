@@ -6,7 +6,7 @@
   "publishConfig": {
     "access": "public"
   },
-  "description": "Freya 核心微服务，作为 WSS 服务器和 Agent 运行的主线程",
+  "description": "Freya Core Microkernel Engine | 核心微服务引擎",
   "type": "module",
   "main": "./dist/index.js",
   "scripts": {

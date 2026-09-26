@@ -167,13 +167,21 @@ export class FreyaPromptRegistry {
     // 当前系统时间
     const timeStr = `${nowStr} (${weekday}, TimeZone: ${timeZone}, ${utcOffset})`;
 
+    const rawLang = this.ctx?.getLanguage('en');
+    const isZh = rawLang?.toLowerCase().startsWith('zh');
+    const langName = isZh ? 'Chinese' : 'English';
+    const langCode = isZh ? 'zh' : 'en';
+    // 动态语言引导指令
+    const langDirective = `The user's preferred language is ${langName} ("${langCode}"). Please interact and respond in ${langName} unless the user explicitly requests another language.`;
+
     return `# IDENTITY\n${identity}\n\n` + // 智能体本体定义
       `# SOUL\n${soul}\n\n` + // 智能体灵魂与行为风格
       `# USER INFO\n${user}\n\n` + // 用户画像信息
       `# MEMORY\n${memory}\n\n` + // 长期记忆
       `# TOOLS SPEC\n${tools}\n\n` + // 工具使用规范指南
       `# AGENT TOPOLOGY\n${agents}\n\n` + // 智能体拓扑模式
-      `# CURRENT TIME\n${timeStr}`; // 当前系统时间
+      `# CURRENT TIME\n${timeStr}\n\n` + // 当前系统时间
+      `# LANGUAGE DIRECTIVE\n${langDirective}`; // 动态语言引导指令
   }
 
   /**
