@@ -8,8 +8,9 @@ export type { Session, SessionIndex, SnapFile } from './types.js';
 
 /**
  * SessionManager — 会话管理器。
- *
+ * SessionManager — Session manager.
  * 职责：内存缓存调度、持久化读写中转、自动上下文压缩。
+ * Responsibility: In-memory cache scheduling, persistence I/O dispatch, and automatic context compaction.
  */
 export class FreyaSessionManager {
     private persistence = new FreyaSessionPersistence();
@@ -35,6 +36,7 @@ export class FreyaSessionManager {
 
     /**
      * 初始化会话系统。
+     * Initialize the session system.
      */
     async load(context: FreyaContext, promptRegistry: FreyaPromptRegistry): Promise<void> {
         this.context = context;
@@ -57,11 +59,11 @@ export class FreyaSessionManager {
             singleCost: number;
         }) => {
             this.handleSessionBillingAdd(payload).catch((err) => {
-                this.logger?.error(`[SessionManager] 异步处理增量计费失败:`, err);
+                this.logger?.error('[SessionManager] Failed to process incremental billing asynchronously:', err);
             });
         });
 
-        this.logger?.info(`[SessionManager] 初始化完成，已加载 ${this.sessionIndices.size} 个会话`);
+        this.logger?.info(`[SessionManager] Initialized, loaded ${this.sessionIndices.size} sessions`);
     }
 
     private async initMainSession(): Promise<void> {
@@ -70,7 +72,7 @@ export class FreyaSessionManager {
             const main = this.newSession('main', crypto.randomUUID());
             await this.persistence.saveIndex(Array.from(this.sessionIndices.values()));
             await this.persistence.saveSessionData(main);
-            this.logger?.info('[SessionManager] 首次启动，创建主会话 main');
+            this.logger?.info('[SessionManager] First run, created main session');
         }
     }
 
@@ -125,7 +127,7 @@ export class FreyaSessionManager {
         };
         this.sessionIndices.set(uuid, idx);
 
-        this.logger?.info(`[SessionManager] 新建会话: ${id} (${uuid})`);
+        this.logger?.info(`[SessionManager] Created session: ${id} (${uuid})`);
         return session;
     }
 
@@ -135,7 +137,8 @@ export class FreyaSessionManager {
 
         const idx = this.findLatestIndexById(id);
         if (!idx) {
-            throw new Error(`会话不存在: ${id}`);
+            // 会话不存在异常
+            throw new Error(`Session not found: ${id}`);
         }
 
         const data = await this.persistence.loadSessionData(idx.uuid);
@@ -164,7 +167,7 @@ export class FreyaSessionManager {
             cost: idx.cost,
         };
         this.sessions.set(id, session);
-        this.logger?.info(`[SessionManager] 延迟加载会话: ${id}`);
+        this.logger?.info(`[SessionManager] Lazy loaded session: ${id}`);
         return session;
     }
 
@@ -210,7 +213,7 @@ export class FreyaSessionManager {
             }
         }
 
-        this.logger?.warn(`[SessionManager] 检测到无活跃会话 ID ${id}，将自动创建新物理会话以保持连接弹性。`);
+        this.logger?.warn(`[SessionManager] No active session found with ID ${id}, creating new session for connection resilience.`);
         const session = this.newSession(id, crypto.randomUUID(), { archived: false });
         await this.persistSession(session);
         return session;
@@ -263,10 +266,12 @@ export class FreyaSessionManager {
                                 latestSession.history = keepMessages;
                             } else if (result.type === 'summarized') {
                                 const snap = result.snapshot!;
-                                const taggedSummary = `[压缩快照 ${snap.id}] ${result.newSummary!}`;
+                                // 压缩快照标识标签
+                                const taggedSummary = `[Snapshot ${snap.id}] ${result.newSummary!}`;
                                 const summaryUserMsg: LLMMessage = {
                                     role: 'user',
-                                    content: `[上下文压缩摘要] 以下是此前对话的回顾，请参考：\n${taggedSummary}`,
+                                    // 上下文压缩摘要回顾引导词
+                                    content: `[Context Summary] Below is a recap of previous conversation for reference:\n${taggedSummary}`,
                                 };
                                 const keepMessages = latestSession.history.slice(result.safeTruncateIndex);
                                 latestSession.summary = taggedSummary;
@@ -282,7 +287,7 @@ export class FreyaSessionManager {
                         });
                     }
                 }).catch((err) => {
-                    this.logger?.error(`[SessionManager] 后置异步会话压缩发生异常:`, err);
+                    this.logger?.error('[SessionManager] Error during post-chat session compaction:', err);
                 });
             }
         });
@@ -349,12 +354,13 @@ export class FreyaSessionManager {
             activeSkillId
         });
 
-        this.logger?.info(`[SessionManager] 会话已归档并重建: ${id} → ${oldId}`);
+        this.logger?.info(`[SessionManager] Session archived and recreated: ${id} → ${oldId}`);
         return { oldId, newId: id };
     }
 
     /**
      * 读取指定会话中的单个物理快照。
+     * Read a single physical snapshot from the specified session.
      */
     async getSnapshot(id: string, snapId: string): Promise<any | null> {
         const session = await this.getOrCreate(id);

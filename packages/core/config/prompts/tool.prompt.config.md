@@ -1,3 +1,3 @@
-系统核心配置管理工具箱。
+Core system configuration management toolbox.
 
-提供查询与修改系统全局参数、管理模型提供商、管理可用模型列表等系统维护与管理功能。
+Provides capabilities to query and modify global system settings, manage model providers, and configure available models.

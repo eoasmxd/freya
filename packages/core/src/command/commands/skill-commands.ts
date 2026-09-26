@@ -1,64 +1,80 @@
+import type { FreyaContext } from '@eoasmxd/freya-sdk';
 import type { FreyaSkill } from '../../skill/skill-registry.js';
 import type { FreyaCommandRegistry } from '../command-registry.js';
 import type { FreyaSessionManager } from '../../session/session-manager.js';
+import { I18n } from '../../i18n/index.js';
+import { zh } from '../../i18n/locales/zh.js';
+import { en } from '../../i18n/locales/en.js';
 
 export interface SkillCommandDeps {
     commands: FreyaCommandRegistry;
     sessionManager: FreyaSessionManager;
     skills: Map<string, FreyaSkill>;
+    context: FreyaContext;
 }
 
 export function registerSkillCommands(deps: SkillCommandDeps): void {
-    const { commands, sessionManager, skills } = deps;
+    const { commands, sessionManager, skills, context } = deps;
+    const i18n = new I18n({ zh, en }, context);
 
     const handleInfo = async (sessionId: string): Promise<string> => {
         const session = await sessionManager.getOrCreate(sessionId);
         const activeId = session.activeSkillId;
         if (activeId && skills.has(activeId)) {
             const skill = skills.get(activeId)!;
-            return `🔧 当前激活技能: **${skill.name}** \`${activeId}\` — ${skill.description || ''}`;
+            const name = i18n.resolve(skill.name);
+            const desc = i18n.resolve(skill.description) || i18n.t('cmd.skill.list.noDesc', 'No description');
+            return i18n.t('cmd.skill.info.active', '🔧 Active skill: **{name}** `{id}` — {desc}', {
+                name,
+                id: activeId,
+                desc
+            });
         }
-        return '🔧 当前未激活任何技能。';
+        return i18n.t('cmd.skill.info.none', '🔧 No skill is currently active.');
     };
 
     const handleList = async (): Promise<string> => {
         const activeSkills = Array.from(skills.values()).filter((s) => s.enabled !== false);
         if (activeSkills.length === 0) {
-            return '📋 暂无可用技能。';
+            return i18n.t('cmd.skill.list.empty', '📋 No available skills.');
         }
-        const lines = activeSkills.map((s) =>
-            `- **${s.name}** \`${s.id}\` — ${s.description || '无描述'}`
-        ).join('\n');
-        return `### 📋 可用技能\n\n${lines}`;
+        const noDesc = i18n.t('cmd.skill.list.noDesc', 'No description');
+        const lines = activeSkills.map((s) => {
+            const name = i18n.resolve(s.name);
+            const desc = i18n.resolve(s.description) || noDesc;
+            return `- **${name}** \`${s.id}\` — ${desc}`;
+        }).join('\n');
+        return i18n.t('cmd.skill.list.title', '### 📋 Available Skills') + '\n\n' + lines;
     };
 
     const handleSet = async (skillId: string, sessionId: string): Promise<string> => {
         if (!skillId) {
-            return '❌ 用法：`\`/skill set <skillId>\``。';
+            return i18n.t('cmd.skill.set.missingId', '❌ Usage: `/skill set <skillId>`.');
         }
         const skill = skills.get(skillId);
         if (!skill || skill.enabled === false) {
-            return `❌ 技能 \`${skillId}\` 不存在或未启用。请使用 \`/skill list\` 查看可用技能。`;
+            return i18n.t('cmd.skill.set.notFound', '❌ Skill `{id}` does not exist or is not enabled. Use `/skill list` to view available skills.', { id: skillId });
         }
         await sessionManager.updateSession(sessionId, { activeSkillId: skillId });
-        return `✅ 已激活技能: **${skill.name}** \`${skillId}\`。`;
+        const name = i18n.resolve(skill.name);
+        return i18n.t('cmd.skill.set.success', '✅ Skill activated: **{name}** `{id}`.', { name, id: skillId });
     };
 
     const handleClear = async (sessionId: string): Promise<string> => {
         await sessionManager.updateSession(sessionId, { activeSkillId: undefined });
-        return '✅ 已解除技能绑定。';
+        return i18n.t('cmd.skill.clear.success', '✅ Skill binding deactivated.');
     };
 
     commands.register({
         name: 'skill',
-        description: '技能管理',
+        description: i18n.all('cmd.skill.description', 'Skill management'),
         subcommands: [
-            { name: 'info', description: '查看当前激活的技能' },
-            { name: 'list', description: '列出所有可用技能' },
-            { name: 'set', description: '激活指定技能', usage: '/skill set <skillId>' },
-            { name: 'clear', description: '解除技能绑定' },
+            { name: 'info', description: i18n.all('cmd.skill.sub.info', 'Show current active skill') },
+            { name: 'list', description: i18n.all('cmd.skill.sub.list', 'List all available skills') },
+            { name: 'set', description: i18n.all('cmd.skill.sub.set', 'Activate a specified skill'), usage: '/skill set <skillId>' },
+            { name: 'clear', description: i18n.all('cmd.skill.sub.clear', 'Deactivate current skill binding') },
         ],
-        execute: async (args, sessionId, ctx) => {
+        execute: async (args, sessionId) => {
             const sub = (args[0] || 'info').toLowerCase();
 
             switch (sub) {

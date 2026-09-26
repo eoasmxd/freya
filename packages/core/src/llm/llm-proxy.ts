@@ -9,6 +9,9 @@ import type {
 } from '@eoasmxd/freya-sdk';
 import { FreyaLLMLogger } from './llm-logger.js';
 import { FreyaLLMRegistry } from './llm-registry.js';
+import { I18n } from '../i18n/index.js';
+import { zh } from '../i18n/locales/zh.js';
+import { en } from '../i18n/locales/en.js';
 
 interface ModelCandidate {
   provider: string;
@@ -23,20 +26,26 @@ interface HealthState {
   errorMessage?: string;
 }
 
-/** 大模型代理服务，提供带降级链的 LLM 调用入口 */
+/**
+ * 大模型代理服务，提供带降级链的 LLM 调用入口
+ * LLM proxy service providing LLM invocation entry point with fallback chain
+ */
 export class FreyaLLMProxy implements ILLMService {
   private llmLogger: FreyaLLMLogger;
   private modelHealthRegistry = new Map<string, HealthState>();
+  private readonly i18n: I18n;
 
   constructor(
     private llmRegistry: FreyaLLMRegistry,
     private context: FreyaContext
   ) {
     this.llmLogger = new FreyaLLMLogger(!!this.context.config.log?.llm);
+    this.i18n = new I18n({ zh, en }, this.context);
   }
 
   /**
    * 发起大模型对话请求，支持工具调用与多候选自动降级熔断。
+   * Initiate LLM chat request, supporting tool calls and automatic fallback with circuit breaking.
    */
   async chat(
     messages: LLMMessage[],
@@ -83,12 +92,14 @@ export class FreyaLLMProxy implements ILLMService {
           });
         }
         this.context.logger.warn(
-          `[FreyaLLMProxy] 模型 [${candidate.name}] 调用遭遇 [${errorType}] 级异常，已熔断避让: ${err.message}`
+          `[FreyaLLMProxy] Model [${candidate.name}] encountered [${errorType}] error, circuit breaker triggered: ${err.message}`
         );
       }
     }
 
-    throw lastError || new Error('所有候选模型均调用失败，无可用备选。');
+    throw lastError || new Error(
+      this.i18n.t('llm.error.allCandidatesFailed', 'All candidate models failed to invoke, no fallback available.')
+    );
   }
 
   private async executeChat(
@@ -106,7 +117,7 @@ export class FreyaLLMProxy implements ILLMService {
 
     if (!providerConfig || !providerConfig.apiKey || providerConfig.apiKey.trim() === '') {
       throw new Error(
-        '未检测到可用的大模型配置或对应的大模型授权密钥已失效，调用失败。'
+        this.i18n.t('llm.error.missingApiKey', 'No available LLM configuration detected or API key is invalid.')
       );
     }
 
@@ -114,7 +125,11 @@ export class FreyaLLMProxy implements ILLMService {
     const targetPlugin = this.llmRegistry.getPluginForProvider(providerId);
     if (!targetPlugin) {
       throw new Error(
-        `未找到能处理提供商 "${providerId}" 的 LLM 插件实例。`
+        this.i18n.t(
+          'llm.error.noPluginForProvider',
+          'No LLM plugin instance found to handle provider "{providerId}".',
+          { providerId }
+        )
       );
     }
 
@@ -280,7 +295,7 @@ export class FreyaLLMProxy implements ILLMService {
     }
 
     if (candidates.length === 0) {
-      return [{ provider: '', model: '', name: '默认' }];
+      return [{ provider: '', model: '', name: this.i18n.t('llm.candidate.default', 'Default') }];
     }
     return candidates;
   }
@@ -297,6 +312,7 @@ export class FreyaLLMProxy implements ILLMService {
 
   /**
    * 获取指定模型的最大上下文 Token 额度。
+   * Get maximum context token limit for the specified model.
    */
   getContextWindow(modelId?: string): number {
     const providers = this.llmRegistry.providers;
@@ -312,6 +328,7 @@ export class FreyaLLMProxy implements ILLMService {
 
   /**
    * 获取指定大模型所支持的多模态及其他原生硬件能力列表。
+   * Get list of multimodal and native capabilities supported by the specified LLM.
    */
   getModelCapabilities(modelId?: string, providerId?: string): string[] {
     const matched = this.llmRegistry.findModelConfig(modelId || 'default-model', providerId);

@@ -1,4 +1,7 @@
-/** 通道插件与内建通道注册表 */
+/**
+ * 通道插件与内建通道注册表
+ * Registry for channel plugins and built-in channels
+ */
 export class FreyaChannelRegistry {
   private channels = new Map<string, { id: string }>();
 

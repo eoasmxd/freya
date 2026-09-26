@@ -1,7 +1,10 @@
 import type { FreyaContext, FreyaTool, ToolDefinition } from '@eoasmxd/freya-sdk';
 import { FreyaConfigManager } from '../../config/config-manager.js';
 
-/** 发起用户授权请求，在敏感操作前进行二级鉴权 */
+/**
+ * 发起用户授权请求，在敏感操作前进行二级鉴权
+ * Initiate user authorization request for secondary authentication before sensitive operations
+ */
 function requestUserAuthorization(
   ctx: FreyaContext,
   action: 'read' | 'write',
@@ -14,7 +17,7 @@ function requestUserAuthorization(
 
   return new Promise<boolean>((resolve) => {
     const timer = setTimeout(() => {
-      ctx.logger.error(`[ConfigTool] 授权超时（15秒），默认执行 Fail-Closed 拒绝操作。`);
+      ctx.logger.error('[ConfigTool] Authorization timeout (15s), default fail-closed rejected.');
       pendingAuths.delete(authId);
       resolve(false);
     }, 15000);
@@ -37,26 +40,29 @@ function requestUserAuthorization(
 export class ReadConfigTool implements FreyaTool {
   constructor(
     private configService: FreyaConfigManager,
-    private pendingAuths: Map<string, (approved: boolean) => void>
+    private pendingAuths: Map<string, (approved: boolean) => void>,
+    private ctx: FreyaContext
   ) { }
 
   getDefinition(): ToolDefinition {
     return {
       name: 'read_config',
-      description: '读取系统核心配置。出于安全考量，敏感配置值默认会进行脱敏处理，除非指定 revealSensitive 为 true 并通过用户授权。',
+      // 读取系统核心配置
+      description: 'Read core system configuration. Sensitive config values are masked by default. Includes a "_readonly" list of property paths that are read-only and locked from modification.',
       parameters: {
         type: 'object',
         properties: {
           revealSensitive: {
             type: 'boolean',
-            description: '是否揭示敏感字段的明文（默认为 false）'
+            // 是否揭示敏感字段明文
+            description: 'Whether to reveal plaintext of sensitive fields (defaults to false)'
           }
         }
       }
     };
   }
 
-  async execute(args: Record<string, any>, ctx: FreyaContext): Promise<string> {
+  async execute(args: Record<string, any>): Promise<string> {
     try {
       const revealSensitive = !!args.revealSensitive;
       const configName = 'freya';
@@ -85,18 +91,25 @@ export class ReadConfigTool implements FreyaTool {
         }
 
         if (hasSensitiveData) {
-          ctx.logger.warn(`[ConfigTool] 大模型尝试读取敏感明文，发起用户二级鉴权...`);
-          const approved = await requestUserAuthorization(ctx, 'read', configName, sensitiveKeys.join(', '), this.pendingAuths);
+          this.ctx.logger.warn('[ConfigTool] LLM attempting to read sensitive plaintext, initiating secondary user authorization...');
+          const approved = await requestUserAuthorization(this.ctx, 'read', configName, sensitiveKeys.join(', '), this.pendingAuths);
           if (!approved) {
-            return `❌ 授权失败：用户拒绝了大模型读取核心配置敏感明文的请求。`;
+            // 授权被拒绝提示
+            return `❌ Authorization failed: User rejected LLM request to read sensitive configuration plaintext.`;
           }
         }
       }
 
       const outputData = await this.configService.readConfig(revealSensitive);
-      return JSON.stringify(outputData, null, 2);
+      const readonlyKeys = this.configService.getReadonlyKeys(true);
+      const result = {
+        ...outputData,
+        _readonly: readonlyKeys
+      };
+      return JSON.stringify(result, null, 2);
     } catch (err: any) {
-      return `❌ 读取核心配置失败: ${err.message}`;
+      // 读取配置失败错误提示
+      return `❌ Failed to read core configuration: ${err.message}`;
     }
   }
 }
@@ -104,23 +117,27 @@ export class ReadConfigTool implements FreyaTool {
 export class UpdateConfigTool implements FreyaTool {
   constructor(
     private configService: FreyaConfigManager,
-    private pendingAuths: Map<string, (approved: boolean) => void>
+    private pendingAuths: Map<string, (approved: boolean) => void>,
+    private ctx: FreyaContext
   ) { }
 
   getDefinition(): ToolDefinition {
     return {
       name: 'update_config',
-      description: '对系统核心配置进行细粒度的局部属性（keyPath）增量修改（如 "log.console"）。绝大部分策略属性实时热生效；但若修改了与系统底层进程生命周期绑定的关键属性（如 "port" 端口配置），则需要手动重启核心服务方可物理应用。修改敏感配置项目前需要经过用户授权。',
+      // 修改系统核心配置局部属性
+      description: 'Incrementally update fine-grained property (keyPath) of system configuration (e.g. "log.console"). Most properties take effect dynamically; process-level lifecycle bindings (e.g. "port") require manual core service restart. Modifying sensitive configs requires user authorization.',
       parameters: {
         type: 'object',
         properties: {
           keyPath: {
             type: 'string',
-            description: '属性层级路径（如："log.console" 或 "contextManagement.maxHistoryTurns"）'
+            // 属性层级路径
+            description: 'Property hierarchical path (e.g. "log.console" or "contextManagement.maxHistoryTurns")'
           },
           value: {
             type: 'string',
-            description: '新修改的目标值（可为任意类型，传 JSON 字符串或字面量）'
+            // 新修改的目标值
+            description: 'New target value to update (any type, pass as JSON string or literal)'
           }
         },
         required: ['keyPath', 'value']
@@ -128,13 +145,32 @@ export class UpdateConfigTool implements FreyaTool {
     };
   }
 
-  async execute(args: Record<string, any>, ctx: FreyaContext): Promise<string> {
+  async execute(args: Record<string, any>): Promise<string> {
     try {
       const configName = 'freya';
-      const keyPath = args.keyPath;
-      if (keyPath === 'workspace') {
-        return '❌ 权限拒绝：系统工作区路径 "workspace" 为核心只读保护字段，不允许通过大模型配置管理工具进行修改。';
+      const keyPath = String(args.keyPath || '').trim();
+      const manualOnlyKeys = this.configService.getManualOnlyKeys();
+      let isManualOnly = false;
+      const manualOnlySet = new Set(manualOnlyKeys);
+      if (manualOnlySet.has(keyPath)) {
+        isManualOnly = true;
+      } else {
+        for (const pattern of manualOnlyKeys) {
+          if (pattern.includes('*')) {
+            const regex = new RegExp('^' + pattern.replace(/\./g, '\\.').replace(/\*/g, '[^\\.]+') + '$');
+            if (regex.test(keyPath)) {
+              isManualOnly = true;
+              break;
+            }
+          }
+        }
       }
+
+      if (isManualOnly) {
+        // 仅限管理员手动修改提示
+        return `❌ Permission denied: Config item "${keyPath}" can only be modified manually by administrator, automated AI updates are forbidden.`;
+      }
+
       let newValue = args.value;
 
       try {
@@ -159,17 +195,19 @@ export class UpdateConfigTool implements FreyaTool {
       }
 
       if (isSensitive) {
-        ctx.logger.warn(`[ConfigTool] 检测到写入敏感字段 "${keyPath}"，发起用户二级鉴权...`);
-        const approved = await requestUserAuthorization(ctx, 'write', configName, keyPath, this.pendingAuths, '******');
+        this.ctx.logger.warn(`[ConfigTool] Detected write to sensitive field "${keyPath}", initiating secondary user authorization...`);
+        const approved = await requestUserAuthorization(this.ctx, 'write', configName, keyPath, this.pendingAuths, '******');
         if (!approved) {
-          return `❌ 授权失败：用户拒绝了大模型修改核心配置敏感字段 "${keyPath}" 的请求。`;
+          // 修改敏感字段授权被拒绝提示
+          return `❌ Authorization failed: User rejected LLM request to modify sensitive field "${keyPath}".`;
         }
       }
 
       const result = await this.configService.updateConfig(keyPath, newValue);
       return result.startsWith('❌') ? result : `✅ ${result}`;
     } catch (err: any) {
-      return `❌ 修改核心配置失败: ${err.message}`;
+      // 修改配置失败错误提示
+      return `❌ Failed to update core configuration: ${err.message}`;
     }
   }
 }

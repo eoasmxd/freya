@@ -11,7 +11,7 @@ async function executeRequest(
     method: string,
     args: Record<string, any>,
     cookieStore: CookieStore,
-    ctx: FreyaContext,
+    ctx?: FreyaContext,
     cleanMode?: "auto" | "text"
 ): Promise<string> {
     const validatedUrl = validateUrl(url);
@@ -37,9 +37,9 @@ async function executeRequest(
         }
     }
 
-    const timeout = ctx.config.web?.timeout ?? DEFAULT_TIMEOUT_MS;
-    const configMaxLength = ctx.config.web?.maxLength ?? undefined;
-    const configAutoSaveThreshold = ctx.config.web?.autoSaveThreshold ?? 50 * 1024;
+    const timeout = ctx?.config?.web?.timeout ?? DEFAULT_TIMEOUT_MS;
+    const configMaxLength = ctx?.config?.web?.maxLength ?? undefined;
+    const configAutoSaveThreshold = ctx?.config?.web?.autoSaveThreshold ?? 50 * 1024;
 
     const requestInit: RequestInit = {
         method,
@@ -58,12 +58,15 @@ async function executeRequest(
     } catch (err: any) {
         const message = err?.message || String(err);
         if (message.includes('timeout') || message.includes('abort') || err?.name === 'AbortError') {
-            return `❌ 请求超时（${timeout / 1000} 秒）：${url}`;
+            // 请求超时报错
+            return `❌ Request timeout (${timeout / 1000}s): ${url}`;
         }
         if (message.includes('fetch')) {
-            return `❌ 网络请求失败：无法连接到 ${url}（${message}）`;
+            // 网络连接失败报错
+            return `❌ Network request failed: Unable to connect to ${url} (${message})`;
         }
-        return `❌ 网络请求失败：${message}`;
+        // 网络请求异常报错
+        return `❌ Network request failed: ${message}`;
     }
 
     const setCookieHeaders = response.headers.getSetCookie?.() || [];
@@ -73,7 +76,8 @@ async function executeRequest(
     try {
         responseText = await response.text();
     } catch (err: any) {
-        return `❌ 读取响应内容失败：${err?.message || String(err)}`;
+        // 读取响应内容失败报错
+        return `❌ Failed to read response content: ${err?.message || String(err)}`;
     }
 
     const paramMaxLength = args.maxLength !== undefined && args.maxLength !== null
@@ -97,23 +101,23 @@ async function executeRequest(
         const lines: string[] = [];
         lines.push(`HTTP ${response.status} ${response.statusText} — ${url}`);
         lines.push(`Content-Type: ${responseContentType || 'unknown'}`);
-        lines.push(`原始响应 (${formatBytes(byteLength)}) 已保存至工作区相对路径: "${savedPath}"`);
+        lines.push(`Original response (${formatBytes(byteLength)}) saved to workspace relative path: "${savedPath}"`);
 
         if (setCookieHeaders.length > 0) {
             const domain = extractHostname(url);
-            lines.push(`已记录 ${setCookieHeaders.length} 个 Set-Cookie → 域名: ${domain}`);
+            lines.push(`Recorded ${setCookieHeaders.length} Set-Cookie headers → Domain: ${domain}`);
         }
 
         if (useCookies) {
             const hostname = extractHostname(url);
             const usedCookie = cookieStore.getCookieHeader(hostname);
             if (usedCookie) {
-                lines.push(`已携带 Cookie 请求 → ${hostname}`);
+                lines.push(`Sent with Cookie → ${hostname}`);
             }
         }
 
         lines.push('');
-        lines.push('可通过 read_file 工具分段读取该文件进行分析。');
+        lines.push('Use read_file tool to inspect this file in chunks.');
         return lines.join('\n');
     }
 
@@ -131,8 +135,8 @@ async function executeRequest(
 
     const content = truncateContent(processedText, maxLength);
     const sizeInfo = processedText.length !== content.length
-        ? `（净化后原始 ${processedText.length} 字符，已截断）`
-        : `（净化后 ${processedText.length} 字符）`;
+        ? `(Cleaned raw ${processedText.length} chars, truncated)`
+        : `(Cleaned ${processedText.length} chars)`;
 
     const lines: string[] = [];
     lines.push(`HTTP ${response.status} ${response.statusText} — ${url}`);
@@ -140,14 +144,14 @@ async function executeRequest(
 
     if (setCookieHeaders.length > 0) {
         const domain = extractHostname(url);
-        lines.push(`已记录 ${setCookieHeaders.length} 个 Set-Cookie → 域名: ${domain}`);
+        lines.push(`Recorded ${setCookieHeaders.length} Set-Cookie headers → Domain: ${domain}`);
     }
 
     if (useCookies) {
         const hostname = extractHostname(url);
         const usedCookie = cookieStore.getCookieHeader(hostname);
         if (usedCookie) {
-            lines.push(`已携带 Cookie 请求 → ${hostname}`);
+            lines.push(`Sent with Cookie → ${hostname}`);
         }
     }
 
@@ -159,34 +163,43 @@ async function executeRequest(
 
 export class WebFetchTool implements FreyaTool {
 
-    constructor(private cookieStore: CookieStore) { }
+    constructor(
+        private cookieStore: CookieStore,
+        private ctx?: FreyaContext
+    ) { }
 
     getDefinition(): ToolDefinition {
         return {
             name: 'web_fetch',
-            description: '对指定外部 URL 发起 HTTP GET 请求。安全限制：仅限 http/https 协议，严禁访问本地与内网。本工具默认会对返回的 HTML 网页进行深度净化清洗（剔除 script、style 与注释），仅提取结构化网页正文文本（以节约 Token 消耗），特别适用于网页文章内容的阅读与分析。超大响应（默认超过 50KB）会被自动保存为工作区文件。',
+            // 发起 HTTP GET 请求并清洗网页
+            description: 'Send HTTP GET request to external URL. Security: only http/https allowed, internal and local access strictly forbidden. Cleans HTML (strips script/style/comments) and extracts structured body text to save tokens, suitable for article reading. Large responses (>50KB) auto-saved to workspace.',
             parameters: {
                 type: 'object',
                 properties: {
                     url: {
                         type: 'string',
-                        description: '完整的 HTTP/HTTPS 请求地址'
+                        // 请求地址
+                        description: 'Full HTTP/HTTPS request URL'
                     },
                     headers: {
                         type: 'string',
-                        description: '可选的 JSON 格式请求头对象字符串，如 \'{"Authorization": "Bearer xxx"}\''
+                        // 请求头字符串
+                        description: 'Optional JSON request headers object string, e.g. \'{"Authorization": "Bearer xxx"}\''
                     },
                     useCookies: {
                         type: 'boolean',
-                        description: '是否自动携带该域名之前记录的 Cookie（默认 false）'
+                        // 是否携带 Cookie
+                        description: 'Whether to include previously recorded cookies for this domain (default false)'
                     },
                     maxLength: {
                         type: 'number',
-                        description: '响应内容最大字符长度限制（默认 102400 即 100KB）'
+                        // 最大响应长度限制
+                        description: 'Maximum character limit for response content (default 102400 / 100KB)'
                     },
                     extractMode: {
                         type: 'string',
-                        description: '内容提取模式："auto"（默认，移除 script/style/注释，保留块级分段）/ "text"（更激进的纯文本提取）/ "raw"（原文返回，不做任何处理）',
+                        // 网页内容清洗提取模式
+                        description: 'Content extraction mode: "auto" (default, strip script/style/comments, keep paragraphs) / "text" (aggressive plaintext extraction) / "raw" (return verbatim response)',
                     }
                 },
                 required: ['url']
@@ -194,68 +207,83 @@ export class WebFetchTool implements FreyaTool {
         };
     }
 
-    async execute(args: Record<string, any>, ctx: FreyaContext): Promise<string> {
+    async execute(args: Record<string, any>): Promise<string> {
         if (!args.url) {
-            return '❌ 参数错误：必须指定 url。';
+            // 缺少 URL 参数错误
+            return '❌ Parameter error: Must specify url.';
         }
 
         const extractMode = args.extractMode || 'auto';
         if (!['auto', 'text', 'raw'].includes(extractMode)) {
-            return `❌ 参数错误：extractMode 仅支持 "auto"、"text" 或 "raw"，当前值为 "${extractMode}"。`;
+            // 不支持的提取模式错误
+            return `❌ Parameter error: extractMode only supports "auto", "text", or "raw", got "${extractMode}".`;
         }
 
         const cleanMode = extractMode === 'raw' ? undefined : extractMode;
 
         try {
-            return await executeRequest(args.url, 'GET', args, this.cookieStore, ctx, cleanMode);
+            return await executeRequest(args.url, 'GET', args, this.cookieStore, this.ctx, cleanMode);
         } catch (err: any) {
-            return `❌ web_fetch 执行失败: ${err?.message || String(err)}`;
+            // 执行失败错误提示
+            return `❌ web_fetch execution failed: ${err?.message || String(err)}`;
         }
     }
 }
 
 export class WebRequestTool implements FreyaTool {
 
-    constructor(private cookieStore: CookieStore) { }
+    constructor(
+        private cookieStore: CookieStore,
+        private ctx?: FreyaContext
+    ) { }
 
     getDefinition(): ToolDefinition {
         return {
             name: 'web_request',
-            description: '对指定外部 URL 发起通用 HTTP 请求（包括 POST, PUT, DELETE, GET 等动作）。安全限制与 GET 保持一致，严禁访问本地与内网。支持自定义请求体 body。本工具默认不对响应内容进行任何 HTML 文本净化（Raw 原始内容返回，适合读取 API 接口 JSON 或网页原始 HTML 源码），且超大响应或二进制流（默认超过 50KB）会被自动保存为工作区文件，亦可通过 saveAs 参数强制指定落盘下载，以供后续读取。',
+            // 发起通用 HTTP 请求
+            description: 'Send generic HTTP request (POST, PUT, DELETE, GET, etc.) to external URL. Security same as GET. Does not clean HTML by default (raw response, suitable for API JSON or raw HTML). Large responses (>50KB) or binary streams auto-saved to workspace, or forced via saveAs parameter.',
             parameters: {
                 type: 'object',
                 properties: {
                     url: {
                         type: 'string',
-                        description: '完整的 HTTP/HTTPS 请求地址'
+                        // 请求地址
+                        description: 'Full HTTP/HTTPS request URL'
                     },
                     method: {
                         type: 'string',
-                        description: 'HTTP 请求方法，如 POST、PUT、PATCH、DELETE、GET 等'
+                        // HTTP 请求方法
+                        description: 'HTTP request method, e.g. POST, PUT, PATCH, DELETE, GET, etc.'
                     },
                     body: {
                         type: 'string',
-                        description: '请求体内容：JSON 字符串或普通文本'
+                        // 请求体内容
+                        description: 'Request body content: JSON string or plaintext'
                     },
                     contentType: {
                         type: 'string',
-                        description: 'Content-Type 请求头值（默认 application/json）'
+                        // 请求类型头
+                        description: 'Content-Type header value (default application/json)'
                     },
                     headers: {
                         type: 'string',
-                        description: '可选的 JSON 格式请求头对象字符串，如 \'{"Authorization": "Bearer xxx"}\''
+                        // 请求头字符串
+                        description: 'Optional JSON request headers object string, e.g. \'{"Authorization": "Bearer xxx"}\''
                     },
                     useCookies: {
                         type: 'boolean',
-                        description: '是否自动携带该域名之前记录的 Cookie（默认 false）'
+                        // 是否携带 Cookie
+                        description: 'Whether to include previously recorded cookies for this domain (default false)'
                     },
                     maxLength: {
                         type: 'number',
-                        description: '响应内容最大字符长度限制（默认 102400 即 100KB）'
+                        // 最大响应长度限制
+                        description: 'Maximum character limit for response content (default 102400 / 100KB)'
                     },
                     saveAs: {
                         type: 'string',
-                        description: '响应处理模式："auto"（默认，超过阈值或二进制自动保存文件）/ "file"（强制保存文件）/ "inline"（强制直接返回，不保存文件）',
+                        // 响应处理模式
+                        description: 'Response handling mode: "auto" (default, auto-save file if threshold exceeded or binary) / "file" (force save to file) / "inline" (force inline return, do not save file)',
                     }
                 },
                 required: ['url', 'method']
@@ -263,30 +291,35 @@ export class WebRequestTool implements FreyaTool {
         };
     }
 
-    async execute(args: Record<string, any>, ctx: FreyaContext): Promise<string> {
+    async execute(args: Record<string, any>): Promise<string> {
         if (!args.url) {
-            return '❌ 参数错误：必须指定 url。';
+            // 缺少 URL 参数错误
+            return '❌ Parameter error: Must specify url.';
         }
         if (!args.method) {
-            return '❌ 参数错误：必须指定 method（如 POST、PUT 等）。';
+            // 缺少 method 参数错误
+            return '❌ Parameter error: Must specify method (e.g. POST, PUT, etc.).';
         }
 
         const method = String(args.method).toUpperCase();
         const allowedMethods = new Set(['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'HEAD', 'OPTIONS']);
 
         if (!allowedMethods.has(method)) {
-            return `❌ 不支持的 HTTP 方法 "${args.method}"，允许的方法：${Array.from(allowedMethods).join(', ')}。`;
+            // 不支持的 HTTP 方法错误
+            return `❌ Unsupported HTTP method "${args.method}", allowed methods: ${Array.from(allowedMethods).join(', ')}.`;
         }
 
         const saveAs = args.saveAs || 'auto';
         if (!['auto', 'file', 'inline'].includes(saveAs)) {
-            return `❌ 参数错误：saveAs 仅支持 "auto"、"file" 或 "inline"，当前值为 "${saveAs}"。`;
+            // 不支持的 saveAs 模式错误
+            return `❌ Parameter error: saveAs only supports "auto", "file", or "inline", got "${saveAs}".`;
         }
 
         try {
-            return await executeRequest(args.url, method, args, this.cookieStore, ctx);
+            return await executeRequest(args.url, method, args, this.cookieStore, this.ctx);
         } catch (err: any) {
-            return `❌ web_request 执行失败: ${err?.message || String(err)}`;
+            // 执行失败错误提示
+            return `❌ web_request execution failed: ${err?.message || String(err)}`;
         }
     }
 }

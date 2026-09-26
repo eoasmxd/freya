@@ -28,4 +28,4 @@ EXPOSE 3000
 
 VOLUME ["/data"]
 
-CMD ["node", "core/dist/index.js", "--no-cli"]
+CMD ["node", "core/dist/index.js", "--no-cli", "--port", "3000"]

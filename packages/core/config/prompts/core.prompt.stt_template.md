@@ -1,2 +1,2 @@
-【用户语音转录结果: {text}】
-（可能存在同音字误识别，请结合上下文语义合理理解）
+[Transcribed Speech: {text}]
+(Possible homophone misrecognitions may exist; please interpret in conjunction with conversational context)

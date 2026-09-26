@@ -41,6 +41,7 @@ const WECOM_MIME_MAP: Record<string, string> = {
 
 /**
  * Freya 企业微信智能机器人长连接通道插件
+ * Freya WeChat Work intelligent bot persistent connection channel plugin
  */
 export default class FreyaWecomChannelPlugin implements ChannelPlugin {
   readonly type = "channel" as const;
@@ -75,16 +76,16 @@ export default class FreyaWecomChannelPlugin implements ChannelPlugin {
 
     this.syncTimer = setInterval(() => {
       this.syncWecomBots(ctx).catch((err) => {
-        ctx.logger.error("企业微信机器人配置热更新检测异常:", err.message);
+        ctx.logger.error("WeCom bot config hot reload detection error:", err.message);
       });
     }, 5000);
 
-    ctx.logger.debug("企业微信频道插件已成功初始化。");
+    ctx.logger.debug("WeCom channel plugin initialized successfully.");
   }
 
   async start(ctx: FreyaContext): Promise<void> {
     if (this.bots.length === 0) {
-      ctx.logger.debug("未检测到企业微信机器人配置，热重载轮询已就绪。");
+      ctx.logger.debug("No WeCom bot configurations detected, hot reload polling ready.");
       return;
     }
 
@@ -149,14 +150,14 @@ export default class FreyaWecomChannelPlugin implements ChannelPlugin {
         const frame = JSON.parse(data.toString());
         this.handleWecomIncomingFrame(ctx, botId, state, frame);
       } catch (err: any) {
-        ctx.logger.error(`企业微信机器人 [${botId}] 解析 WS 数据失败:`, err.message);
+        ctx.logger.error(`WeCom bot [${botId}] failed to parse WS frame:`, err.message);
       }
     });
 
     ws.on("close", (code, reason) => {
       this.clearWecomTimers(state);
       if (state.running) {
-        ctx.logger.warn(`企业微信机器人 [${botId}] 连接已断开 (${code}: ${reason.toString() || "未知原因"})，将于 ${state.retryDelay / 1000} 秒后尝试重新连接...`);
+        ctx.logger.warn(`WeCom bot [${botId}] connection closed (${code}: ${reason.toString() || "unknown"}), reconnecting in ${state.retryDelay / 1000}s...`);
         state.retryTimer = setTimeout(() => {
           state.retryDelay = Math.min(state.retryDelay * 2, 5 * 60 * 1000);
           this.connectWecomBot(ctx, botId, state);
@@ -165,7 +166,7 @@ export default class FreyaWecomChannelPlugin implements ChannelPlugin {
     });
 
     ws.on("error", (err: any) => {
-      ctx.logger.error(`企业微信机器人 [${botId}] WS 连接出现异常:`, err.message);
+      ctx.logger.error(`WeCom bot [${botId}] WS connection error:`, err.message);
     });
   }
 
@@ -177,10 +178,10 @@ export default class FreyaWecomChannelPlugin implements ChannelPlugin {
       const errcode = frame.body?.errcode;
       if (errcode === 0) {
         state.retryDelay = 5000;
-        ctx.logger.info(`企业微信智能机器人 [${botId}] 认证成功，长连接已建立。`);
+        ctx.logger.info(`WeCom bot [${botId}] authenticated successfully, persistent connection established.`);
         this.startPingInterval(botId, state);
       } else {
-        ctx.logger.error(`企业微信智能机器人 [${botId}] 认证授权失败：errcode=${errcode}, errmsg=${frame.body?.errmsg || "未知错误"}`);
+        ctx.logger.error(`WeCom bot [${botId}] authentication failed: errcode=${errcode}, errmsg=${frame.body?.errmsg || "unknown error"}`);
         state.retryDelay = 30000;
         state.ws?.close();
       }
@@ -228,7 +229,8 @@ export default class FreyaWecomChannelPlugin implements ChannelPlugin {
               path: result.path
             });
           } else {
-            textResult = `🤖 [收到图片] 收到用户发送的一张图片 (media_id: "${mediaId}")。由于安全加密通道限制目前无法下载解密，请用户将关键问题改用文字描述。`;
+            // 无法解密的图片提示词
+            textResult = `[Received Image] The user sent an image (media_id: "${mediaId}"). Due to secure channel encryption constraints, it cannot be downloaded. Please ask the user to describe their question or request in text.`;
             attachList.push({
               type: "image",
               mimeType: "image/jpeg",
@@ -252,7 +254,8 @@ export default class FreyaWecomChannelPlugin implements ChannelPlugin {
               path: result.path
             });
           } else {
-            textResult = `🤖 [收到语音] 收到用户发送的一段语音消息 (media_id: "${mediaId}")。由于当前通道安全限制，本通道目前无法解密还原，请引导用户使用文本与您对话。`;
+            // 无法解密的语音提示词
+            textResult = `[Received Voice] The user sent a voice message (media_id: "${mediaId}"). Due to channel security constraints, voice cannot be decrypted. Please guide the user to communicate with text.`;
             attachList.push({
               type: "file",
               mimeType: "audio/ogg",
@@ -262,7 +265,8 @@ export default class FreyaWecomChannelPlugin implements ChannelPlugin {
         } else if (type === "file" && item.file) {
           const file = item.file;
           const mediaId = file.media_id || "";
-          const fileName = file.file_name || "未命名文件";
+          // 默认未命名文件名
+          const fileName = file.file_name || "untitled_file";
           const url = file.url || "";
           const aesKey = file.aeskey || "";
           let result: { path: string; mimeType: string } | undefined;
@@ -276,7 +280,8 @@ export default class FreyaWecomChannelPlugin implements ChannelPlugin {
               path: result.path
             });
           } else {
-            textResult = `🤖 [收到文件: "${fileName}"] 用户发送了一份文件 (media_id: "${mediaId}")。由于 WebSocket 协议的安全隔离策略暂无法直接下载解密此临时媒体文件，请告知用户您已收到了文件事件但目前无法直接打开，礼貌引导用户直接发送文本内容。`;
+            // 无法下载的文件提示词
+            textResult = `[Received File: "${fileName}"] The user sent a file (media_id: "${mediaId}"). Due to security isolation policy, this media file cannot be downloaded directly. Please acknowledge receiving the file event, inform the user that it cannot be opened directly, and politely guide them to send the text content.`;
             attachList.push({
               type: "file",
               mimeType: "application/octet-stream",
@@ -300,7 +305,8 @@ export default class FreyaWecomChannelPlugin implements ChannelPlugin {
               path: result.path
             });
           } else {
-            textResult = `🤖 [收到视频] 收到用户发送的一段视频消息 (media_id: "${mediaId}")。由于当前安全机制，您无法直接播放此媒体，请礼貌引导其发送文本交流。`;
+            // 无法播放的视频提示词
+            textResult = `[Received Video] The user sent a video message (media_id: "${mediaId}"). Due to current security mechanisms, you cannot view this media. Please guide the user to communicate in text.`;
             attachList.push({
               type: "file",
               mimeType: "video/mp4",
@@ -334,25 +340,31 @@ export default class FreyaWecomChannelPlugin implements ChannelPlugin {
       }
 
       if (!content) {
-        content = `🤖 [未知消息] 用户发来了一个不支持的协议格式消息 (msgtype: "${msgtype || "unknown"}")。`;
+        // 不支持的消息类型提示词
+        content = `[Unsupported Message] The user sent an unsupported message format (msgtype: "${msgtype || "unknown"}").`;
       }
 
       if (content) {
         ctx.eventBus.emit("connection:active", {
           connectionId,
           defaultSessionId: connectionId,
-          staleThresholdMs: 0
+          staleThresholdMs: 0,
+          channelType: "wecom",
+          defaultLanguage: "zh"
         });
 
         ctx.eventBus.emit("connection:message", {
           connectionId,
           content,
           attachments: attachments.length > 0 ? attachments : undefined,
-          defaultSessionId: connectionId
+          defaultSessionId: connectionId,
+          channelType: "wecom",
+          defaultLanguage: "zh"
         });
       }
     } else if (cmd === "pong") {
       // 心跳响应
+      // Heartbeat response
     }
   }
 
@@ -379,6 +391,7 @@ export default class FreyaWecomChannelPlugin implements ChannelPlugin {
 
   /**
    * 下载企业微信加密媒体文件并进行 AES-256-CBC 解密还原
+   * Download WeChat Work encrypted media file and decrypt via AES-256-CBC
    */
   private async downloadAndDecryptMedia(
     ctx: FreyaContext,
@@ -390,7 +403,8 @@ export default class FreyaWecomChannelPlugin implements ChannelPlugin {
     try {
       const res = await fetch(url);
       if (!res.ok) {
-        throw new Error(`下载媒体文件 HTTP 状态码异常: ${res.status}`);
+        // 下载媒体文件 HTTP 状态码异常
+        throw new Error(`Failed to download media file with HTTP status: ${res.status}`);
       }
       const rawBuffer = Buffer.from(await res.arrayBuffer());
       let finalBuffer = rawBuffer;
@@ -418,11 +432,13 @@ export default class FreyaWecomChannelPlugin implements ChannelPlugin {
 
         const padLen = decrypted[decrypted.length - 1];
         if (padLen < 1 || padLen > 32 || padLen > decrypted.length) {
-          throw new Error(`解密失败: 不合规的填充长度 (${padLen})`);
+          // 解密填充长度异常
+          throw new Error(`Decryption failed: invalid padding length (${padLen})`);
         }
         for (let i = decrypted.length - padLen; i < decrypted.length; i++) {
           if (decrypted[i] !== padLen) {
-            throw new Error("解密失败: 填充字节不匹配");
+            // 解密填充字节不匹配
+            throw new Error("Decryption failed: padding bytes mismatch");
           }
         }
         finalBuffer = decrypted.subarray(0, decrypted.length - padLen);
@@ -452,7 +468,7 @@ export default class FreyaWecomChannelPlugin implements ChannelPlugin {
         mimeType
       };
     } catch (err: any) {
-      ctx.logger.error(`下载或解密企业微信媒体附件失败 [${fileName}]:`, err.message);
+      ctx.logger.error(`Failed to download or decrypt WeCom media attachment [${fileName}]:`, err.message);
       return undefined;
     }
   }
@@ -476,11 +492,11 @@ export default class FreyaWecomChannelPlugin implements ChannelPlugin {
   private async sendWecomMessage(botId: string, chatId: string, content: string): Promise<void> {
     const state = this.activeBots.get(botId);
     if (!state) {
-      this.context.logger.error(`[企业微信发信失败] 未找到机器人实例状态: ${botId}`);
+      this.context.logger.error(`[WeCom Send Failed] Bot instance state not found: ${botId}`);
       return;
     }
     if (!state.ws || state.ws.readyState !== WebSocket.OPEN) {
-      this.context.logger.error(`[企业微信发信失败] 机器人 [${botId}] 连接未建立或已断开 (readyState: ${state.ws ? state.ws.readyState : "未定义"})`);
+      this.context.logger.error(`[WeCom Send Failed] Bot [${botId}] connection not established or disconnected (readyState: ${state.ws ? state.ws.readyState : "undefined"})`);
       return;
     }
 
@@ -504,16 +520,17 @@ export default class FreyaWecomChannelPlugin implements ChannelPlugin {
     try {
       state.ws.send(JSON.stringify(respondFrame), (err) => {
         if (err) {
-          this.context.logger.error(`[企业微信发信失败] 机器人 [${botId}] 发送 WS 帧物理失败:`, err.message);
+          this.context.logger.error(`[WeCom Send Failed] Bot [${botId}] failed to send WS frame:`, err.message);
         }
       });
     } catch (err: any) {
-      this.context.logger.error(`[企业微信发信异常] 机器人 [${botId}] 发信异常:`, err.message);
+      this.context.logger.error(`[WeCom Send Exception] Bot [${botId}] message send exception:`, err.message);
     }
   }
 
   /**
    * 定期同步内存中的活跃机器人列表，提供配置平滑热重载支持
+   * Periodically synchronize active bots in memory to support smooth configuration hot-reloading
    */
   private async syncWecomBots(ctx: FreyaContext): Promise<void> {
     const rawBots = ctx.config.wecom?.bots;
@@ -524,7 +541,7 @@ export default class FreyaWecomChannelPlugin implements ChannelPlugin {
       if (!target || target.secret !== activeState.config.secret) {
         this.closeWecomBot(activeState);
         this.activeBots.delete(botId);
-        ctx.logger.info(`[企业微信热更新] 成功热停用智能机器人: ${botId}`);
+        ctx.logger.info(`[WeCom Hot Reload] Hot deactivated bot: ${botId}`);
       }
     }
 
@@ -534,7 +551,7 @@ export default class FreyaWecomChannelPlugin implements ChannelPlugin {
 
       if (!this.activeBots.has(botId)) {
         this.startBot(ctx, config);
-        ctx.logger.info(`[企业微信热更新] 检测到新配置，正在热加载启动机器人: ${botId}`);
+        ctx.logger.info(`[WeCom Hot Reload] New config detected, hot starting bot: ${botId}`);
       }
     }
   }

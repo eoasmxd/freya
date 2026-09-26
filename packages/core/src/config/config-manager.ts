@@ -7,6 +7,9 @@ import { FreyaConfigSchemaRegistry } from './schema-registry.js';
 import type { FreyaSkillRegistry, FreyaSkill } from '../skill/skill-registry.js';
 import path from 'node:path';
 import { FREYA_HOME } from '../utils/paths.js';
+import { I18n } from '../i18n/index.js';
+import { zh } from '../i18n/locales/zh.js';
+import { en } from '../i18n/locales/en.js';
 
 function cleanPathFromError(err: any): string {
   const rawMessage = err?.message || String(err);
@@ -148,7 +151,10 @@ function deepMerge(defaults: Record<string, any>, overrides: Record<string, any>
 
 const ALLOWED_PROMPTS = new Set(['IDENTITY', 'SOUL', 'USER', 'TOOLS', 'AGENTS', 'MEMORY']);
 
-/** 核心统一配置管理器 */
+/**
+ * 核心统一配置管理器
+ * Core unified configuration manager
+ */
 export class FreyaConfigManager {
   private context: FreyaContext;
   private schemaRegistry: FreyaConfigSchemaRegistry;
@@ -157,6 +163,7 @@ export class FreyaConfigManager {
   private pluginManager: FreyaPluginManager;
   private promptManager: FreyaPromptManager;
   private skillRegistry?: FreyaSkillRegistry;
+  private i18n = new I18n({ zh, en });
 
   constructor(
     context: FreyaContext,
@@ -172,11 +179,40 @@ export class FreyaConfigManager {
     this.llmRegistry = llmRegistry;
     this.pluginManager = pluginManager;
     this.skillRegistry = skillRegistry;
+    this.i18n.setContext(context);
   }
 
-  /** 获取全部敏感字段的 keyPath 列表 */
+  /**
+   * 获取全部敏感字段的 keyPath 列表
+   * Get keyPath list of all sensitive fields
+   */
   getSensitiveKeys(): string[] {
     return this.schemaRegistry.getSensitiveKeys();
+  }
+
+  getManualOnlyKeys(): string[] {
+    return this.schemaRegistry.getManualOnlyKeys();
+  }
+
+  /**
+   * 获取只读锁定字段的 keyPath 列表（支持合并 manualOnly 字段）
+   * Get keyPath list of read-only locked fields (supports merging manualOnly fields)
+   */
+  getReadonlyKeys(includeManualOnly = false): string[] {
+    const readonlySet = new Set<string>();
+    for (const [ns, fields] of this.schemaRegistry.getSchema().entries()) {
+      for (const field of fields) {
+        if (this.isFieldReadonly(field.key, ns)) {
+          readonlySet.add(field.key);
+        }
+      }
+    }
+    if (includeManualOnly) {
+      for (const key of this.getManualOnlyKeys()) {
+        readonlySet.add(key);
+      }
+    }
+    return Array.from(readonlySet);
   }
 
   async loadAndInit(): Promise<void> {
@@ -191,7 +227,7 @@ export class FreyaConfigManager {
         }
       }
     } catch (err: any) {
-      this.context.logger.error('加载主配置文件 freya.json 失败:', err);
+      this.context.logger.error('Failed to load primary configuration file freya.json:', err);
     }
   }
 
@@ -203,9 +239,9 @@ export class FreyaConfigManager {
 
       this.updateContextConfig(merged);
       await this.fileHandler.writeFreyaConfig(merged);
-      this.context.logger.info('配置模式合并完成，已回写至 config/freya.json。');
+      this.context.logger.info('Configuration schema merged and written back to config/freya.json.');
     } catch (err: any) {
-      this.context.logger.error('合并配置模式并回写 freya.json 失败:', err);
+      this.context.logger.error('Failed to merge configuration schema and write back to freya.json:', err);
     }
   }
 
@@ -231,17 +267,72 @@ export class FreyaConfigManager {
     } else {
       cloned.workspace = path.join(FREYA_HOME, 'workspace');
     }
+
+    const portIdx = process.argv.indexOf('--port');
+    if (portIdx !== -1 && portIdx + 1 < process.argv.length) {
+      const cliPort = parseInt(process.argv[portIdx + 1], 10);
+      if (!isNaN(cliPort) && cliPort > 0 && cliPort <= 65535) {
+        if (!cloned.server) cloned.server = {};
+        cloned.server.port = cliPort;
+      }
+    }
+
     (this.context as any).config = deepFreeze(cloned);
   }
 
   async readConfig(revealSensitive = false): Promise<any> {
     const jsonObj = await this.fileHandler.readFreyaConfig();
     const filtered = filterConfigBySchema(jsonObj, this.schemaRegistry);
+    if ((this.context?.config as any)?.server?.port !== undefined && process.argv.includes('--port')) {
+      if (!filtered.server) filtered.server = {};
+      filtered.server.port = (this.context.config as any).server.port;
+    }
     const sensitiveKeys = this.schemaRegistry.getSensitiveKeys();
     return revealSensitive ? filtered : maskSensitiveData(filtered, sensitiveKeys);
   }
 
+  /**
+   * 检查指定配置项是否处于只读锁定状态
+   * Check whether specified configuration item is locked as read-only
+   */
+  isFieldReadonly(keyPath: string, namespace?: string): boolean {
+    if (keyPath === 'cli.enabled' && process.argv.includes('--no-cli')) {
+      return true;
+    }
+
+    if ((keyPath === 'server.port' || keyPath === 'server.enabled') && process.argv.includes('--port')) {
+      return true;
+    }
+
+    if (this.pluginManager) {
+      let targetPluginId = namespace;
+      if (!targetPluginId) {
+        for (const [ns, fields] of this.schemaRegistry.getSchema().entries()) {
+          if (ns !== 'core' && fields.some((f) => f.key === keyPath || keyPath.startsWith(`${f.key}.`))) {
+            targetPluginId = ns;
+            break;
+          }
+        }
+      }
+      if (targetPluginId && targetPluginId !== 'core') {
+        const entries = this.pluginManager.getPluginEntries();
+        const entry = entries.find((e) => e.id === targetPluginId);
+        if (entry && (entry.enabled === false || entry.status === 'disabled')) {
+          return true;
+        }
+      }
+    }
+    return false;
+  }
+
   async updateConfig(keyPath: string, value: any): Promise<string> {
+    if (this.isFieldReadonly(keyPath)) {
+      return this.i18n.t(
+        'config.error.readonlyRejected',
+        '❌ Property "{keyPath}" is currently read-only (locked by startup arguments or disabled plugin) and cannot be modified.',
+        { keyPath }
+      );
+    }
     const jsonObj = await this.fileHandler.readFreyaConfig();
     const oldValue = getValueByKeyPath(jsonObj, keyPath);
 
@@ -271,10 +362,25 @@ export class FreyaConfigManager {
     setValueByKeyPath(rawConfig, keyPath, safeValue);
     this.updateContextConfig(rawConfig);
 
-    return `核心配置中的属性 "${keyPath}" 已成功修改，已实时生效。`;
+    if (keyPath === 'system.language') {
+      this.context.eventBus.emit('config:language_changed', { language: safeValue });
+    }
+
+    return this.i18n.t(
+      'config.update.propertySuccess',
+      'Property "{keyPath}" in core configuration has been modified and took effect immediately.',
+      { keyPath }
+    );
   }
 
   async updateConfigs(updates: Record<string, any>): Promise<string> {
+    const writableUpdates: Record<string, any> = {};
+    for (const [keyPath, value] of Object.entries(updates)) {
+      if (!this.isFieldReadonly(keyPath)) {
+        writableUpdates[keyPath] = value;
+      }
+    }
+    updates = writableUpdates;
     const jsonObj = await this.fileHandler.readFreyaConfig();
 
     const restoreMaskedValues = (newValue: any, oldVal: any): any => {
@@ -310,7 +416,14 @@ export class FreyaConfigManager {
     }
     this.updateContextConfig(rawConfig);
 
-    return '全量全局配置已成功修改，并实时热更新生效。';
+    if (updates['system.language']) {
+      this.context.eventBus.emit('config:language_changed', { language: updates['system.language'] });
+    }
+
+    return this.i18n.t(
+      'config.update.globalSuccess',
+      'Global configuration has been updated and hot reloaded successfully.'
+    );
   }
 
   async listProviders(): Promise<any[]> {
@@ -319,9 +432,13 @@ export class FreyaConfigManager {
 
   async addProvider(data: { id: string; name: string; type: string; baseURL: string; apiKey?: string }): Promise<string> {
     const id = String(data.id || '').trim();
-    if (!id) return '❌ 缺少必要参数：id 不能为空。';
+    if (!id) {
+      return this.i18n.t('config.provider.missingId', '❌ Missing required parameter: id cannot be empty.');
+    }
     const providers = await this.fileHandler.readProviders();
-    if (providers.find((p) => p.id === id)) return `❌ 提供商 ID "${id}" 已存在。`;
+    if (providers.find((p) => p.id === id)) {
+      return this.i18n.t('config.provider.alreadyExists', '❌ Provider ID "{id}" already exists.', { id });
+    }
     providers.push({
       id,
       name: String(data.name || '').trim(),
@@ -332,35 +449,45 @@ export class FreyaConfigManager {
     });
     await this.fileHandler.writeProviders(providers);
     if (this.llmRegistry) this.llmRegistry.setProviders(providers);
-    this.context.logger.info(`[FreyaConfigManager] 新增模型提供商: ${id}`);
-    return `模型提供商 "${id}" 已成功新增。`;
+    this.context.logger.info(`[FreyaConfigManager] Added model provider: ${id}`);
+    return this.i18n.t('config.provider.addSuccess', 'Model provider "{id}" added successfully.', { id });
   }
 
   async editProvider(providerId: string, updates: Record<string, any>): Promise<string> {
     const providers = await this.fileHandler.readProviders();
     const provider = providers.find((p) => p.id === providerId);
-    if (!provider) return `❌ 未找到提供商 ID 为 "${providerId}" 的配置条目。`;
+    if (!provider) {
+      return this.i18n.t('config.provider.notFound', '❌ Provider with ID "{id}" not found.', { id: providerId });
+    }
     const updatedKeys: string[] = [];
     if (updates.name !== undefined) { provider.name = String(updates.name).trim(); updatedKeys.push('name'); }
     if (updates.type !== undefined) { provider.type = String(updates.type).trim(); updatedKeys.push('type'); }
     if (updates.baseURL !== undefined) { provider.baseURL = String(updates.baseURL).trim(); updatedKeys.push('baseURL'); }
     if (updates.apiKey !== undefined) { provider.apiKey = String(updates.apiKey); updatedKeys.push('apiKey'); }
-    if (updatedKeys.length === 0) return '⚠️ 未指定任何需要修改的属性。';
+    if (updatedKeys.length === 0) {
+      return this.i18n.t('config.provider.noUpdates', '⚠️ No attributes specified to update.');
+    }
     await this.fileHandler.writeProviders(providers);
     if (this.llmRegistry) this.llmRegistry.setProviders(providers);
-    this.context.logger.info(`[FreyaConfigManager] 修改模型提供商 "${providerId}" 属性: ${updatedKeys.join(', ')}`);
-    return `提供商 "${providerId}" 的属性 [${updatedKeys.join(', ')}] 已成功修改。`;
+    this.context.logger.info(`[FreyaConfigManager] Updated model provider "${providerId}" attributes: ${updatedKeys.join(', ')}`);
+    return this.i18n.t(
+      'config.provider.updateSuccess',
+      'Provider "{id}" attributes [{keys}] updated successfully.',
+      { id: providerId, keys: updatedKeys.join(', ') }
+    );
   }
 
   async removeProvider(providerId: string): Promise<string> {
     const providers = await this.fileHandler.readProviders();
     const index = providers.findIndex((p) => p.id === providerId);
-    if (index === -1) return `❌ 未找到提供商 ID 为 "${providerId}" 的配置条目。`;
+    if (index === -1) {
+      return this.i18n.t('config.provider.notFound', '❌ Provider with ID "{id}" not found.', { id: providerId });
+    }
     providers.splice(index, 1);
     await this.fileHandler.writeProviders(providers);
     if (this.llmRegistry) this.llmRegistry.setProviders(providers);
-    this.context.logger.info(`[FreyaConfigManager] 删除模型提供商: ${providerId}`);
-    return `模型提供商 "${providerId}" 及其所有模型配置已删除。`;
+    this.context.logger.info(`[FreyaConfigManager] Deleted model provider: ${providerId}`);
+    return this.i18n.t('config.provider.deleteSuccess', 'Model provider "{id}" and all its models deleted.', { id: providerId });
   }
 
   async getAvailableProviderTypes(): Promise<string[]> {
@@ -391,14 +518,22 @@ export class FreyaConfigManager {
 
   async addModel(providerId: string, data: Record<string, any>): Promise<string> {
     const modelId = String(data.id || '').trim();
-    if (!modelId) return '❌ 缺少必要参数：id 不能为空。';
+    if (!modelId) {
+      return this.i18n.t('config.model.missingId', '❌ Missing required parameter: id cannot be empty.');
+    }
     const providers = await this.fileHandler.readProviders();
     const provider = providers.find((p) => p.id === providerId);
-    if (!provider) return `❌ 未找到提供商 ID 为 "${providerId}" 的配置条目。`;
+    if (!provider) {
+      return this.i18n.t('config.provider.notFound', '❌ Provider with ID "{id}" not found.', { id: providerId });
+    }
 
     if (!Array.isArray(provider.models)) provider.models = [];
     if (provider.models.find((m: any) => m.id === modelId)) {
-      return `❌ 模型 ID "${modelId}" 在提供商 "${providerId}" 下已存在。`;
+      return this.i18n.t(
+        'config.model.alreadyExists',
+        '❌ Model ID "{modelId}" already exists under provider "{providerId}".',
+        { modelId, providerId }
+      );
     }
 
     provider.models.push({
@@ -415,18 +550,30 @@ export class FreyaConfigManager {
 
     await this.fileHandler.writeProviders(providers);
     if (this.llmRegistry) this.llmRegistry.setProviders(providers);
-    this.context.logger.info(`[FreyaConfigManager] 新增模型: ${providerId}/${modelId}`);
-    return `模型 "${modelId}" 已成功新增至提供商 "${providerId}"。`;
+    this.context.logger.info(`[FreyaConfigManager] Added model: ${providerId}/${modelId}`);
+    return this.i18n.t(
+      'config.model.addSuccess',
+      'Model "{modelId}" added to provider "{providerId}" successfully.',
+      { modelId, providerId }
+    );
   }
 
   async editModel(providerId: string, modelId: string, updates: Record<string, any>): Promise<string> {
     const providers = await this.fileHandler.readProviders();
     const provider = providers.find((p) => p.id === providerId);
-    if (!provider) return `❌ 未找到提供商 ID 为 "${providerId}" 的配置条目。`;
+    if (!provider) {
+      return this.i18n.t('config.provider.notFound', '❌ Provider with ID "{id}" not found.', { id: providerId });
+    }
 
     const models = Array.isArray(provider.models) ? provider.models : [];
     const model = models.find((m: any) => m.id === modelId);
-    if (!model) return `❌ 未找到模型 ID 为 "${modelId}" 的配置条目（提供商 "${providerId}"）。`;
+    if (!model) {
+      return this.i18n.t(
+        'config.model.notFound',
+        '❌ Model ID "{modelId}" not found (provider "{providerId}").',
+        { modelId, providerId }
+      );
+    }
 
     const updatedKeys: string[] = [];
     if (updates.name !== undefined) { model.name = String(updates.name).trim(); updatedKeys.push('name'); }
@@ -438,28 +585,46 @@ export class FreyaConfigManager {
     if (updates.maxTokens !== undefined) { model.maxTokens = Number(updates.maxTokens); updatedKeys.push('maxTokens'); }
     if (updates.capabilities !== undefined) { model.capabilities = updates.capabilities; updatedKeys.push('capabilities'); }
 
-    if (updatedKeys.length === 0) return '⚠️ 未指定任何需要修改的属性。';
+    if (updatedKeys.length === 0) {
+      return this.i18n.t('config.provider.noUpdates', '⚠️ No attributes specified to update.');
+    }
 
     await this.fileHandler.writeProviders(providers);
     if (this.llmRegistry) this.llmRegistry.setProviders(providers);
-    this.context.logger.info(`[FreyaConfigManager] 修改模型 "${providerId}/${modelId}" 属性: ${updatedKeys.join(', ')}`);
-    return `模型 "${modelId}"（提供商 "${providerId}"）的属性 [${updatedKeys.join(', ')}] 已成功修改。`;
+    this.context.logger.info(`[FreyaConfigManager] Updated model "${providerId}/${modelId}" attributes: ${updatedKeys.join(', ')}`);
+    return this.i18n.t(
+      'config.model.updateSuccess',
+      'Model "{modelId}" (provider "{providerId}") attributes [{keys}] updated successfully.',
+      { modelId, providerId, keys: updatedKeys.join(', ') }
+    );
   }
 
   async removeModel(providerId: string, modelId: string): Promise<string> {
     const providers = await this.fileHandler.readProviders();
     const provider = providers.find((p) => p.id === providerId);
-    if (!provider) return `❌ 未找到提供商 ID 为 "${providerId}" 的配置条目。`;
+    if (!provider) {
+      return this.i18n.t('config.provider.notFound', '❌ Provider with ID "{id}" not found.', { id: providerId });
+    }
 
     const models = Array.isArray(provider.models) ? provider.models : [];
     const index = models.findIndex((m: any) => m.id === modelId);
-    if (index === -1) return `❌ 未找到模型 ID 为 "${modelId}" 的配置条目（提供商 "${providerId}"）。`;
+    if (index === -1) {
+      return this.i18n.t(
+        'config.model.notFound',
+        '❌ Model ID "{modelId}" not found (provider "{providerId}").',
+        { modelId, providerId }
+      );
+    }
 
     models.splice(index, 1);
     await this.fileHandler.writeProviders(providers);
     if (this.llmRegistry) this.llmRegistry.setProviders(providers);
-    this.context.logger.info(`[FreyaConfigManager] 删除模型: ${providerId}/${modelId}`);
-    return `模型 "${modelId}"（提供商 "${providerId}"）已成功删除。`;
+    this.context.logger.info(`[FreyaConfigManager] Deleted model: ${providerId}/${modelId}`);
+    return this.i18n.t(
+      'config.model.deleteSuccess',
+      'Model "{modelId}" (provider "{providerId}") deleted successfully.',
+      { modelId, providerId }
+    );
   }
 
   async listPlugins(): Promise<any[]> {
@@ -480,7 +645,9 @@ export class FreyaConfigManager {
   }
 
   async togglePlugin(pluginId: string, enabled: boolean): Promise<string> {
-    if (!this.pluginManager) return '❌ 插件服务未初始化。';
+    if (!this.pluginManager) {
+      return this.i18n.t('config.plugin.notInit', '❌ Plugin service is not initialized.');
+    }
     return await this.pluginManager.togglePlugin(pluginId, enabled);
   }
 
@@ -490,255 +657,311 @@ export class FreyaConfigManager {
   }
 
   async toggleSkill(skillId: string, enabled: boolean): Promise<string> {
-    if (!this.skillRegistry) return '❌ 技能注册表服务未初始化。';
+    if (!this.skillRegistry) {
+      return this.i18n.t('config.skill.notInit', '❌ Skill registry service is not initialized.');
+    }
     return await this.skillRegistry.toggleSkill(skillId, enabled);
   }
 
   async readPrompt(name: string): Promise<string> {
     const promptName = String(name).trim().toUpperCase();
     if (!ALLOWED_PROMPTS.has(promptName)) {
-      return `❌ 拒绝访问：主提示词文档 "${promptName}" 不在安全白名单中（只允许: IDENTITY, SOUL, USER, TOOLS, AGENTS, MEMORY）。`;
+      return this.i18n.t(
+        'config.prompt.notAllowed',
+        '❌ Access denied: prompt document "{name}" is not in whitelist (allowed: IDENTITY, SOUL, USER, TOOLS, AGENTS, MEMORY).',
+        { name: promptName }
+      );
     }
-    if (!this.promptManager) return '❌ 提示词服务未初始化。';
+    if (!this.promptManager) {
+      return this.i18n.t('config.prompt.notInit', '❌ Prompt service is not initialized.');
+    }
     return await this.promptManager.readPrompt(promptName);
   }
 
   async writePrompt(name: string, content: string): Promise<string> {
     const promptName = String(name).trim().toUpperCase();
     if (!ALLOWED_PROMPTS.has(promptName)) {
-      return '❌ 拒绝访问：主提示词文档不在安全白名单中，拒绝修改。';
+      return this.i18n.t(
+        'config.prompt.notAllowed',
+        '❌ Access denied: prompt document "{name}" is not in whitelist (allowed: IDENTITY, SOUL, USER, TOOLS, AGENTS, MEMORY).',
+        { name: promptName }
+      );
     }
-    if (!this.promptManager) return '❌ 提示词服务未初始化。';
+    if (!this.promptManager) {
+      return this.i18n.t('config.prompt.notInit', '❌ Prompt service is not initialized.');
+    }
 
     await this.promptManager.writePrompt(promptName, content);
-    this.context.logger.info(`[FreyaConfigManager] 主提示词 "${promptName}" 已成功全量覆写并热更新入底座。`);
-    return `主提示词文档 [${promptName}] 已覆盖写入并实时生效。`;
+    this.context.logger.info(`[FreyaConfigManager] Primary prompt "${promptName}" fully overridden and hot reloaded into core.`);
+    return this.i18n.t(
+      'config.prompt.overwriteSuccess',
+      'Primary prompt [{name}] overridden and hot reloaded.',
+      { name: promptName }
+    );
   }
 
   async editPrompt(name: string, targetContent: string, replacementContent: string): Promise<string> {
     const promptName = String(name).trim().toUpperCase();
     if (!ALLOWED_PROMPTS.has(promptName)) {
-      return `❌ 拒绝访问：主提示词文档 "${promptName}" 不在允许读写的安全白名单中（只允许: IDENTITY, SOUL, USER, TOOLS, AGENTS, MEMORY）。`;
+      return this.i18n.t(
+        'config.prompt.notAllowed',
+        '❌ Access denied: prompt document "{name}" is not in whitelist (allowed: IDENTITY, SOUL, USER, TOOLS, AGENTS, MEMORY).',
+        { name: promptName }
+      );
     }
-    if (!this.promptManager) return '❌ 提示词服务未初始化。';
+    if (!this.promptManager) {
+      return this.i18n.t('config.prompt.notInit', '❌ Prompt service is not initialized.');
+    }
 
     try {
       await this.promptManager.editPrompt(promptName, targetContent, replacementContent);
-      this.context.logger.info(`[FreyaConfigManager] 主提示词 "${promptName}" 局部修改热生效。`);
-      return `主提示词文档 [${promptName}] 局部替换成功，已实时应用。`;
+      this.context.logger.info(`[FreyaConfigManager] Primary prompt "${promptName}" partial update hot reloaded.`);
+      return this.i18n.t(
+        'config.prompt.editSuccess',
+        'Primary prompt [{name}] partially replaced and applied.',
+        { name: promptName }
+      );
     } catch (err: any) {
-      return `❌ 修改失败：${err.message}`;
+      return this.i18n.t(
+        'config.prompt.editFailed',
+        '❌ Modification failed: {message}',
+        { message: err.message }
+      );
     }
   }
 
   registerCoreSchema(): void {
     const modelItemChildren: ConfigFieldSchema[] = [
-      { key: 'provider', type: 'string', required: true, description: 'LLM 提供商标识' },
-      { key: 'model', type: 'string', required: true, description: '模型名称' },
-      { key: 'name', type: 'string', required: true, description: '显示名称' },
+      { key: 'provider', type: 'string', required: true, description: this.i18n.all('schema.core.models.item.provider.desc', 'LLM provider identifier') },
+      { key: 'model', type: 'string', required: true, description: this.i18n.all('schema.core.models.item.model.desc', 'Model name') },
+      { key: 'name', type: 'string', required: true, description: this.i18n.all('schema.core.models.item.name.desc', 'Display name') },
     ];
 
     const coreFields: ConfigFieldSchema[] = [
       {
+        key: 'system.language',
+        defaultValue: 'auto',
+        description: this.i18n.all('schema.core.system.language.desc', 'System UI and interaction language'),
+        type: 'string',
+        enumValues: [
+          { value: 'auto', label: this.i18n.all('schema.core.system.language.enum.auto', 'Auto Detect (auto)') },
+          { value: 'zh', label: this.i18n.all('schema.core.system.language.enum.zh', 'Chinese (zh)') },
+          { value: 'en', label: this.i18n.all('schema.core.system.language.enum.en', 'English (en)') }
+        ],
+        uiHint: 'select',
+        category: this.i18n.all('schema.core.category.system', 'System Parameters')
+      },
+      {
         key: 'server.port',
         defaultValue: 3000,
-        description: 'Web 网关服务端口',
+        description: this.i18n.all('schema.core.server.port.desc', 'Web gateway service port'),
         type: 'number',
         required: true,
         min: 1,
         max: 65535,
-        category: '服务器'
+        category: this.i18n.all('schema.core.category.server', 'Server'),
+        manualOnly: true
       },
       {
         key: 'server.enabled',
         defaultValue: true,
-        description: '是否启用 Web 网关服务与 WebSocket 频道',
+        description: this.i18n.all('schema.core.server.enabled.desc', 'Enable Web gateway service and WebSocket channel'),
         type: 'boolean',
-        category: '服务器'
+        category: this.i18n.all('schema.core.category.server', 'Server'),
+        manualOnly: true
       },
       {
         key: 'cli.enabled',
         defaultValue: true,
-        description: '是否启用命令行终端交互频道',
+        description: this.i18n.all('schema.core.cli.enabled.desc', 'Enable command-line terminal interaction channel'),
         type: 'boolean',
-        category: '终端'
+        category: this.i18n.all('schema.core.category.cli', 'CLI'),
+        manualOnly: true
       },
       {
         key: 'workspace',
         defaultValue: 'workspace',
-        description: '用户文档工作区目录名',
+        description: this.i18n.all('schema.core.workspace.desc', 'User document workspace directory name'),
         type: 'string',
         required: true,
-        category: '工作区'
+        category: this.i18n.all('schema.core.category.workspace', 'Workspace'),
+        manualOnly: true
       },
       {
         key: 'contextManagement.enabled',
         defaultValue: true,
-        description: '是否启用上下文管理',
+        description: this.i18n.all('schema.core.context.enabled.desc', 'Enable context management'),
         type: 'boolean',
-        category: '上下文管理'
+        category: this.i18n.all('schema.core.category.context', 'Context Management')
       },
       {
         key: 'contextManagement.maxHistoryTurns',
         defaultValue: 15,
-        description: '上下文历史最大轮数',
+        description: this.i18n.all('schema.core.context.maxHistoryTurns.desc', 'Maximum turns of context history'),
         type: 'number',
         min: 1,
         max: 100,
-        category: '上下文管理'
+        category: this.i18n.all('schema.core.category.context', 'Context Management')
       },
       {
         key: 'contextManagement.historyLimit',
         defaultValue: 100,
-        description: '上下文历史消息条数上限',
+        description: this.i18n.all('schema.core.context.historyLimit.desc', 'Upper limit of context history message count'),
         type: 'number',
         min: 10,
         max: 500,
-        category: '上下文管理'
+        category: this.i18n.all('schema.core.category.context', 'Context Management')
       },
       {
         key: 'contextManagement.keepRecentTurns',
         defaultValue: 6,
-        description: '压缩时保留的最近轮数',
+        description: this.i18n.all('schema.core.context.keepRecentTurns.desc', 'Recent turns preserved during compression'),
         type: 'number',
         min: 1,
         max: 50,
-        category: '上下文管理'
+        category: this.i18n.all('schema.core.category.context', 'Context Management')
       },
       {
         key: 'contextManagement.summarizeEnabled',
         defaultValue: true,
-        description: '是否启用上下文摘要压缩',
+        description: this.i18n.all('schema.core.context.summarizeEnabled.desc', 'Enable context summary compression'),
         type: 'boolean',
-        category: '上下文管理'
+        category: this.i18n.all('schema.core.category.context', 'Context Management')
       },
       {
         key: 'contextManagement.summaryMaxTokens',
         defaultValue: 150,
-        description: '上下文摘要压缩时，控制摘要生成的最大 Token 长度',
+        description: this.i18n.all('schema.core.context.summaryMaxTokens.desc', 'Maximum token length of summary generated during compression'),
         type: 'number',
         min: 50,
         max: 4096,
-        category: '上下文管理'
+        category: this.i18n.all('schema.core.category.context', 'Context Management')
       },
       {
         key: 'contextManagement.toolboxIdleTimeoutRounds',
         defaultValue: 10,
-        description: '已激活工具箱的最大闲置交互轮数，达到后将被自动卸载',
+        description: this.i18n.all('schema.core.context.toolboxIdleTimeoutRounds.desc', 'Max idle turns before automatically unloading an active toolbox'),
         type: 'number',
         min: 1,
         max: 100,
-        category: '上下文管理'
+        category: this.i18n.all('schema.core.category.context', 'Context Management')
       },
       {
         key: 'log.console.error',
         defaultValue: true,
-        description: '控制台输出 ERROR 日志（红色）',
+        description: this.i18n.all('schema.core.log.console.error.desc', 'Console ERROR logs output (red)'),
         type: 'boolean',
-        category: '日志'
+        category: this.i18n.all('schema.core.category.log', 'Logging')
       },
       {
         key: 'log.console.warn',
         defaultValue: false,
-        description: '控制台输出 WARN 日志（黄色）',
+        description: this.i18n.all('schema.core.log.console.warn.desc', 'Console WARN logs output (yellow)'),
         type: 'boolean',
-        category: '日志'
+        category: this.i18n.all('schema.core.category.log', 'Logging')
       },
       {
         key: 'log.console.info',
         defaultValue: false,
-        description: '控制台输出 INFO 日志（绿色）',
+        description: this.i18n.all('schema.core.log.console.info.desc', 'Console INFO logs output (green)'),
         type: 'boolean',
-        category: '日志'
+        category: this.i18n.all('schema.core.category.log', 'Logging')
       },
       {
         key: 'log.console.debug',
         defaultValue: false,
-        description: '控制台输出 DEBUG 日志（灰色）',
+        description: this.i18n.all('schema.core.log.console.debug.desc', 'Console DEBUG logs output (gray)'),
         type: 'boolean',
-        category: '日志'
+        category: this.i18n.all('schema.core.category.log', 'Logging')
       },
       {
         key: 'log.llm',
         defaultValue: false,
-        description: '是否记录大模型交互日志',
+        description: this.i18n.all('schema.core.log.llm.desc', 'Record LLM interaction logs'),
         type: 'boolean',
-        category: '日志'
+        category: this.i18n.all('schema.core.category.log', 'Logging')
       },
       {
         key: 'models.default',
         defaultValue: [],
-        description: '默认模型降级链列表',
+        description: this.i18n.all('schema.core.models.default.desc', 'Default model fallback chain list'),
         type: 'array',
-        category: '模型',
-        children: modelItemChildren
+        category: this.i18n.all('schema.core.category.models', 'Models'),
+        children: modelItemChildren,
+        manualOnly: true
       },
       {
         key: 'models.image',
         defaultValue: [],
-        description: '图像模型列表',
+        description: this.i18n.all('schema.core.models.image.desc', 'Image models list'),
         type: 'array',
-        category: '模型',
+        category: this.i18n.all('schema.core.category.models', 'Models'),
         children: modelItemChildren
       },
       {
         key: 'models.audio',
         defaultValue: [],
-        description: '音频转录模型列表',
+        description: this.i18n.all('schema.core.models.audio.desc', 'Audio transcription models list'),
         type: 'array',
-        category: '模型',
+        category: this.i18n.all('schema.core.category.models', 'Models'),
         children: modelItemChildren
       },
       {
         key: 'config.authTimeout',
         defaultValue: 30,
-        description: 'AI 代理配置修改等待授权超时秒数',
+        description: this.i18n.all('schema.core.config.authTimeout.desc', 'Timeout seconds for AI agent waiting for config authorization'),
         type: 'number',
         min: 10,
         max: 300,
-        category: '安全'
+        category: this.i18n.all('schema.core.category.security', 'Security'),
+        manualOnly: true
       },
       {
         key: 'tools.builtin.config.enabled',
         defaultValue: true,
-        description: '是否启用系统核心配置工具箱（允许大模型查看与修改系统配置）',
+        description: this.i18n.all('schema.core.tools.config.enabled.desc', 'Enable core config toolbox (allows model to view/modify config)'),
         type: 'boolean',
-        category: '系统工具'
+        category: this.i18n.all('schema.core.category.tools', 'Builtin Tools'),
+        manualOnly: true
       },
       {
         key: 'tools.builtin.session.enabled',
         defaultValue: true,
-        description: '是否启用会话与子任务管理工具箱（允许大模型查阅会话历史与派生子任务）',
+        description: this.i18n.all('schema.core.tools.session.enabled.desc', 'Enable session toolbox (allows model to view history/spawn subtasks)'),
         type: 'boolean',
-        category: '系统工具'
+        category: this.i18n.all('schema.core.category.tools', 'Builtin Tools'),
+        manualOnly: true
       },
       {
         key: 'commands.builtin.auth.enabled',
         defaultValue: true,
-        description: '是否启用敏感操作授权审批指令（/approve 与 /reject）',
+        description: this.i18n.all('schema.core.commands.auth.enabled.desc', 'Enable sensitive operation approval commands (/approve and /reject)'),
         type: 'boolean',
-        category: '系统指令'
+        category: this.i18n.all('schema.core.category.commands', 'Builtin Commands'),
+        manualOnly: true
       },
       {
         key: 'commands.builtin.session.enabled',
         defaultValue: true,
-        description: '是否启用会话管理与路由指令（/session 及其子命令）',
+        description: this.i18n.all('schema.core.commands.session.enabled.desc', 'Enable session management commands (/session and subcommands)'),
         type: 'boolean',
-        category: '系统指令'
+        category: this.i18n.all('schema.core.category.commands', 'Builtin Commands'),
+        manualOnly: true
       },
       {
         key: 'commands.builtin.model.enabled',
         defaultValue: true,
-        description: '是否启用模型查看与切换指令（/model 及其子命令）',
+        description: this.i18n.all('schema.core.commands.model.enabled.desc', 'Enable model switching commands (/model and subcommands)'),
         type: 'boolean',
-        category: '系统指令'
+        category: this.i18n.all('schema.core.category.commands', 'Builtin Commands'),
+        manualOnly: true
       }
     ];
 
     this.schemaRegistry.register('core', coreFields);
   }
 
-  getSchema(): Map<string, any> {
+  getSchema(): Map<string, ConfigFieldSchema[]> {
     return this.schemaRegistry.getSchema();
   }
 }

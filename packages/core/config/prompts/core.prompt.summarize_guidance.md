@@ -1,6 +1,6 @@
-请将上述对话中的核心交互关键信息提炼为一段极简的背景摘要（50字以内），作为下一步推理的参考背景。
-如果当前已经存在先前的背景提要，请将新内容增量融合成一段连贯的新提要。
+Please distill the core interactions from the conversation above into a concise background summary (under 50 words) to serve as reference context for subsequent reasoning.
+If an existing summary is provided, incrementally merge new interactions into a cohesive, updated summary.
 
-【摘要提炼要求】
-1. 事实聚焦：聚焦于已发生的具体行动、得出的核心结论、当前的状态以及待办的事实，去除所有的口水话、客套辞令及推理过程。
-2. 保持连贯：增量融合时，要确保时序正确、逻辑紧凑，避免重复陈述或产生自相矛盾的信息。
+[Summary Requirements]
+1. Factual Focus: Focus strictly on concrete actions taken, key conclusions reached, current status, and pending facts. Eliminate all conversational filler, pleasantries, and intermediate reasoning steps.
+2. Maintain Coherence: When merging incrementally, preserve chronological accuracy and tight logic, avoiding redundancy or contradictions.

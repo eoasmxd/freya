@@ -1,10 +1,12 @@
 import React, { useEffect, useState } from 'react';
+import { useI18n } from '../../../i18n/index.js';
 
 interface PromptConfigPanelProps {
   getApiUrl: (path: string) => string;
 }
 
 export const PromptConfigPanel: React.FC<PromptConfigPanelProps> = ({ getApiUrl }) => {
+  const { t } = useI18n();
   const [selectedPrompt, setSelectedPrompt] = useState('SOUL');
   const [promptContent, setPromptContent] = useState('');
   const [toasts, setToasts] = useState<{ id: string; message: string; type: 'success' | 'error' | 'info' }[]>([]);
@@ -30,10 +32,10 @@ export const PromptConfigPanel: React.FC<PromptConfigPanelProps> = ({ getApiUrl 
       if (json.success) {
         setPromptContent(json.data || '');
       } else {
-        setPromptContent(`未找到或读取提示词失败: ${json.error}`);
+        setPromptContent(t('prompt.loadFailed', 'Failed to load prompt: {error}', { error: json.error }));
       }
     } catch (err) {
-      console.error('WS load prompt failed:', err);
+      console.error('Failed to load prompt:', err);
     }
   };
 
@@ -50,31 +52,31 @@ export const PromptConfigPanel: React.FC<PromptConfigPanelProps> = ({ getApiUrl 
       });
       const json = await res.json();
       if (json.success) {
-        showToast(`提示词 ${selectedPrompt} 保存成功`, 'success');
+        showToast(t('prompt.saveSuccess', 'Prompt {name} saved successfully', { name: selectedPrompt }), 'success');
       } else {
-        showToast(`保存失败: ${json.message}`, 'error');
+        showToast(t('prompt.saveFailed', 'Failed to save prompt: {error}', { error: json.message }), 'error');
       }
     } catch (err) {
       console.error(err);
-      showToast('保存提示词失败', 'error');
+      showToast(t('prompt.saveError', 'Failed to save prompt'), 'error');
     }
   };
 
   return (
     <div className="prompt-panel-wrapper">
       <div className="config-group" style={{ flexDirection: 'row', alignItems: 'center', gap: '1rem', marginBottom: '1.25rem' }}>
-        <label className="config-label">切换要编辑的主提示词卡片:</label>
+        <label className="config-label">{t('prompt.switchCard', 'Select prompt to edit:')}</label>
         <select
           className="config-input"
           value={selectedPrompt}
           onChange={(e) => setSelectedPrompt(e.target.value)}
         >
-          <option value="SOUL">SOUL (灵魂设定)</option>
-          <option value="IDENTITY">IDENTITY (身份设定)</option>
-          <option value="USER">USER (用户设定)</option>
-          <option value="TOOLS">TOOLS (工具使用规范)</option>
-          <option value="AGENTS">AGENTS (智能体配置)</option>
-          <option value="MEMORY">MEMORY (长期记忆)</option>
+          <option value="SOUL">{`SOUL (${t('prompt.descSoul', 'Soul Definition')})`}</option>
+          <option value="IDENTITY">{`IDENTITY (${t('prompt.descIdentity', 'Identity Definition')})`}</option>
+          <option value="USER">{`USER (${t('prompt.descUser', 'User Persona')})`}</option>
+          <option value="TOOLS">{`TOOLS (${t('prompt.descTools', 'Tool Guidelines')})`}</option>
+          <option value="AGENTS">{`AGENTS (${t('prompt.descAgents', 'Agent Directives')})`}</option>
+          <option value="MEMORY">{`MEMORY (${t('prompt.descMemory', 'Long-term Memory')})`}</option>
         </select>
       </div>
       <div className="config-group prompt-textarea-group">
@@ -86,7 +88,7 @@ export const PromptConfigPanel: React.FC<PromptConfigPanelProps> = ({ getApiUrl 
       </div>
       <div className="tab-actions">
         <button className="btn-primary" onClick={savePrompt}>
-          保存提示词配置
+          {t('prompt.btnSave', 'Save Prompt Config')}
         </button>
       </div>
 

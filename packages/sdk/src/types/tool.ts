@@ -8,7 +8,7 @@ export interface ToolDefinition {
 
 export interface FreyaTool {
   getDefinition(): ToolDefinition;
-  execute(args: Record<string, any>, ctx: FreyaContext): Promise<string>;
+  execute(args: Record<string, any>): Promise<string>;
 }
 
 export interface FreyaToolbox {

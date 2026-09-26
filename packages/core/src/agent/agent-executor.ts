@@ -3,13 +3,21 @@ import { FreyaPromptRegistry } from '../prompt/prompt-registry.js';
 import type { FreyaSessionManager } from '../session/session-manager.js';
 import type { FreyaSkillRegistry } from '../skill/skill-registry.js';
 import type { FreyaToolRegistry } from '../tools/tool-registry.js';
+import { I18n } from '../i18n/index.js';
+import { zh } from '../i18n/locales/zh.js';
+import { en } from '../i18n/locales/en.js';
 
 export interface FreyaAgentExecutorOptions extends LLMOptions {
   maxTurns?: number;
 }
 
+/**
+ * 智能体执行引擎，编排多轮 ReAct 工具调用与自主循环
+ * Agent execution engine, orchestrating multi-turn ReAct tool calls and autonomous loops
+ */
 export class FreyaAgentExecutor {
   private llmPlugin: any;
+  private readonly i18n: I18n;
 
   constructor(
     private context: FreyaContext,
@@ -19,8 +27,13 @@ export class FreyaAgentExecutor {
     private skillRegistry: FreyaSkillRegistry
   ) {
     this.llmPlugin = context.llm;
+    this.i18n = new I18n({ zh, en }, context);
   }
 
+  /**
+   * 启动智能体针对指定会话的 ReAct 执行循环
+   * Start the agent ReAct execution loop for the specified session
+   */
   async run(
     sessionId: string,
     options?: FreyaAgentExecutorOptions,
@@ -41,7 +54,7 @@ export class FreyaAgentExecutor {
       const history = await this.sessionManager.getHistory(sessionId);
 
       if (signal?.aborted) {
-        throw new Error('对话运行已被用户主动中断。');
+        throw new Error(this.i18n.t('agent.error.aborted', 'Chat generation was aborted by user.'));
       }
 
       const activeSkill = skills.find((s) => s.id === session.activeSkillId);
@@ -49,13 +62,13 @@ export class FreyaAgentExecutor {
 
       const maxTurns = options?.maxTurns ?? 20;
       if (turnCount++ >= maxTurns) {
-        this.context.logger.warn(`会话 ${sessionId} 超出最大迭代决策轮数 (${maxTurns})，正在生成最终总结...`);
+        this.context.logger.warn(`Session ${sessionId} exceeded maximum iterations (${maxTurns}), generating final summary...`);
         const finalPayload: LLMMessage[] = [
           { role: 'system', content: systemPrompt },
           ...history,
           {
             role: 'system',
-            content: this.promptRegistry.get('core.prompt.max_turns') || '已达到最大决策轮数上限，请基于已完成的工作向用户总结当前进展。'
+            content: this.promptRegistry.get('core.prompt.max_turns')
           }
         ];
         const finalResponse = await this.llmPlugin.chat(finalPayload, undefined, {
@@ -65,7 +78,7 @@ export class FreyaAgentExecutor {
           billingContext: { ownerType: 'session', ownerId: sessionId },
           onModelSelected: (providerId: string, modelId: string) => {
             this.sessionManager.updateSession(sessionId, { providerId, modelId }).catch((err: any) => {
-              this.context.logger.error(`[FreyaAgentExecutor] 异步更新会话模型失败:`, err);
+              this.context.logger.error('[FreyaAgentExecutor] Failed to update session model asynchronously:', err);
             });
           }
         });
@@ -89,7 +102,7 @@ export class FreyaAgentExecutor {
         billingContext: { ownerType: 'session', ownerId: sessionId },
         onModelSelected: (providerId: string, modelId: string) => {
           this.sessionManager.updateSession(sessionId, { providerId, modelId }).catch((err: any) => {
-            this.context.logger.error(`[FreyaAgentExecutor] 异步更新会话模型失败:`, err);
+            this.context.logger.error('[FreyaAgentExecutor] Failed to update session model asynchronously:', err);
           });
         }
       });
@@ -105,7 +118,7 @@ export class FreyaAgentExecutor {
         const toolPromises = replyMessage.toolCalls.map(async (toolCall: any) => {
           const tool = tools.get(toolCall.name);
           if (!tool) {
-            this.context.logger.warn(`未注册的工具指令: ${toolCall.name}`);
+            this.context.logger.warn(`Unregistered tool call: ${toolCall.name}`);
             return {
               role: 'tool' as const,
               content: `Error: Tool "${toolCall.name}" not found.`,
@@ -118,14 +131,16 @@ export class FreyaAgentExecutor {
           try {
             args = JSON.parse(toolCall.arguments);
           } catch (parseErr: any) {
-            this.context.logger.error(`[FreyaAgentExecutor] 解析工具参数失败: ${toolCall.arguments}`, parseErr);
+            this.context.logger.error(`[FreyaAgentExecutor] Failed to parse tool arguments: ${toolCall.arguments}`, parseErr);
             this.context.eventBus.emit('tool:status', {
               sessionId,
               toolCallId: toolCall.id,
               toolName: toolCall.name,
               status: 'failed',
               arguments: {},
-              result: `JSON 解析失败: ${parseErr.message}`
+              result: this.i18n.t('agent.error.jsonParseFailed', 'JSON parsing failed: {message}', {
+                message: parseErr.message
+              })
             });
             return {
               role: 'tool' as const,
@@ -145,7 +160,7 @@ export class FreyaAgentExecutor {
           });
 
           try {
-            const result = await tool.execute(args, this.context);
+            const result = await tool.execute(args);
             this.context.eventBus.emit('tool:status', {
               sessionId,
               toolCallId: toolCall.id,
@@ -167,7 +182,7 @@ export class FreyaAgentExecutor {
               toolName: toolCall.name,
               status: 'failed',
               arguments: args,
-              result: err.message || '运行失败'
+              result: err.message || this.i18n.t('agent.error.executionFailed', 'Execution failed')
             });
             return {
               role: 'tool' as const,
@@ -186,7 +201,7 @@ export class FreyaAgentExecutor {
     }
 
     if (!lastLlmMessage) {
-      throw new Error('无法获得合法的模型响应结果。');
+      throw new Error(this.i18n.t('agent.error.noValidResponse', 'Failed to obtain a valid model response.'));
     }
 
     await this.evaluateAndDeactivateIdleToolboxes(sessionId, executedToolNames);
@@ -196,6 +211,7 @@ export class FreyaAgentExecutor {
 
   /**
    * 评估并自动卸载连续闲置超过设定阈值轮数的工具箱。
+   * Evaluate and automatically deactivate toolboxes idle for more than configured threshold rounds.
    */
   private async evaluateAndDeactivateIdleToolboxes(
     sessionId: string,
@@ -218,7 +234,7 @@ export class FreyaAgentExecutor {
     for (const id of activeToolboxIds) {
       if (!this.toolRegistry.isToolboxEnabled(id)) {
         deactivatedIds.push(id);
-        this.context.logger.info(`[FreyaAgentExecutor] 工具箱 [${id}] 已被全局禁用，自动从当前会话卸载。`);
+        this.context.logger.info(`[FreyaAgentExecutor] Toolbox [${id}] is globally disabled, automatically unmounted from session.`);
         continue;
       }
       const boxTools = this.toolRegistry.getToolsInBox(id);
@@ -231,7 +247,7 @@ export class FreyaAgentExecutor {
         const idleCount = (toolboxIdleRounds[id] ?? 0) + 1;
         if (idleCount >= threshold) {
           deactivatedIds.push(id);
-          this.context.logger.info(`[FreyaAgentExecutor] 工具箱 [${id}] 连续闲置达到 ${idleCount} 轮，已自动执行卸载。`);
+          this.context.logger.info(`[FreyaAgentExecutor] Toolbox [${id}] idle for ${idleCount} rounds, automatically unmounted.`);
         } else {
           nextToolboxIdleRounds[id] = idleCount;
           nextActiveToolboxIds.push(id);

@@ -52,7 +52,7 @@ export class FreyaBillingService {
     this.initFileSystem().then(() => {
       this.setupListeners();
     }).catch((err) => {
-      this.context.logger.error('[BillingService] 物理计费系统初始化失败:', err);
+      this.context.logger.error('[BillingService] Failed to initialize billing service:', err);
     });
   }
 
@@ -66,7 +66,7 @@ export class FreyaBillingService {
         const statsContent = await fs.promises.readFile(statsPath, 'utf-8');
         this.stats = JSON.parse(statsContent);
       } catch (err) {
-        this.context.logger.warn('[BillingService] 解析 stats.json 失败，将使用默认配置覆写。');
+        this.context.logger.warn('[BillingService] Failed to parse stats.json, overwriting with default configuration.');
       }
     } else {
       await fs.promises.writeFile(statsPath, JSON.stringify(this.stats, null, 2), 'utf-8');
@@ -78,7 +78,7 @@ export class FreyaBillingService {
         const providersContent = await fs.promises.readFile(providersPath, 'utf-8');
         this.providers = JSON.parse(providersContent);
       } catch (err) {
-        this.context.logger.warn('[BillingService] 解析 providers.json 失败，将使用默认配置覆写。');
+        this.context.logger.warn('[BillingService] Failed to parse providers.json, overwriting with default configuration.');
       }
     } else {
       await fs.promises.writeFile(providersPath, JSON.stringify(this.providers, null, 2), 'utf-8');
@@ -88,7 +88,7 @@ export class FreyaBillingService {
   private setupListeners(): void {
     this.context.eventBus.on('token:consumed', (payload: { ownerType?: string; ownerId?: string; providerId?: string; modelId: string; usage: LLMTokenUsage }) => {
       this.handleTokenConsumption(payload).catch((err) => {
-        this.context.logger.error('[BillingService] 处理 Token 消费统计失败:', err);
+        this.context.logger.error('[BillingService] Failed to process token consumption statistics:', err);
       });
     });
   }
@@ -204,7 +204,7 @@ export class FreyaBillingService {
       this.accumulateBilling(monthData, usage, cachedTokens, singleCost, provId, sessionId);
       await fs.promises.writeFile(monthPath, JSON.stringify(monthData, null, 2), 'utf-8');
     }).catch((err) => {
-      this.context.logger.error('[BillingService] 物理落盘写盘遇到异常:', err);
+      this.context.logger.error('[BillingService] Error persisting billing records to disk:', err);
     });
 
     this.writeLock = nextWrite;

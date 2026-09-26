@@ -1,31 +1,41 @@
-import type { EventBus } from '@eoasmxd/freya-sdk';
+import type { EventBus, FreyaContext } from '@eoasmxd/freya-sdk';
 import type { FreyaCommandRegistry } from '../command-registry.js';
 import type { FreyaSessionManager } from '../../session/session-manager.js';
+import { I18n } from '../../i18n/index.js';
+import { zh } from '../../i18n/locales/zh.js';
+import { en } from '../../i18n/locales/en.js';
 
 export interface SessionCommandDeps {
     commands: FreyaCommandRegistry;
     sessionManager: FreyaSessionManager;
     eventBus: EventBus;
+    context: FreyaContext;
 }
 
 export function registerSessionCommands(deps: SessionCommandDeps): void {
-    const { commands, sessionManager, eventBus } = deps;
+    const { commands, sessionManager, eventBus, context } = deps;
+    const i18n = new I18n({ zh, en }, context);
 
     const handleInfo = async (sessionId: string): Promise<string> => {
         const session = await sessionManager.getOrCreate(sessionId);
         const historyCount = session.history.length;
-        const parentTag = session.parentId ? ` (父: \`${session.parentId}\`)` : '';
-        const type = session.parentId ? `分支会话${parentTag}` : '主会话';
-        const modelInfo = session.modelId ? `\`${session.modelId}\`` : '默认';
-        const skillInfo = session.activeSkillId ? `\`${session.activeSkillId}\`` : '无';
+        const type = session.parentId
+            ? i18n.t('cmd.session.info.typeBranch', 'Branch Session (parent: `{parentId}`)', { parentId: session.parentId })
+            : i18n.t('cmd.session.info.typeMain', 'Main Session');
+        const modelInfo = session.modelId
+            ? `\`${session.modelId}\``
+            : i18n.t('cmd.session.info.modelDefault', 'Default');
+        const skillInfo = session.activeSkillId
+            ? `\`${session.activeSkillId}\``
+            : i18n.t('cmd.session.info.skillNone', 'None');
         return [
-            `### 📋 会话信息`,
-            `- **会话 ID:** \`${session.id}\``,
-            `- **类型:** ${type}`,
-            `- **消息数:** \`${historyCount}\``,
-            `- **绑定模型:** ${modelInfo}`,
-            `- **激活技能:** ${skillInfo}`,
-            `- **更新时间:** \`${session.updatedAt}\``,
+            i18n.t('cmd.session.info.title', '### 📋 Session Info'),
+            i18n.t('cmd.session.info.id', '- **Session ID:** `{id}`', { id: session.id }),
+            i18n.t('cmd.session.info.type', '- **Type:** {type}', { type }),
+            i18n.t('cmd.session.info.messageCount', '- **Messages:** `{count}`', { count: historyCount }),
+            i18n.t('cmd.session.info.model', '- **Bound Model:** {model}', { model: modelInfo }),
+            i18n.t('cmd.session.info.skill', '- **Active Skill:** {skill}', { skill: skillInfo }),
+            i18n.t('cmd.session.info.updatedAt', '- **Updated At:** `{time}`', { time: session.updatedAt }),
         ].join('\n');
     };
 
@@ -48,14 +58,14 @@ export function registerSessionCommands(deps: SessionCommandDeps): void {
 
         eventBus.emit('session:reply:text', {
             sessionId: previousSessionId,
-            content: `ℹ️ 物理端已离开当前会话，该历史会话已被归档。`
+            content: i18n.t('cmd.session.reset.left', 'ℹ️ Connection has left this session; the session has been archived.')
         });
 
         eventBus.emit('session:reply:text', {
             sessionId: newSessionId,
             content: sessionId === 'main'
-                ? `✅ 旧主会话已归档为 \`${previousSessionId}\`，当前已切换至新主会话。`
-                : `✅ 分支会话已归档为 \`${previousSessionId}\`，当前已在原地重置为全新分支。`
+                ? i18n.t('cmd.session.reset.mainSuccess', '✅ Previous main session archived as `{oldId}`, now switched to new main session.', { oldId: previousSessionId })
+                : i18n.t('cmd.session.reset.branchSuccess', '✅ Branch session archived as `{oldId}`, reset to a fresh branch in-place.', { oldId: previousSessionId })
         });
 
         eventBus.emit('session:reply:completed', { sessionId: previousSessionId });
@@ -78,12 +88,12 @@ export function registerSessionCommands(deps: SessionCommandDeps): void {
 
         eventBus.emit('session:reply:text', {
             sessionId,
-            content: `ℹ️ 物理端已离开当前会话，新建并前往分支会话: \`${branchId}\``
+            content: i18n.t('cmd.session.new.left', 'ℹ️ Connection has left this session, moved to new branch: `{branchId}`', { branchId })
         });
 
         eventBus.emit('session:reply:text', {
             sessionId: branchId,
-            content: `✅ 已创建分支会话 \`${branchId}\`（独立上下文），并自动切换。输入 \`/session main\` 可回到主会话。`
+            content: i18n.t('cmd.session.new.success', '✅ Branch session `{branchId}` created (isolated context), switched automatically. Type `/session main` to return.', { branchId })
         });
 
         eventBus.emit('session:reply:completed', { sessionId });
@@ -98,12 +108,12 @@ export function registerSessionCommands(deps: SessionCommandDeps): void {
 
         eventBus.emit('session:reply:text', {
             sessionId,
-            content: `ℹ️ 物理端已离开当前会话，切换回到主会话。`
+            content: i18n.t('cmd.session.main.left', 'ℹ️ Connection has left this session, switching back to main.')
         });
 
         eventBus.emit('session:reply:text', {
             sessionId: 'main',
-            content: `✅ 已回到主会话。`
+            content: i18n.t('cmd.session.main.success', '✅ Returned to main session.')
         });
 
         eventBus.emit('session:reply:completed', { sessionId });
@@ -115,23 +125,25 @@ export function registerSessionCommands(deps: SessionCommandDeps): void {
         if (!connectionId) return undefined;
         const session = await sessionManager.getOrCreate(targetId);
         if (!session) {
-            return `❌ 会话 \`${targetId}\` 不存在。`;
+            return i18n.t('cmd.session.switch.notFound', '❌ Session `{id}` does not exist. Use `/session new` to create one.', { id: targetId });
         }
         if (session.archived) {
-            return `❌ 会话 \`${targetId}\` 已归档，无法切换。如需查看归档会话请使用 \`/session list archived\`。`;
+            return i18n.t('cmd.session.switch.archived', '❌ Session `{id}` is archived and cannot be switched to. Use `/session list archived` to view archived sessions.', { id: targetId });
         }
 
         eventBus.emit('connection:rebind', { connectionId, sessionId: targetId });
 
         eventBus.emit('session:reply:text', {
             sessionId,
-            content: `ℹ️ 物理端已离开当前会话，切换去往会话: \`${targetId}\``
+            content: i18n.t('cmd.session.switch.left', 'ℹ️ Connection has left this session, switching to: `{id}`', { id: targetId })
         });
 
-        const type = session.parentId ? '分支' : '主';
+        const type = session.parentId
+            ? i18n.t('cmd.session.switch.typeBranch', 'branch ')
+            : i18n.t('cmd.session.switch.typeMain', 'main ');
         eventBus.emit('session:reply:text', {
             sessionId: targetId,
-            content: `✅ 已切换到${type}会话 \`${targetId}\`。`
+            content: i18n.t('cmd.session.switch.success', '✅ Switched to {type}session `{id}`.', { type, id: targetId })
         });
 
         eventBus.emit('session:reply:completed', { sessionId });
@@ -144,23 +156,29 @@ export function registerSessionCommands(deps: SessionCommandDeps): void {
         let title;
         if (filter === 'archived') {
             indices = sessionManager.listSessions({ archived: true });
-            title = '📦 已归档会话';
+            title = i18n.t('cmd.session.list.titleArchived', '📦 Archived Sessions');
         } else if (filter === 'all') {
             indices = sessionManager.listSessions();
-            title = '📋 全部会话';
+            title = i18n.t('cmd.session.list.titleAll', '📋 All Sessions');
         } else {
             indices = sessionManager.listSessions({ archived: false });
-            title = '📋 活跃会话';
+            title = i18n.t('cmd.session.list.titleActive', '📋 Active Sessions');
         }
 
         if (indices.length === 0) {
-            return `ℹ️ ${title}：暂无。`;
+            return i18n.t('cmd.session.list.empty', 'ℹ️ {title}: none.', { title });
         }
 
         const lines = indices.map((idx: any) => {
-            const marker = idx.id === currentSessionId ? ' **(当前 👈)**' : '';
-            const type = idx.parentId ? '分支' : '主';
-            const archivedTag = idx.archived ? ` *(归档于 ${idx.archivedAt?.slice(0, 10)})*` : '';
+            const marker = idx.id === currentSessionId
+                ? i18n.t('cmd.session.list.current', ' **(current 👈)**')
+                : '';
+            const type = idx.parentId
+                ? i18n.t('cmd.session.list.typeBranch', 'branch')
+                : i18n.t('cmd.session.list.typeMain', 'main');
+            const archivedTag = idx.archived
+                ? i18n.t('cmd.session.list.archivedTag', ' *(archived on {date})*', { date: idx.archivedAt?.slice(0, 10) })
+                : '';
             return `- \`${idx.id}\` *(${type})*${archivedTag}${marker}`;
         });
 
@@ -169,16 +187,16 @@ export function registerSessionCommands(deps: SessionCommandDeps): void {
 
     commands.register({
         name: 'session',
-        description: '会话管理',
+        description: i18n.all('cmd.session.description', 'Session management'),
         subcommands: [
-            { name: 'info', description: '查看当前会话信息' },
-            { name: 'reset', description: '归档当前会话并开启新会话' },
-            { name: 'new', description: '创建分支子会话', usage: '/session new [名称]' },
-            { name: 'main', description: '返回主会话' },
-            { name: 'switch', description: '切换指定会话', usage: '/session switch <ID>' },
-            { name: 'list', description: '列出会话', usage: '/session list [archived|all]' },
+            { name: 'info', description: i18n.all('cmd.session.sub.info', 'Show current session info') },
+            { name: 'reset', description: i18n.all('cmd.session.sub.reset', 'Archive current session and start a new one') },
+            { name: 'new', description: i18n.all('cmd.session.sub.new', 'Create a branch sub-session'), usage: '/session new [name]' },
+            { name: 'main', description: i18n.all('cmd.session.sub.main', 'Return to main session') },
+            { name: 'switch', description: i18n.all('cmd.session.sub.switch', 'Switch to a specified session'), usage: '/session switch <ID>' },
+            { name: 'list', description: i18n.all('cmd.session.sub.list', 'List sessions'), usage: '/session list [archived|all]' },
         ],
-        execute: async (args, sessionId, ctx, connectionId) => {
+        execute: async (args, sessionId, _ctx, connectionId) => {
             const sub = (args[0] || 'info').toLowerCase();
 
             switch (sub) {
@@ -189,7 +207,7 @@ export function registerSessionCommands(deps: SessionCommandDeps): void {
                     return await handleReset(sessionId, connectionId);
 
                 case 'new': {
-                    const name = args[1] || `会话${Date.now()}`;
+                    const name = args[1] || `session${Date.now()}`;
                     return await handleNew(name, sessionId, connectionId);
                 }
 
@@ -199,10 +217,10 @@ export function registerSessionCommands(deps: SessionCommandDeps): void {
                 case 'switch': {
                     const targetId = args[1];
                     if (!targetId) {
-                        return '❌ 用法：`\`/session switch <会话ID>\``。';
+                        return i18n.t('cmd.session.switch.missingId', '❌ Usage: `/session switch <sessionId>`.');
                     }
                     if (!sessionManager.has(targetId)) {
-                        return `❌ 会话 \`${targetId}\` 不存在。请使用 \`/session new\` 创建新会话后重试。`;
+                        return i18n.t('cmd.session.switch.notFound', '❌ Session `{id}` does not exist. Use `/session new` to create one.', { id: targetId });
                     }
                     return await handleSwitch(targetId, sessionId, connectionId);
                 }
@@ -213,15 +231,15 @@ export function registerSessionCommands(deps: SessionCommandDeps): void {
                 }
 
                 default:
-                    return `❌ 未知子命令 \`${sub}\`。可用子命令：\`info\` \`reset\` \`new\` \`main\` \`switch\` \`list\`。`;
+                    return i18n.t('cmd.session.unknown', '❌ Unknown subcommand `{sub}`. Available: `info` `reset` `new` `main` `switch` `list`.', { sub });
             }
         }
     });
 
     commands.register({
         name: 'reset',
-        description: '归档当前会话并创建新主会话',
-        execute: async (args, sessionId, ctx, connectionId) => {
+        description: i18n.all('cmd.reset.description', 'Archive current session and create a new main session'),
+        execute: async (_args, sessionId, _ctx, connectionId) => {
             return await handleReset(sessionId, connectionId);
         }
     });

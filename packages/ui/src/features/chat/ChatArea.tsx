@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { renderMarkdown } from '../../components/common/markdown.jsx';
+import { useI18n } from '../../i18n/index.js';
 
 interface Message {
   id: string;
@@ -24,6 +25,8 @@ const ToolCard: React.FC<{
   isExpanded: boolean;
   onToggle: () => void;
 }> = ({ msg, isExpanded, onToggle }) => {
+  const { t } = useI18n();
+
   try {
     const data = JSON.parse(msg.content);
     const toolName = data.toolName;
@@ -37,17 +40,17 @@ const ToolCard: React.FC<{
         <div className="tool-card-header" onClick={onToggle}>
           <div className="tool-card-title">
             <span className={`tool-card-indicator ${status}`} />
-            <span>🔧 使用工具: {toolName}</span>
+            <span>🔧 {t('chat.toolUsing', 'Using tool: {name}', { name: toolName })}</span>
           </div>
           <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
-            {statusText} {isExpanded ? '▲ 折叠' : '▼ 展开'}
+            {statusText} {isExpanded ? t('chat.fold', '▲ Collapse') : t('chat.expand', '▼ Expand')}
           </span>
         </div>
         {isExpanded && (
           <div className="tool-card-body">
             <pre>
-              <div><strong>输入参数:</strong> {JSON.stringify(toolArgs, null, 2)}</div>
-              <div style={{ marginTop: '0.5rem' }}><strong>输出结果:</strong> {typeof result === 'object' ? JSON.stringify(result, null, 2) : result}</div>
+              <div><strong>{t('chat.inputParams', 'Input Arguments:')}</strong> {JSON.stringify(toolArgs, null, 2)}</div>
+              <div style={{ marginTop: '0.5rem' }}><strong>{t('chat.outputResult', 'Output Result:')}</strong> {typeof result === 'object' ? JSON.stringify(result, null, 2) : result}</div>
             </pre>
           </div>
         )}
@@ -56,7 +59,7 @@ const ToolCard: React.FC<{
   } catch {
     return (
       <div className="message-bubble assistant" style={{ fontStyle: 'italic' }}>
-        🔧 工具调用信息解析失败
+        {t('chat.toolParseFailed', '🔧 Failed to parse tool invocation')}
       </div>
     );
   }
@@ -72,6 +75,8 @@ const ToolGroupCard: React.FC<{
   isGenerating?: boolean;
   isLatestGroup?: boolean;
 }> = ({ groupId, items, isExpanded, onToggleGroup, expandedTools, onToggleTool, isGenerating, isLatestGroup }) => {
+  const { t } = useI18n();
+
   const hasRunning = items.some((item) => {
     try {
       const data = JSON.parse(item.content);
@@ -81,24 +86,24 @@ const ToolGroupCard: React.FC<{
     }
   });
 
-  let statusText = '已全部执行完成';
+  let statusText = t('chat.statusCompleted', 'Completed');
   if (hasRunning) {
-    statusText = '执行中...';
+    statusText = t('chat.statusRunning', 'Running...');
   } else if (isLatestGroup && isGenerating) {
-    statusText = '思考中...';
+    statusText = t('chat.statusThinking', 'Thinking...');
   }
 
   return (
     <div className={`tool-group-container ${isExpanded ? 'expanded' : 'collapsed'}`} key={groupId}>
       <div className="tool-group-header" onClick={onToggleGroup}>
         <div className="tool-group-title">
-          <span>🛠️ 工具调用过程</span>
+          <span>{t('chat.toolProcess', '🛠️ Tool Execution Steps')}</span>
           <span style={{ fontSize: '0.75rem', fontWeight: 400, color: 'var(--text-secondary)' }}>
-            (共 {items.length} 步 · {statusText})
+            {t('chat.toolSteps', '({count} steps · {status})', { count: items.length, status: statusText })}
           </span>
         </div>
         <span className="tool-group-action-hint">
-          {isExpanded ? '▲ 折叠' : '▼ 展开'}
+          {isExpanded ? t('chat.fold', '▲ Collapse') : t('chat.expand', '▼ Expand')}
         </span>
       </div>
 
@@ -126,8 +131,8 @@ const ToolGroupCard: React.FC<{
           })}
           {items.length > 1 && (
             <div className="tool-group-footer" onClick={onToggleGroup}>
-              <span>🛠️ 工具调用过程 ({items.length} 步 · {statusText})</span>
-              <span className="tool-group-footer-btn">▲ 折叠</span>
+              <span>{t('chat.toolFooterSummary', '🛠️ Tool Execution Steps ({count} steps · {status})', { count: items.length, status: statusText })}</span>
+              <span className="tool-group-footer-btn">{t('chat.toolFooterFold', '▲ Collapse')}</span>
             </div>
           )}
         </div>
@@ -137,6 +142,7 @@ const ToolGroupCard: React.FC<{
 };
 
 export const ChatArea: React.FC<ChatAreaProps> = ({ messages, chatPanelRef, isGenerating }) => {
+  const { t } = useI18n();
   const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({});
   const [expandedTools, setExpandedTools] = useState<Record<string, boolean>>({});
 
@@ -231,12 +237,18 @@ export const ChatArea: React.FC<ChatAreaProps> = ({ messages, chatPanelRef, isGe
 
         const msg = item.message;
         const isUser = msg.role === 'user';
-        const displayName = isUser ? '👤 用户' : '🤖 Freya';
 
         return (
           <div key={msg.id} className={`message-wrapper ${msg.role}`}>
             <div className="message-meta">
-              <span className="name">{displayName}</span>
+              {isUser ? (
+                <span className="name">👤 {t('chat.user', 'User')}</span>
+              ) : (
+                <span className="name">
+                  <img src="./icon.png" alt="Freya" className="bot-icon" />
+                  <span>Freya</span>
+                </span>
+              )}
             </div>
             <div className={`message-bubble ${msg.isTyping ? 'cursor-typing' : ''}`}>
               <div className="message-content">

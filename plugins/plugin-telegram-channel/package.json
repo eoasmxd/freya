@@ -6,9 +6,16 @@
     "publishConfig": {
         "access": "public"
     },
-    "description": "Freya Telegram 频道插件，通过原生 fetch 长轮询连接 Telegram Bot API",
+    "description": "Freya Telegram channel plugin connecting to Telegram Bot API via native fetch long polling",
     "freya": {
-        "displayName": "Telegram 频道插件",
+        "displayName": {
+            "zh": "Telegram 频道插件",
+            "en": "Telegram Channel Plugin"
+        },
+        "description": {
+            "zh": "Freya Telegram 频道插件，通过原生 fetch 长轮询连接 Telegram Bot API",
+            "en": "Freya Telegram channel plugin connecting to Telegram Bot API via native fetch long polling"
+        },
         "defaultEnabled": false,
         "schema": "./schema.json"
     },

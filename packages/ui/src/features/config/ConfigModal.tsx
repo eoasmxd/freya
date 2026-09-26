@@ -4,6 +4,7 @@ import { ProviderConfigPanel } from './panels/ProviderConfigPanel.jsx';
 import { PromptConfigPanel } from './panels/PromptConfigPanel.jsx';
 import { PluginConfigPanel } from './panels/PluginConfigPanel.jsx';
 import { SkillConfigPanel } from './panels/SkillConfigPanel.jsx';
+import { useI18n } from '../../i18n/index.js';
 
 interface ConfigModalProps {
   onClose: () => void;
@@ -14,14 +15,15 @@ export const ConfigModal: React.FC<ConfigModalProps> = ({
   onClose,
   getApiUrl
 }) => {
+  const { t } = useI18n();
   const [activeTab, setActiveTab] = useState<'global' | 'providers' | 'prompts' | 'plugins' | 'skills'>('global');
 
   const getTabTitle = () => {
-    if (activeTab === 'global') return '全局参数设置';
-    if (activeTab === 'providers') return '大模型提供商与模型管理';
-    if (activeTab === 'prompts') return '系统提示词管理';
-    if (activeTab === 'plugins') return '扩展插件管理';
-    if (activeTab === 'skills') return '技能卡管理';
+    if (activeTab === 'global') return t('config.tabTitleGlobal', 'Global Settings');
+    if (activeTab === 'providers') return t('config.tabTitleProviders', 'LLM Providers & Models');
+    if (activeTab === 'prompts') return t('config.tabTitlePrompts', 'System Prompts Management');
+    if (activeTab === 'plugins') return t('config.tabTitlePlugins', 'Plugins Management');
+    if (activeTab === 'skills') return t('config.tabTitleSkills', 'Skills Management');
     return '';
   };
 
@@ -30,38 +32,38 @@ export const ConfigModal: React.FC<ConfigModalProps> = ({
       <div className="modal-container" onClick={(e) => e.stopPropagation()}>
         <div className="modal-sidebar">
           <div className="modal-sidebar-header">
-            Freya 配置中心
+            {t('config.centerTitle', 'Freya Settings')}
           </div>
           <div className="modal-sidebar-tabs">
             <button
               className={`tab-btn ${activeTab === 'global' ? 'active' : ''}`}
               onClick={() => setActiveTab('global')}
             >
-              全局配置
+              {t('config.tabGlobal', 'Global Config')}
             </button>
             <button
               className={`tab-btn ${activeTab === 'providers' ? 'active' : ''}`}
               onClick={() => setActiveTab('providers')}
             >
-              模型提供商
+              {t('config.tabProviders', 'Providers')}
             </button>
             <button
               className={`tab-btn ${activeTab === 'prompts' ? 'active' : ''}`}
               onClick={() => setActiveTab('prompts')}
             >
-              提示词管理
+              {t('config.tabPrompts', 'Prompts')}
             </button>
             <button
               className={`tab-btn ${activeTab === 'plugins' ? 'active' : ''}`}
               onClick={() => setActiveTab('plugins')}
             >
-              扩展插件
+              {t('config.tabPlugins', 'Plugins')}
             </button>
             <button
               className={`tab-btn ${activeTab === 'skills' ? 'active' : ''}`}
               onClick={() => setActiveTab('skills')}
             >
-              技能卡管理
+              {t('config.tabSkills', 'Skills')}
             </button>
           </div>
         </div>
@@ -69,7 +71,7 @@ export const ConfigModal: React.FC<ConfigModalProps> = ({
         <div className="modal-main">
           <div className="modal-main-header">
             <div className="tab-title">{getTabTitle()}</div>
-            <button className="modal-close" onClick={onClose} title="关闭">
+            <button className="modal-close" onClick={onClose} title={t('common.close', 'Close')}>
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <line x1="18" y1="6" x2="6" y2="18"></line>
                 <line x1="6" y1="6" x2="18" y2="18"></line>

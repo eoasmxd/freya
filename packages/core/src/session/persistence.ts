@@ -14,9 +14,11 @@ const snapFileByUuid = (uuid: string, snapId: string) => path.resolve(sessionDir
 
 /**
  * FreyaSessionPersistence — 会话数据持久化层。
- *
+ * FreyaSessionPersistence — Session data persistence layer.
  * 职责：Session 数据的磁盘读写（索引文件、session.json、快照文件）。
+ * Responsibility: Disk I/O for session data (index file, session.json, snapshot files).
  * 不持有任何内存缓存状态，仅作为纯 I/O 层。
+ * Holds no in-memory cache state; acts as a pure I/O layer.
  */
 export class FreyaSessionPersistence {
     private logger?: FreyaContext['logger'];
@@ -27,7 +29,9 @@ export class FreyaSessionPersistence {
 
     /**
      * 读取索引文件 sessions.json。
+     * Read index file sessions.json.
      * 返回已解析的索引列表；文件不存在时返回空数组。
+     * Returns parsed index list; returns empty array if file does not exist.
      */
     async loadIndex(): Promise<SessionIndex[]> {
         try {
@@ -36,7 +40,7 @@ export class FreyaSessionPersistence {
             return list;
         } catch (err: any) {
             if (err.code !== 'ENOENT') {
-                this.logger?.error('加载 sessions.json 索引文件失败:', err);
+                this.logger?.error('Failed to load session index sessions.json:', err);
             }
             return [];
         }
@@ -64,7 +68,7 @@ export class FreyaSessionPersistence {
             await fs.mkdir(path.dirname(INDEX_FILE), { recursive: true });
             await fs.writeFile(INDEX_FILE, JSON.stringify(list, null, 2), 'utf-8');
         } catch (err) {
-            this.logger?.error('保存 sessions.json 索引失败:', err);
+            this.logger?.error('Failed to save session index sessions.json:', err);
         }
     }
 
@@ -78,13 +82,15 @@ export class FreyaSessionPersistence {
             };
             await fs.writeFile(sessionFileByUuid(session.uuid), JSON.stringify(data, null, 2), 'utf-8');
         } catch (err) {
-            this.logger?.error(`保存会话数据文件 ${session.uuid}/session.json 失败:`, err);
+            this.logger?.error(`Failed to save session data file ${session.uuid}/session.json:`, err);
         }
     }
 
     /**
      * 从磁盘读取 session.json 的内容。
+     * Read content of session.json from disk.
      * 返回 history 和 lastSnapshotId；文件不存在时返回空。
+     * Returns history and lastSnapshotId; returns empty if file does not exist.
      */
     async loadSessionData(uuid: string): Promise<SessionData> {
         const filePath = sessionFileByUuid(uuid);
@@ -97,7 +103,7 @@ export class FreyaSessionPersistence {
             };
         } catch (err: any) {
             if (err.code !== 'ENOENT') {
-                this.logger?.error(`读取会话数据文件 ${uuid}/session.json 失败:`, err);
+                this.logger?.error(`Failed to read session data file ${uuid}/session.json:`, err);
             }
             return { history: [], lastSnapshotId: null };
         }
@@ -111,7 +117,9 @@ export class FreyaSessionPersistence {
 
     /**
      * 读取单个快照文件。
+     * Read single snapshot file.
      * 文件不存在时返回 null。
+     * Returns null if file does not exist.
      */
     async loadSnapshot(uuid: string, snapId: string): Promise<SnapFile | null> {
         const filePath = snapFileByUuid(uuid, snapId);

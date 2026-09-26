@@ -2,19 +2,31 @@
   {
     "key": "telegram.bots",
     "defaultValue": [],
-    "description": "Telegram 机器人配置列表",
+    "description": {
+      "zh": "Telegram 机器人配置列表",
+      "en": "List of Telegram bot configurations"
+    },
     "type": "array",
-    "category": "频道",
+    "category": {
+      "zh": "频道",
+      "en": "Channel"
+    },
     "children": [
       {
         "key": "id",
-        "description": "Telegram 机器人 ID (Token 冒号前的数字数字，例如 592039281)",
+        "description": {
+          "zh": "Telegram 机器人 ID (Token 冒号前的数字，例如 592039281)",
+          "en": "Telegram Bot ID (digits before colon in Token, e.g. 592039281)"
+        },
         "type": "string",
         "required": true
       },
       {
         "key": "token",
-        "description": "Telegram 机器人密钥 (Token 冒号后的部分密钥)",
+        "description": {
+          "zh": "Telegram 机器人密钥 (Token 冒号后的部分密钥)",
+          "en": "Telegram Bot Token Secret (part after colon in Token)"
+        },
         "type": "string",
         "required": true,
         "sensitive": true,

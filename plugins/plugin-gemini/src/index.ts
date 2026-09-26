@@ -2,15 +2,20 @@ import type { FreyaContext, LLMMessage, LLMPlugin, LLMPluginOptions, LLMTokenUsa
 import crypto from 'node:crypto';
 import fs from 'node:fs/promises';
 import path from 'node:path';
+import { I18n } from './i18n/index.js';
+import zh from './i18n/locales/zh.js';
+import en from './i18n/locales/en.js';
 
 export default class GeminiPlugin implements LLMPlugin {
   type = 'llm' as const;
   providerTypes = ['gemini'];
   private context!: FreyaContext;
+  private readonly i18n = new I18n({ zh, en });
 
   async setup(ctx: FreyaContext): Promise<void> {
     this.context = ctx;
-    this.context.logger.info('Gemini 模型插件初始化就绪。');
+    this.i18n.setContext(ctx);
+    this.context.logger.info('Gemini model plugin initialized.');
   }
 
   async chat(
@@ -25,10 +30,16 @@ export default class GeminiPlugin implements LLMPlugin {
     const modelId = options?.modelId;
 
     if (!apiKey || apiKey.trim() === '') {
-      throw new Error('未配置有效的大模型授权密钥，请在配置中检查。');
+      // 未配置有效的 API 密钥
+      throw new Error(
+        this.i18n.t('error.missingApiKey', 'API key is not configured or empty. Please check provider settings.')
+      );
     }
     if (!modelId || modelId.trim() === '') {
-      throw new Error('未配置有效的模型 ID (modelId)，请在配置中检查。');
+      // 未配置有效的模型 ID
+      throw new Error(
+        this.i18n.t('error.missingModelId', 'Model ID (modelId) is not configured. Please check provider settings.')
+      );
     }
 
     const systemMessage = messages.find((m) => m.role === 'system');
@@ -110,10 +121,11 @@ export default class GeminiPlugin implements LLMPlugin {
                 } catch { }
 
                 if (!fileExists) {
-                  this.context.logger.info(`正在异步下载远程附件并写入物理缓存 [${att.url}]...`);
+                  this.context.logger.info(`Downloading remote attachment to physical cache [${att.url}]...`);
                   const response = await fetch(att.url);
                   if (!response.ok) {
-                    throw new Error(`HTTP 错误 ${response.status}`);
+                    // 下载远程附件 HTTP 错误
+                    throw new Error(`HTTP error ${response.status}`);
                   }
                   const arrayBuffer = await response.arrayBuffer();
                   const buffer = Buffer.from(arrayBuffer);
@@ -124,27 +136,29 @@ export default class GeminiPlugin implements LLMPlugin {
 
                 att.path = cacheRelPath;
               } catch (err: any) {
-                this.context.logger.error(`建立远程附件本地物理缓存失败 [${att.url}]:`, err.message);
+                this.context.logger.error(`Failed to cache remote attachment locally [${att.url}]:`, err.message);
               }
             }
 
             if (!base64Data && att.path) {
               try {
                 if (path.isAbsolute(att.path)) {
-                  throw new Error('安全拒绝：只能访问工作区以内的相对路径。');
+                  // 安全拒绝访问工作区外路径
+                  throw new Error('Security rejection: Only relative paths within workspace are allowed.');
                 }
                 const workspaceAbs = this.context.paths.workspaceDir;
                 const targetAbs = path.resolve(workspaceAbs, att.path);
                 const workspacePrefix = workspaceAbs.endsWith(path.sep) ? workspaceAbs : workspaceAbs + path.sep;
 
                 if (targetAbs !== workspaceAbs && !targetAbs.startsWith(workspacePrefix)) {
-                  throw new Error(`安全越界拒绝：无法访问工作区以外的相对路径 "${att.path}"。`);
+                  // 安全越界拒绝
+                  throw new Error(`Security rejection: Out of workspace bounds path "${att.path}".`);
                 }
 
                 const buffer = await fs.readFile(targetAbs);
                 base64Data = buffer.toString('base64');
               } catch (err: any) {
-                this.context.logger.error(`读取本地附件失败 [${att.path}]:`, err.message);
+                this.context.logger.error(`Failed to read local attachment [${att.path}]:`, err.message);
               }
             }
             if (base64Data) {
@@ -155,8 +169,9 @@ export default class GeminiPlugin implements LLMPlugin {
                 }
               });
             } else {
+              // 附件加载失败兜底提示
               parts.push({
-                text: `[附件加载失败: ${att.url || att.path || '未知'}]`
+                text: `[Failed to load attachment: ${att.url || att.path || 'unknown'}]`
               });
             }
           }
@@ -235,14 +250,25 @@ export default class GeminiPlugin implements LLMPlugin {
     } catch (err: any) {
       if (err.name === 'TimeoutError' || err.message?.includes('timeout') || err.message?.includes('aborted')) {
         if (options?.signal?.aborted) throw err;
-        throw new Error(`连接 Gemini 模型服务超时 (${timeoutMs / 1000}s)，请检查网络连通性。`);
+        // 连接 Gemini 模型服务超时
+        throw new Error(
+          this.i18n.t('error.timeout', 'Gemini service connection timeout ({timeout}s). Check network connectivity.', {
+            timeout: timeoutMs / 1000
+          })
+        );
       }
       throw err;
     }
 
     if (!response.ok) {
       const errText = await response.text();
-      throw new Error(`Gemini 服务端返回错误 (HTTP ${response.status}): ${errText}`);
+      // Gemini 服务端返回错误
+      throw new Error(
+        this.i18n.t('error.serverError', 'Gemini server returned error (HTTP {status}): {detail}', {
+          status: response.status,
+          detail: errText
+        })
+      );
     }
 
     if (isStream && response.body) {
@@ -277,7 +303,14 @@ export default class GeminiPlugin implements LLMPlugin {
                 try {
                   const parsed = JSON.parse(rawJson);
                   if (parsed.error) {
-                    throw new Error(`Gemini 流错误: ${parsed.error.message || JSON.stringify(parsed.error)}`);
+                    // Gemini 流响应错误
+                    const streamErr: any = new Error(
+                      this.i18n.t('error.streamError', 'Gemini stream error: {detail}', {
+                        detail: parsed.error.message || JSON.stringify(parsed.error)
+                      })
+                    );
+                    streamErr.isStreamError = true;
+                    throw streamErr;
                   }
 
                   const candidate = parsed.candidates?.[0];
@@ -308,8 +341,8 @@ export default class GeminiPlugin implements LLMPlugin {
                       totalTokens: parsed.usageMetadata.totalTokenCount || 0
                     };
                   }
-                } catch (parseErr) {
-                  if (parseErr instanceof Error && parseErr.message.startsWith('Gemini 流错误')) {
+                } catch (parseErr: any) {
+                  if (parseErr?.isStreamError) {
                     throw parseErr;
                   }
                 }
@@ -343,7 +376,14 @@ export default class GeminiPlugin implements LLMPlugin {
                 try {
                   const parsed = JSON.parse(rawJson);
                   if (parsed.error) {
-                    throw new Error(`Gemini 流错误: ${parsed.error.message || JSON.stringify(parsed.error)}`);
+                    // Gemini 流响应错误
+                    const streamErr: any = new Error(
+                      this.i18n.t('error.streamError', 'Gemini stream error: {detail}', {
+                        detail: parsed.error.message || JSON.stringify(parsed.error)
+                      })
+                    );
+                    streamErr.isStreamError = true;
+                    throw streamErr;
                   }
 
                   const candidate = parsed.candidates?.[0];
@@ -374,8 +414,8 @@ export default class GeminiPlugin implements LLMPlugin {
                       totalTokens: parsed.usageMetadata.totalTokenCount || 0
                     };
                   }
-                } catch (parseErr) {
-                  if (parseErr instanceof Error && parseErr.message.startsWith('Gemini 流错误')) {
+                } catch (parseErr: any) {
+                  if (parseErr?.isStreamError) {
                     throw parseErr;
                   }
                 }
@@ -403,11 +443,21 @@ export default class GeminiPlugin implements LLMPlugin {
 
     const json = await response.json() as any;
     if (json.error) {
-      throw new Error(`Gemini API 错误: ${json.error.message || JSON.stringify(json.error)}`);
+      // Gemini API 报错
+      throw new Error(
+        this.i18n.t('error.apiError', 'Gemini API error: {detail}', {
+          detail: json.error.message || JSON.stringify(json.error)
+        })
+      );
     }
 
     if (json.promptFeedback?.blockReason) {
-      throw new Error(`Gemini 输入安全策略拦截 (blockReason: "${json.promptFeedback.blockReason}")`);
+      // Gemini 输入安全策略拦截
+      throw new Error(
+        this.i18n.t('error.promptBlocked', 'Gemini prompt blocked by safety policy (blockReason: "{reason}")', {
+          reason: json.promptFeedback.blockReason
+        })
+      );
     }
 
     const candidate = json.candidates?.[0];
@@ -435,7 +485,12 @@ export default class GeminiPlugin implements LLMPlugin {
     }
 
     if (textContent === '' && toolCalls.length === 0 && candidate?.finishReason && candidate.finishReason !== 'STOP') {
-      throw new Error(`Gemini 输出安全策略拦截/未生成 (finishReason: "${candidate.finishReason}")`);
+      // Gemini 输出安全策略拦截或未生成
+      throw new Error(
+        this.i18n.t('error.generationBlocked', 'Gemini generation blocked by safety policy or empty (finishReason: "{reason}")', {
+          reason: candidate.finishReason
+        })
+      );
     }
 
     const message: LLMMessage = {

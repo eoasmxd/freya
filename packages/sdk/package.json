@@ -1,12 +1,12 @@
 {
   "name": "@eoasmxd/freya-sdk",
-  "version": "0.5.2",
+  "version": "0.6.1",
   "private": false,
   "license": "MIT",
   "publishConfig": {
     "access": "public"
   },
-  "description": "Freya 插件开发标准 SDK，定义所有插件扩展点接口与公共类型",
+  "description": "Freya Standard Plugin SDK | 插件开发标准 SDK",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",

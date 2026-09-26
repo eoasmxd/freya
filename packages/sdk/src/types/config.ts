@@ -1,14 +1,20 @@
+import type { LocalizedText } from './common.js';
+
+export type ConfigEnumOption = string | { value: string; label: LocalizedText };
+
 export interface ConfigFieldSchema {
   key: string;
   defaultValue?: any;
-  description: string;
+  description: LocalizedText;
   type: 'string' | 'number' | 'boolean' | 'enum' | 'object' | 'array';
-  enumValues?: string[];
+  enumValues?: ConfigEnumOption[];
   required?: boolean;
   min?: number;
   max?: number;
   sensitive?: boolean;
-  category?: string;
+  manualOnly?: boolean;
+  readonly?: boolean;
+  category?: LocalizedText;
   uiHint?: 'text' | 'textarea' | 'password' | 'select' | 'slider';
   children?: ConfigFieldSchema[];
 }

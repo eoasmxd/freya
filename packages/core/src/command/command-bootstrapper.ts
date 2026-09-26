@@ -22,11 +22,11 @@ export class CommandBootstrapper {
         const { registry, context, skillRegistry, sessionManager } = deps;
         const { eventBus } = context;
 
-        registerSessionCommands({ commands: registry, sessionManager, eventBus });
+        registerSessionCommands({ commands: registry, sessionManager, eventBus, context });
         registerModelCommands({ commands: registry, sessionManager, context });
-        registerSkillCommands({ commands: registry, sessionManager, skills: skillRegistry.getSkills() });
-        registerStopCommands({ commands: registry, eventBus });
-        registerAuthCommands({ commands: registry, eventBus });
-        registerHelpCommands({ commands: registry });
+        registerSkillCommands({ commands: registry, sessionManager, skills: skillRegistry.getSkills(), context });
+        registerStopCommands({ commands: registry, eventBus, context });
+        registerAuthCommands({ commands: registry, eventBus, context });
+        registerHelpCommands({ commands: registry, context });
     }
 }

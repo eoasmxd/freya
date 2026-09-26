@@ -3,7 +3,10 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { FREYA_HOME } from '../utils/paths.js';
 
-/** LLM 交互日志器，按日期写入 logs/llm-YYYY-MM-DD.log */
+/**
+ * LLM 交互日志器，按日期写入 logs/llm-YYYY-MM-DD.log
+ * LLM interaction logger writing daily logs to logs/llm-YYYY-MM-DD.log
+ */
 export class FreyaLLMLogger {
     private readonly logsDir: string;
     private _enabled: boolean;

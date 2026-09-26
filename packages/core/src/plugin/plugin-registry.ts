@@ -5,7 +5,9 @@ import type { FreyaToolRegistry } from '../tools/tool-registry.js';
 
 /**
  * 内部插件注册表。
+ * Internal plugin registry.
  * 负责发现、解析和检索内核已装载的插件实例，并将工具类与大模型类插件分别委托给各自的注册中心。
+ * Discovers, parses, and retrieves kernel plugin instances, delegating tools and LLMs to registries.
  */
 export class FreyaPluginRegistry {
   constructor(
@@ -33,7 +35,8 @@ export class FreyaPluginRegistry {
           break;
         }
         default: {
-          ctx.logger.warn(`未知类型的能力试图注册: ${plugin.name} (ID: ${plugin.id}, Type: ${type})`);
+          const pluginName = typeof plugin.name === 'string' ? plugin.name : plugin.name?.['en'] || plugin.id;
+          ctx.logger.warn(`Attempting to register unknown capability type: ${pluginName} (ID: ${plugin.id}, Type: ${type})`);
         }
       }
     }

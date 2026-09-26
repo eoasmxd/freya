@@ -1,2 +1,2 @@
-【用户图片内容解析: {text}】
-（请结合此提取结果，还原理解用户的实际视觉输入意图）
+[Extracted Image Content: {text}]
+(Please incorporate this visual extraction to understand the user's actual intent)

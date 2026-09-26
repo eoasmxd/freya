@@ -1,6 +1,9 @@
 import type { LLMMessage } from '@eoasmxd/freya-sdk';
 
-/** 会话索引条目（存入 sessions.json） */
+/**
+ * 会话索引条目（存入 sessions.json）
+ * Session index entry (stored in sessions.json)
+ */
 export interface SessionIndex {
     id: string;
     uuid: string;
@@ -25,7 +28,10 @@ export interface SessionIndex {
     toolboxIdleRounds?: Record<string, number>;
 }
 
-/** 内存中的完整会话对象 */
+/**
+ * 内存中的完整会话对象
+ * Full session object in memory
+ */
 export interface Session extends SessionIndex {
     history: LLMMessage[];
     lastSnapshotId: string | null;
@@ -36,7 +42,10 @@ export interface SessionData {
     lastSnapshotId: string | null;
 }
 
-/** 独立快照文件结构 */
+/**
+ * 独立快照文件结构
+ * Independent snapshot file structure
+ */
 export interface SnapFile {
     id: string;
     prevSnapshotId: string | null;

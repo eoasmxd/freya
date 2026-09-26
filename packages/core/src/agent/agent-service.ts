@@ -1,16 +1,20 @@
 import type { ChannelMessage, ILLMService, LLMMessage } from '@eoasmxd/freya-sdk';
 import { FreyaCommandExecutor } from '../command/command-executor.js';
-import type { DefaultFreyaContext } from '../context.js';
+import { currentConnectionStorage, type DefaultFreyaContext } from '../context.js';
 import type { FreyaPromptRegistry } from '../prompt/prompt-registry.js';
 import { FreyaSessionManager } from '../session/session-manager.js';
 import type { FreyaAgentExecutor } from './agent-executor.js';
 import { preprocessAudio, preprocessImages } from './agent-preprocessor.js';
+import { I18n } from '../i18n/index.js';
+import { zh } from '../i18n/locales/zh.js';
+import { en } from '../i18n/locales/en.js';
 
 export class FreyaAgentService {
   private abortControllers = new Map<string, AbortController>();
   private messageQueues = new Map<string, ChannelMessage[]>();
   private processingSessions = new Set<string>();
   private llm: ILLMService;
+  private readonly i18n: I18n;
 
   constructor(
     private context: DefaultFreyaContext,
@@ -20,6 +24,7 @@ export class FreyaAgentService {
     private promptRegistry: FreyaPromptRegistry
   ) {
     this.llm = context.llm;
+    this.i18n = new I18n({ zh, en }, context);
     this.setupListeners();
   }
 
@@ -33,7 +38,7 @@ export class FreyaAgentService {
       queue.push(message);
 
       this.processQueue(message.sessionId).catch((err) => {
-        this.context.logger.error('AgentService 消息队列处理异常:', err);
+        this.context.logger.error('AgentService message queue processing error:', err);
       });
     });
 
@@ -43,7 +48,7 @@ export class FreyaAgentService {
       const controller = this.abortControllers.get(payload.sessionId);
       if (controller) {
         controller.abort();
-        this.context.logger.warn(`[AgentService] 已打断会话 ${payload.sessionId} 的生成流。`);
+        this.context.logger.warn(`[AgentService] Interrupted generation stream for session ${payload.sessionId}.`);
         this.abortControllers.delete(payload.sessionId);
       }
 
@@ -53,7 +58,7 @@ export class FreyaAgentService {
           this.abortControllers.delete(key);
           const subSessionId = key.substring(`${payload.sessionId}_sub_`.length);
           this.sessionManager.updateSession(subSessionId, { status: 'failed', durationMs: 0 }).catch(() => { });
-          this.context.logger.warn(`[AgentService] 已级联打断子智能体会话 ${subSessionId}`);
+          this.context.logger.warn(`[AgentService] Cascadely interrupted subagent session ${subSessionId}.`);
         }
       }
     });
@@ -76,7 +81,7 @@ export class FreyaAgentService {
         try {
           await this.run(message);
         } catch (err) {
-          this.context.logger.error(`[AgentService] 执行会话 ${sessionId} 出错:`, err);
+          this.context.logger.error(`[AgentService] Error executing session ${sessionId}:`, err);
         }
       }
     } finally {
@@ -86,6 +91,15 @@ export class FreyaAgentService {
   }
 
   async run(message: ChannelMessage): Promise<void> {
+    const connInfo = {
+      connectionId: message.connectionId,
+      channelType: message.channelType,
+      language: message.defaultLanguage || 'en'
+    };
+    return currentConnectionStorage.run(connInfo, () => this.executeRun(message));
+  }
+
+  private async executeRun(message: ChannelMessage): Promise<void> {
     let partialResponse = '';
 
     try {
@@ -171,7 +185,7 @@ export class FreyaAgentService {
           }
 
           if (recentMediaMessages.length > 0) {
-            this.context.logger.info(`检测到 10 分钟内存在 ${recentMediaMessages.length} 条历史媒体消息，触发二次归纳优化描述...`);
+            this.context.logger.info(`Detected ${recentMediaMessages.length} historical media messages within 10 minutes, optimizing descriptions...`);
             const secondaryContext = {
               prevUserText: prevText,
               currentUserText: currentText
@@ -245,22 +259,35 @@ export class FreyaAgentService {
     } catch (err: any) {
       this.abortControllers.delete(message.sessionId);
       if (err.name === 'AbortError') {
-        this.context.logger.warn(`会话 ${message.sessionId} 因用户取消已中止生成流。`);
+        this.context.logger.warn(`Session ${message.sessionId} generation aborted by user.`);
         if (partialResponse.trim()) {
           await this.sessionManager.appendMessage(message.sessionId, {
             role: 'assistant',
-            content: `${partialResponse}\n\n*(已中止)*`
+            // 中断标记后缀
+            content: `${partialResponse}\n\n*(interrupted)*`
           });
         }
         this.context.eventBus.emit('session:reply:completed', { sessionId: message.sessionId });
       } else {
-        this.context.logger.error('执行对话流处理出错:', err);
-        this.context.eventBus.emit('session:reply:error', { sessionId: message.sessionId, message: `❌ 【内核执行出错】${err.message || '未知故障'}` });
+        this.context.logger.error('Error processing chat stream:', err);
+        const errDetail = err.message || 'Unknown error';
+        this.context.eventBus.emit('session:reply:error', {
+          sessionId: message.sessionId,
+          message: this.i18n.t(
+            'agent.error.kernelError',
+            '❌ [Kernel Execution Error] {message}',
+            { message: errDetail }
+          )
+        });
         this.context.eventBus.emit('session:reply:completed', { sessionId: message.sessionId });
       }
     }
   }
 
+  /**
+   * 运行子智能体会话并等待执行结果
+   * Run sub-agent session and await execution result
+   */
   async runSubAgent(
     parentSessionId: string,
     childSessionId: string,
@@ -294,6 +321,10 @@ export class FreyaAgentService {
     }
   }
 
+  /**
+   * 取消指定的子智能体会话
+   * Cancel specified sub-agent session
+   */
   cancelSubAgent(childSessionId: string): string {
     let targetKey: string | null = null;
     let controller: AbortController | null = null;
@@ -310,9 +341,11 @@ export class FreyaAgentService {
       controller.abort();
       this.abortControllers.delete(targetKey);
       this.sessionManager.updateSession(childSessionId, { status: 'failed', durationMs: 0 }).catch(() => { });
-      return `ℹ️ 子智能体会话 ${childSessionId} 中止成功。`;
+      // 成功中止子智能体出参
+      return `ℹ️ Child agent session ${childSessionId} aborted successfully.`;
     } else {
-      throw new Error(`未找到活跃的子智能体会话 ID: ${childSessionId}，或它已执行结束。`);
+      // 未找到活跃子智能体会话异常
+      throw new Error(`Active child agent session not found for ID: ${childSessionId}, or it has already completed.`);
     }
   }
 }

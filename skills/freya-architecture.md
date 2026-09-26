@@ -1,8 +1,11 @@
 ---
 id: skill-freya-architecture
-name: Freya 智能体底层架构与源码自学习指南
-description: 当解答 Freya 系统架构、单向依赖链、插件机制或底层源码实现时触发，指导 AI 通过物理文件探针检索真实代码精准回答。
-
+name:
+  zh: Freya 智能体底层架构与源码自学习指南
+  en: Freya Agent Architecture and Source Code Learning Guide
+description:
+  zh: 当解答 Freya 系统架构、单向依赖链、插件机制或底层源码实现时触发，指导 AI 通过物理文件探针检索真实代码精准回答。
+  en: Triggered when explaining Freya system architecture, unidirectional dependency chain, plugin mechanism, or underlying source code implementation. Guides AI to inspect real code via physical file probes.
 ---
 # Freya 智能体底层架构与源码自学习指南
 

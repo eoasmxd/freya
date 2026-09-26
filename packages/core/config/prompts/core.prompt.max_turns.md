@@ -1,1 +1,1 @@
-已达到最大决策轮数上限。请基于你已完成的所有工具执行结果，向用户总结当前的工作进展、已完成的内容以及后续建议。不要发起新的工具调用。
+The maximum number of execution turns has been reached. Based on all completed tool results, summarize your current progress, accomplishments, and next-step recommendations for the user. Do not initiate any new tool calls.

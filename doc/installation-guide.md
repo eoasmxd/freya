@@ -1,7 +1,7 @@
 ---
 title: "安装与构建运行"
 weight: 20
-description: "提供环境准备、NPM 全局安装与源码构建运行的完整安装、日常启动、服务停止及手动版本更新指南。"
+description: "提供环境准备、NPM 全局安装、Docker 容器化、Home Assistant 应用与源码构建运行的完整安装与服务维护指南。"
 ---
 
 # Freya 安装与构建运行
@@ -84,24 +84,77 @@ docker run -d --name freya -p 3000:3000 -v $(pwd)/freya-data:/data freya
 
 ---
 
-## 4. 方式三：从源码克隆编译与维护（开发模式）
+## 4. 方式三：通过 Home Assistant 应用部署与维护（支持智能家居交互）
+
+适合拥有 Home Assistant (HAOS / Supervised) 环境、希望将 Freya 与全屋智能无缝联动的用户。
+
+> [!TIP]
+> **原生 Home Assistant 深度交互**
+> 该方式通过 Home Assistant Add-on 规范运行，应用内置专用智能交互工具箱，能够直接调用 Supervisor API 实现对 Home Assistant 的状态感知与自动化设备控制。
+
+### 4.1 安装应用仓库
+
+#### 方法 A：一键自动添加（推荐）
+点击下方按钮直接跳转至您的 Home Assistant 实例并完成仓库添加：
+
+[![在 Home Assistant 中添加此仓库](https://my.home-assistant.io/badges/supervisor_add_addon_repository.svg)](https://my.home-assistant.io/redirect/supervisor_add_addon_repository/?repository_url=https%3A%2F%2Fgithub.com%2Feoasmxd%2Fha-addons)
+
+#### 方法 B：手动添加仓库
+1. 进入 Home Assistant 控制台。
+2. 依次进入：**设置 (Settings)** -> **应用 (Add-ons)** -> **安装应用 (Add-on Store)**。
+3. 点击页面右上角的 **三个点 (⋮)**，选择 **仓库 (Repositories)**。
+4. 在仓库地址输入框中填入：
+   ```text
+   https://github.com/eoasmxd/ha-addons
+   ```
+5. 点击 **添加**，关闭弹窗并刷新商店页面，即可在应用列表中看到 **eoasMXD** 及其下的 **Freya**。
+
+### 4.2 安装与启动
+1. 在应用商店中点击 **Freya**，进入详情页点击 **安装**。
+2. 安装完成后，推荐勾选：
+   - **在侧边栏中显示**：便于随时从 HA 左侧菜单栏呼出 Freya Web 对话界面。
+   - **开机自启**：保证 Home Assistant 系统重启后 Freya 自动拉起。
+   - **看门狗**：在服务异常时自动重启守护。
+3. 点击 **启动** 即可开始使用。
+
+### 4.3 HA 交互与安全控制配置
+Freya 应用对 Home Assistant 的交互采用安全优先（Security by Default）策略：
+
+* **实体状态感知授权**：
+  Freya 能够感知的设备与传感器实体，完全受限于您在 Home Assistant 原生界面（**设置 -> 语音助手 -> 暴露**）中勾选暴露给对话助手（Assist）的实体列表，杜绝非授权实体信息泄露。
+* **设备控制权限开关**：
+  应用初始默认处于**安全只读模式**（仅允许查询实体状态）。如需允许智能体根据对话指令执行开灯、关电器等控制动作，可在 Freya Web 界面（**系统设置 -> 全局配置 -> 权限与安全**）将 `homeassistant.allowControl` 开启为 `true`（动态即时生效，无需重启）。
+
+### 4.4 数据持久化与备份
+应用的所有配置与会话记忆均持久化保存在 Home Assistant 宿主机的 `/config/freya/` 目录下：
+- **数据与会话记忆**：`/config/freya/data/`
+- **用户个性化配置**：`/config/freya/config/`
+
+重启或升级应用均不会丢失数据。您可以通过 HA 官方的 Backup 功能或 File Editor / VS Code 应用直接查看或导出备份。
+
+### 4.5 版本升级
+当上游发布新版本时，Home Assistant 应用商店会自动出现更新提示，点击 **更新** 即可一键平滑升级，无需手动执行脚本或重构容器。
+
+---
+
+## 5. 方式四：从源码克隆编译与维护（开发模式）
 
 适合需要进行二次开发、编写自定义插件或深入学习 Freya 微内核架构的开发者。
 
-### 4.1 安装依赖
+### 5.1 安装依赖
 克隆项目后，在根目录下安装全量 workspace 依赖：
 ```bash
 pnpm install
 ```
 
-### 4.2 编译打包
+### 5.2 编译打包
 执行代码级编译与物理打包汇总：
 ```bash
 pnpm build
 ```
 *该命令会编译 core/sdk/ui 与所有插件，并在根目录下生成最终分发包 `dist/`。*
 
-### 4.3 启动服务
+### 5.3 启动服务
 根据开发测试需求选择启动模式：
 * **前台开发运行**（带 CLI 终端交互）：
   ```bash
@@ -112,13 +165,13 @@ pnpm build
   pnpm freya --no-cli
   ```
 
-### 4.4 停止服务
+### 5.4 停止服务
 若需要结束后台常驻的子进程，在根目录下执行：
 ```bash
 pnpm stop
 ```
 
-### 4.5 手动版本更新与代码同步
+### 5.5 手动版本更新与代码同步
 当拉取代码仓库最新修改时，在根目录下执行：
 1. **停止后台进程**：`pnpm stop`
 2. **拉取最新源码**：`git pull origin main`

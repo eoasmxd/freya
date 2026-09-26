@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useI18n } from '../../../i18n/index.js';
 
 interface PluginEntry {
   id: string;
@@ -13,6 +14,7 @@ interface PluginConfigPanelProps {
 }
 
 export const PluginConfigPanel: React.FC<PluginConfigPanelProps> = ({ getApiUrl }) => {
+  const { t } = useI18n();
   const [plugins, setPlugins] = useState<PluginEntry[]>([]);
   const [toasts, setToasts] = useState<{ id: string; message: string; type: 'success' | 'error' | 'info' }[]>([]);
 
@@ -38,7 +40,7 @@ export const PluginConfigPanel: React.FC<PluginConfigPanelProps> = ({ getApiUrl 
         setPlugins(json.data);
       }
     } catch (err) {
-      console.error('WS load plugins failed:', err);
+      console.error('Failed to load plugins:', err);
     }
   };
 
@@ -55,28 +57,29 @@ export const PluginConfigPanel: React.FC<PluginConfigPanelProps> = ({ getApiUrl 
       });
       const json = await res.json();
       if (json.success) {
-        showToast(`插件 ${pluginId} 已${enabled ? '启用' : '禁用'}`, 'success');
+        const statusText = enabled ? t('plugin.enabled', 'enabled') : t('plugin.disabled', 'disabled');
+        showToast(t('plugin.toggleSuccess', 'Plugin {id} {status}', { id: pluginId, status: statusText }), 'success');
         loadPlugins();
       } else {
-        showToast(`切换插件失败: ${json.message}`, 'error');
+        showToast(t('plugin.toggleFailed', 'Failed to toggle plugin: {error}', { error: json.message }), 'error');
       }
     } catch (err) {
       console.error(err);
-      showToast('切换插件状态失败', 'error');
+      showToast(t('plugin.toggleError', 'Failed to change plugin status'), 'error');
     }
   };
 
   const getSourceTagMeta = (source?: string) => {
     switch (source) {
       case 'builtin':
-        return { label: '内置', bg: 'rgba(59, 130, 246, 0.15)', color: '#60a5fa' };
+        return { label: t('plugin.sourceBuiltin', 'Builtin'), bg: 'rgba(59, 130, 246, 0.15)', color: '#60a5fa' };
       case 'launch':
-        return { label: '集成', bg: 'rgba(168, 85, 247, 0.15)', color: '#c084fc' };
+        return { label: t('plugin.sourceLaunch', 'Packaged'), bg: 'rgba(168, 85, 247, 0.15)', color: '#c084fc' };
       case 'npm':
         return { label: 'NPM', bg: 'rgba(245, 158, 11, 0.15)', color: '#fbbf24' };
       case 'runtime':
       default:
-        return { label: '自定义', bg: 'rgba(16, 185, 129, 0.15)', color: '#34d399' };
+        return { label: t('plugin.sourceCustom', 'Custom'), bg: 'rgba(16, 185, 129, 0.15)', color: '#34d399' };
     }
   };
 
@@ -84,7 +87,7 @@ export const PluginConfigPanel: React.FC<PluginConfigPanelProps> = ({ getApiUrl 
     <div className="plugins-list">
       {plugins.map((plugin) => {
         const displayName = plugin.name || plugin.id;
-        const displayDesc = plugin.description || '未提供描述信息';
+        const displayDesc = plugin.description || t('plugin.noDesc', 'No description provided');
         const shouldShowIdTag = displayName !== plugin.id;
         const tagMeta = getSourceTagMeta(plugin.source);
 

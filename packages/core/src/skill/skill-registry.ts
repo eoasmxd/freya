@@ -1,18 +1,24 @@
-import type { FreyaContext } from '@eoasmxd/freya-sdk';
+import type { FreyaContext, LocalizedText } from '@eoasmxd/freya-sdk';
+import { I18n } from '../i18n/index.js';
+import { zh } from '../i18n/locales/zh.js';
+import { en } from '../i18n/locales/en.js';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { FREYA_APP, FREYA_HOME, FREYA_LAUNCH } from '../utils/paths.js';
 
 export interface FreyaSkill {
   id: string;
-  name: string;
-  description: string;
+  name: LocalizedText;
+  description?: LocalizedText;
   content: string;
   enabled: boolean;
   source: 'builtin' | 'launch' | 'runtime';
 }
 
-/** 技能注册表，从 skills/ 目录加载 Markdown 格式技能并管理软开关状态 */
+/**
+ * 技能注册表，从 skills/ 目录加载 Markdown 格式技能并管理软开关状态
+ * Skill registry that loads Markdown skills from skills/ directory and manages toggle states
+ */
 export class FreyaSkillRegistry {
   private skills = new Map<string, FreyaSkill>();
   private context?: FreyaContext;
@@ -70,13 +76,16 @@ export class FreyaSkillRegistry {
       }
 
       const enabledCount = Array.from(this.skills.values()).filter((s) => s.enabled).length;
-      context.logger.info(`动态技能扫描完成。共加载 ${this.skills.size} 个物理技能 (已启用: ${enabledCount})。`);
+      context.logger.info(`Dynamic skill scan completed. Loaded ${this.skills.size} physical skills (${enabledCount} enabled).`);
     } catch (err: any) {
-      context.logger.error('扫描物理技能 skills 目录遭遇故障:', err);
+      context.logger.error('Failed to scan physical skills directory:', err);
     }
   }
 
-  /** 从指定目录加载技能到内存注册表中 */
+  /**
+   * 从指定目录加载技能到内存注册表中
+   * Load skills from specified directory into in-memory registry
+   */
   private async loadSkillsFromDirectory(dirPath: string, source: 'builtin' | 'launch' | 'runtime', context: FreyaContext): Promise<void> {
     try {
       const files = await fs.readdir(dirPath);
@@ -93,9 +102,13 @@ export class FreyaSkillRegistry {
             const finalSource = existing?.source === 'builtin' ? 'builtin' : source;
             const finalEnabled = existing !== undefined ? existing.enabled : defaultEnabled;
 
+            const name = metadata.name && (typeof metadata.name !== 'object' || Object.keys(metadata.name).length > 0)
+              ? metadata.name
+              : file.replace('.md', '');
+
             this.skills.set(metadata.id, {
               id: metadata.id,
-              name: metadata.name || file.replace('.md', ''),
+              name,
               description: metadata.description || '',
               content: content.trim(),
               enabled: finalEnabled,
@@ -105,11 +118,14 @@ export class FreyaSkillRegistry {
         }
       }
     } catch (err) {
-      context.logger.warn(`扫描技能目录失败: ${dirPath}`, err);
+      context.logger.warn(`Failed to scan skill directory: ${dirPath}`, err);
     }
   }
 
-  /** 获取技能列表（默认只返回启用状态的技能） */
+  /**
+   * 获取技能列表（默认只返回启用状态的技能）
+   * Get skill list (returns only enabled skills by default)
+   */
   getSkills(onlyEnabled: boolean = true): Map<string, FreyaSkill> {
     if (!onlyEnabled) {
       return this.skills;
@@ -123,34 +139,49 @@ export class FreyaSkillRegistry {
     return filtered;
   }
 
-  /** 获取全量技能数组（供管理控制台使用） */
+  /**
+   * 获取全量技能数组（供管理控制台使用）
+   * Get all skills array (for management console)
+   */
   getAllSkills(): FreyaSkill[] {
     return Array.from(this.skills.values());
   }
 
-  /** 切换技能的启用/禁用状态并持久化 */
+  /**
+   * 切换技能的启用/禁用状态并持久化
+   * Toggle skill enabled/disabled status and persist
+   */
   async toggleSkill(skillId: string, enabled: boolean): Promise<string> {
+    const i18n = new I18n({ zh, en }, this.context);
     const skill = this.skills.get(skillId);
     if (!skill) {
-      return `❌ 未找到 ID 为 "${skillId}" 的技能，请检查名称是否正确。`;
+      return i18n.t('skill.toggle.notFound', '❌ Skill with ID "{id}" not found. Please verify the name.', { id: skillId });
     }
 
+    const displayName = i18n.resolve(skill.name) || skillId;
+    const state = enabled
+      ? i18n.t('skill.toggle.stateEnabled', 'enabled')
+      : i18n.t('skill.toggle.stateDisabled', 'disabled');
+
     if (skill.enabled === enabled) {
-      return `ℹ️ 技能 "${skill.name || skillId}" 状态已是 ${enabled ? '启用' : '禁用'}。`;
+      return i18n.t('skill.toggle.alreadyInState', 'ℹ️ Skill "{name}" is already {state}.', { name: displayName, state });
     }
 
     skill.enabled = enabled;
     const configSkillsPath = path.join(FREYA_HOME, 'config', 'skills.json');
     try {
       await this.persistSkillsConfig(configSkillsPath);
-      this.context?.logger.info(`技能 "${skill.name || skillId}" 已切换为: ${enabled ? '启用' : '禁用'}`);
-      return `✅ 技能 "${skill.name || skillId}" 已成功${enabled ? '启用' : '禁用'}。`;
+      this.context?.logger.info(`Skill "${displayName}" status changed to: ${enabled ? 'enabled' : 'disabled'}`);
+      return i18n.t('skill.toggle.success', '✅ Skill "{name}" has been successfully {state}.', { name: displayName, state });
     } catch (err: any) {
-      return `❌ 技能状态变更成功，但写入 skills.json 失败: ${err.message}`;
+      return i18n.t('skill.toggle.writeFailed', '❌ Skill state changed, but failed to write skills.json: {message}', { message: err.message });
     }
   }
 
-  /** 持久化当前所有技能启停状态至 skills.json */
+  /**
+   * 持久化当前所有技能启停状态至 skills.json
+   * Persist current enabled states of all skills to skills.json
+   */
   private async persistSkillsConfig(configSkillsPath: string): Promise<void> {
     await fs.mkdir(path.dirname(configSkillsPath), { recursive: true });
     const payload = Array.from(this.skills.values()).map((s) => ({
@@ -168,26 +199,54 @@ export class FreyaSkillRegistry {
     return this.skills.has(id);
   }
 
-  /** 解析技能文件的 YAML Frontmatter */
-  private parseFrontmatter(rawContent: string): { metadata: Record<string, string>; content: string } {
-    const metadata: Record<string, string> = {};
+  /**
+   * 解析技能文件的 YAML Frontmatter
+   * Parse YAML Frontmatter of skill files
+   */
+  private parseFrontmatter(rawContent: string): { metadata: Record<string, any>; content: string } {
+    const metadata: Record<string, any> = {};
     let content = rawContent;
 
     const match = rawContent.match(/^---\r?\n([\s\S]*?)\r?\n---\r?\n([\s\S]*)$/);
-    if (match) {
-      const yamlBlock = match[1];
-      content = match[2];
+    if (!match) {
+      return { metadata, content };
+    }
 
-      const lines = yamlBlock.split('\n');
-      for (const line of lines) {
-        const parts = line.split(':');
-        if (parts.length >= 2) {
-          const key = parts[0].trim();
-          const value = parts.slice(1).join(':').trim().replace(/^['"]|['"]$/g, '');
+    const yamlBlock = match[1];
+    content = match[2];
+    let activeKey: string | null = null;
+
+    for (const rawLine of yamlBlock.split('\n')) {
+      const line = rawLine.replace(/\r$/, '');
+      if (!line.trim() || line.trim().startsWith('#')) continue;
+
+      if (/^\s+/.test(line) && activeKey) {
+        const colonIndex = line.indexOf(':');
+        if (colonIndex !== -1) {
+          const subKey = line.slice(0, colonIndex).trim();
+          const subValue = line.slice(colonIndex + 1).trim().replace(/^['"]|['"]$/g, '');
+          if (typeof metadata[activeKey] !== 'object' || metadata[activeKey] === null) {
+            metadata[activeKey] = {};
+          }
+          metadata[activeKey][subKey] = subValue;
+        }
+        continue;
+      }
+
+      const colonIndex = line.indexOf(':');
+      if (colonIndex !== -1) {
+        const key = line.slice(0, colonIndex).trim();
+        const value = line.slice(colonIndex + 1).trim().replace(/^['"]|['"]$/g, '');
+        if (value === '') {
+          metadata[key] = {};
+          activeKey = key;
+        } else {
           metadata[key] = value;
+          activeKey = null;
         }
       }
     }
+
     return { metadata, content };
   }
 }

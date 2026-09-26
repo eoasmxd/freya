@@ -1,6 +1,11 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
+import type { FreyaContext, LocalizedText } from '@eoasmxd/freya-sdk';
+import { I18n } from '../i18n/index.js';
+import { zh } from '../i18n/locales/zh.js';
+import { en } from '../i18n/locales/en.js';
 import { FREYA_APP, FREYA_HOME, FREYA_LAUNCH } from '../utils/paths.js';
+
 
 export interface FreyaPrompt {
   key: string;
@@ -9,21 +14,51 @@ export interface FreyaPrompt {
   configFileName?: string;
 }
 
-/** 提示词内存注册表，管理所有系统及插件级提示词的分类检索 */
+/**
+ * 提示词内存注册表，管理所有系统及插件级提示词的分类检索
+ * In-memory prompt registry managing classified retrieval of system and plugin prompts
+ */
 export class FreyaPromptRegistry {
   private prompts = new Map<string, FreyaPrompt>();
+  private readonly i18n: I18n;
 
+  constructor(private ctx?: FreyaContext) {
+    this.i18n = new I18n({ zh, en }, ctx);
+  }
+
+
+  /**
+   * 解析提示词物理探针路径列表（兼顾用户空间独占、宿主空间多语言覆盖与程序出厂物理基线）
+   * Resolve physical probe paths for prompt (user space exclusivity, host space multilingual overrides, and program baseline)
+   */
   private resolveProbePaths(prompt: Omit<FreyaPrompt, 'content'>): string[] {
     const baseName = path.basename(prompt.defaultPath);
+    const ext = path.extname(baseName);
+    const stem = ext ? baseName.slice(0, -ext.length) : baseName;
+    const lang = (this.ctx?.getLanguage('en') ?? 'en').toLowerCase().split('-')[0];
+
+    const cfgExt = prompt.configFileName ? path.extname(prompt.configFileName) : '';
+    const cfgStem = prompt.configFileName && cfgExt ? prompt.configFileName.slice(0, -cfgExt.length) : (prompt.configFileName || '');
+
     const rawPaths: string[] = [];
 
+    // 1. 用户私有空间 (FREYA_HOME)：单文件独占，不探测语言后缀
     if (prompt.configFileName) {
       rawPaths.push(path.join(FREYA_HOME, 'config', prompt.configFileName));
+    }
+    rawPaths.push(path.join(FREYA_HOME, 'config', 'prompts', baseName));
+
+    // 2. 宿主启动空间 (FREYA_LAUNCH)：优先按当前语言寻找特化文件，不存在则平滑回退
+    if (prompt.configFileName) {
+      rawPaths.push(path.join(FREYA_LAUNCH, 'config', `${cfgStem}.${lang}${cfgExt}`));
       rawPaths.push(path.join(FREYA_LAUNCH, 'config', prompt.configFileName));
     }
-
-    rawPaths.push(path.join(FREYA_HOME, 'config', 'prompts', baseName));
+    rawPaths.push(path.join(FREYA_LAUNCH, 'config', 'prompts', `${stem}.${lang}${ext}`));
     rawPaths.push(path.join(FREYA_LAUNCH, 'config', 'prompts', baseName));
+
+    // 3. 程序内置空间 (defaultPath 所在出厂物理目录)：优先寻找当前语言模板，回退到英文基线默认文件
+    const defaultDir = path.dirname(prompt.defaultPath);
+    rawPaths.push(path.join(defaultDir, `${stem}.${lang}${ext}`));
     rawPaths.push(prompt.defaultPath);
 
     const candidates: string[] = [];
@@ -38,7 +73,10 @@ export class FreyaPromptRegistry {
     return candidates;
   }
 
-  /** 注册提示词元数据声明并执行三层级联探针载入 */
+  /**
+   * 注册提示词元数据声明并执行三层级联探针载入
+   * Register prompt metadata declaration and perform three-tier cascading probe loading
+   */
   async register(prompt: Omit<FreyaPrompt, 'content'>): Promise<void> {
     const probePaths = this.resolveProbePaths(prompt);
     let content = '';
@@ -61,7 +99,10 @@ export class FreyaPromptRegistry {
     });
   }
 
-  /** 更新内存中的提示词文本内容 */
+  /**
+   * 更新内存中的提示词文本内容
+   * Update prompt text content in memory
+   */
   updateContent(key: string, content: string): void {
     const existing = this.prompts.get(key);
     if (existing) {
@@ -69,7 +110,10 @@ export class FreyaPromptRegistry {
     }
   }
 
-  /** 注销指定 Key 的内存提示词 */
+  /**
+   * 注销指定 Key 的内存提示词
+   * Unregister in-memory prompt by specified key
+   */
   unregister(key: string): void {
     this.prompts.delete(key);
   }
@@ -82,11 +126,14 @@ export class FreyaPromptRegistry {
     return this.prompts;
   }
 
-  /** 扫描并装载所有内核提示词 */
+  /**
+   * 扫描并装载所有内核提示词
+   * Scan and load all kernel prompts
+   */
   async loadKernelPrompts(): Promise<void> {
     const defaultDirPath = path.join(FREYA_APP, 'config', 'prompts');
     try {
-      const corePrompts = ['identity', 'soul', 'tools', 'agents', 'user', 'memory'];
+      const corePrompts = new Set(['identity', 'soul', 'tools', 'agents', 'user', 'memory']);
       for (const name of corePrompts) {
         await this.register({
           key: `core.prompt.${name}`,
@@ -96,26 +143,40 @@ export class FreyaPromptRegistry {
       }
 
       try {
-        const defaultFiles = await fs.readdir(defaultDirPath);
-        for (const file of defaultFiles) {
-          if (file.endsWith('.md')) {
-            const key = file.slice(0, -3);
-            const baseName = key.replace('core.prompt.', '');
-            if (corePrompts.includes(baseName)) {
-              continue;
-            }
+        const rawFiles = await fs.readdir(defaultDirPath);
 
-            await this.register({
-              key,
-              defaultPath: path.join(defaultDirPath, file)
-            });
-          }
+        const candidateFiles = rawFiles.filter((file) => {
+          if (!file.endsWith('.md')) return false;
+          if (/-guide\.md$|\.guide\.md$/i.test(file)) return false;
+          return true;
+        });
+
+        const baseFileSet = new Set<string>();
+        for (const file of candidateFiles) {
+          const normalizedBase = file.replace(/\.[a-z]{2}(-[a-z]{2})?\.md$/i, '.md');
+          baseFileSet.add(normalizedBase);
+        }
+
+        const targetFiles = Array.from(baseFileSet).filter((file) => {
+          const key = file.slice(0, -3);
+          const stem = key.replace('core.prompt.', '');
+          return !corePrompts.has(stem);
+        });
+
+        for (const file of targetFiles) {
+          await this.register({
+            key: file.slice(0, -3),
+            defaultPath: path.join(defaultDirPath, file)
+          });
         }
       } catch {}
     } catch {}
   }
 
-  /** 获取并拼装完整的核心 System Prompt */
+  /**
+   * 获取并拼装完整的核心 System Prompt
+   * Retrieve and assemble full core System Prompt
+   */
   getSystemPrompt(): string {
     const identity = this.get('core.prompt.identity');
     const soul = this.get('core.prompt.soul');
@@ -126,8 +187,8 @@ export class FreyaPromptRegistry {
 
     const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'Asia/Shanghai';
     const now = new Date();
-    const nowStr = now.toLocaleString('zh-CN', { timeZone });
-    const weekday = ['日', '一', '二', '三', '四', '五', '六'][now.getDay()];
+    const nowStr = now.toLocaleString('en-US', { timeZone });
+    const weekday = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][now.getDay()];
 
     const offsetMinutes = -now.getTimezoneOffset();
     const sign = offsetMinutes >= 0 ? '+' : '-';
@@ -135,22 +196,30 @@ export class FreyaPromptRegistry {
     const absMins = Math.abs(offsetMinutes) % 60;
     const utcOffset = `UTC${sign}${absHours}${absMins > 0 ? `:${absMins.toString().padStart(2, '0')}` : ''}`;
 
-    const timeStr = `${nowStr} (星期${weekday}, 时区: ${timeZone}, ${utcOffset})`;
+    // 当前系统时间
+    const timeStr = `${nowStr} (${weekday}, TimeZone: ${timeZone}, ${utcOffset})`;
 
-    return `# IDENTITY (本体)\n${identity}\n\n` +
-      `# SOUL (灵魂)\n${soul}\n\n` +
-      `# USER INFO (用户画像)\n${user}\n\n` +
-      `# MEMORY (长期记忆)\n${memory}\n\n` +
-      `# TOOLS SPEC (工具指南)\n${tools}\n\n` +
-      `# AGENT TOPOLOGY (拓扑模式)\n${agents}\n\n` +
-      `# CURRENT TIME (当前时间)\n${timeStr}`;
+    const lang = (this.ctx?.getLanguage('en') ?? 'en').toLowerCase().split('-')[0];
+    const langDirective = `The user's preferred language is "${lang}". Please interact and respond in this language unless the user explicitly requests another language.`;
+
+    return `# IDENTITY\n${identity}\n\n` + // 智能体本体定义
+      `# SOUL\n${soul}\n\n` + // 智能体灵魂与行为风格
+      `# USER INFO\n${user}\n\n` + // 用户画像信息
+      `# MEMORY\n${memory}\n\n` + // 长期记忆
+      `# TOOLS SPEC\n${tools}\n\n` + // 工具使用规范指南
+      `# AGENT TOPOLOGY\n${agents}\n\n` + // 智能体拓扑模式
+      `# CURRENT TIME\n${timeStr}\n\n` + // 当前系统时间
+      `# LANGUAGE DIRECTIVE\n${langDirective}`; // 动态语言引导指令
   }
 
-  /** 将核心 System Prompt 与当前激活的技能提示词、工具附加指示词及可用技能列表合成一个最终的系统提示词 */
+  /**
+   * 将核心 System Prompt 与当前激活的技能提示词、工具附加指示词及可用技能列表合成一个最终的系统提示词
+   * Compose core System Prompt with active skill, tool instructions, and available skills into final prompt
+   */
   composeSystemPrompt(
     activeSkill?: { id: string; content: string },
     toolInstructions: string[] = [],
-    availableSkills: { id: string; name: string; description?: string }[] = []
+    availableSkills: { id: string; name: LocalizedText; description?: LocalizedText }[] = []
   ): string {
     let systemPrompt = this.getSystemPrompt();
 
@@ -160,9 +229,14 @@ export class FreyaPromptRegistry {
 
     if (availableSkills && availableSkills.length > 0) {
       const listLines = availableSkills
-        .map((s) => `- **${s.name}** (技能ID: \`${s.id}\`)\n  ${s.description || '无描述'}`)
+        .map((s) => {
+          const name = this.i18n.resolve(s.name);
+          const desc = this.i18n.resolve(s.description) || 'No description';
+          return `- **${name}** (Skill ID: \`${s.id}\`)\n  ${desc}`;
+        })
         .join('\n');
-      systemPrompt += `\n\n# AVAILABLE SKILLS (可用技能卡列表)\n本系统当前已物理安装并扫描到如下可用特长技能卡（你可通过调用 \`activate_skill("技能ID")\` 激活对应模式）：\n\n${listLines}`;
+
+      systemPrompt += `\n\n# AVAILABLE SKILLS\nThe system has detected the following available skills (activate via \`activate_skill("skill_id")\`):\n\n${listLines}`;
     }
 
     if (activeSkill && activeSkill.content) {
@@ -172,3 +246,6 @@ export class FreyaPromptRegistry {
     return systemPrompt;
   }
 }
+
+
+

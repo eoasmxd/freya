@@ -3,7 +3,10 @@ import { MysqlPoolManager } from './pool-manager.js';
 import { SqlAuditService } from './audit.js';
 import { MysqlQueryTool } from './tools.js';
 
-/** MySQL 数据库查询工具箱插件 */
+/**
+ * MySQL 数据库查询工具箱插件
+ * MySQL database query toolbox plugin
+ */
 export default class MysqlToolsPlugin implements ToolPlugin {
   type = 'tool' as const;
 
@@ -14,11 +17,11 @@ export default class MysqlToolsPlugin implements ToolPlugin {
   async setup(ctx: FreyaContext): Promise<void> {
     this.poolManager = new MysqlPoolManager(ctx);
     this.tools = [
-      new MysqlQueryTool(this.poolManager, this.auditService)
+      new MysqlQueryTool(this.poolManager, this.auditService, ctx)
     ];
 
     const available = this.poolManager.getAvailableConnectionNames();
-    ctx.logger.info(`MySQL 工具箱插件初始化就绪，已注册连接: [${available.join(', ') || '暂未配置'}]`);
+    ctx.logger.info(`MySQL toolbox plugin initialized, registered connections: [${available.join(', ') || 'none'}]`);
   }
 
   getId(): string {
@@ -36,7 +39,7 @@ export default class MysqlToolsPlugin implements ToolPlugin {
   async stop(ctx: FreyaContext): Promise<void> {
     if (this.poolManager) {
       await this.poolManager.closeAll();
-      ctx.logger.info('MySQL 工具箱连接资源已全部释放。');
+      ctx.logger.info('MySQL toolbox connection resources fully released.');
     }
   }
 }

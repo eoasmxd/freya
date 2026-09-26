@@ -7,6 +7,7 @@ const PROJECT_ROOT = path.resolve(__dirname, '..');
 
 /**
  * 递归拷贝通用目录与文件
+ * Recursively copy directories and files
  */
 async function copyDir(srcDir, destDir) {
   await fs.mkdir(destDir, { recursive: true });
@@ -23,7 +24,8 @@ async function copyDir(srcDir, destDir) {
 }
 
 /**
- * 递归镜像拷贝包目录（包含 dist/ schema.json package.json 等编译输出，自动排除 src 与 node_modules，保证运行程序纯洁）
+ * 递归镜像拷贝包目录（自动排除源码与开发缓存）
+ * Recursively mirror copy package directory, excluding src and development caches
  */
 async function copyPackageDir(srcDir, destDir, excludeNames = []) {
   await fs.mkdir(destDir, { recursive: true });
@@ -50,13 +52,13 @@ async function main() {
   const isRelease = process.argv.includes('--release');
   const distDir = path.join(PROJECT_ROOT, 'dist');
 
-  console.log('📝 正在读取版本信息...');
+  console.log('📝 Reading version information...');
   const rootPkgRaw = await fs.readFile(path.join(PROJECT_ROOT, 'package.json'), 'utf-8');
   const rootPkg = JSON.parse(rootPkgRaw);
   const rootVersion = rootPkg.version || '0.1.0';
 
   if (isRelease) {
-    console.log(`📝 发布模式：正在同步 SDK 物理包版本到 ${rootVersion}...`);
+    console.log(`📝 Release mode: Syncing SDK package version to ${rootVersion}...`);
     const sdkPkgPath = path.join(PROJECT_ROOT, 'packages', 'sdk', 'package.json');
     const rawSdkPkg = await fs.readFile(sdkPkgPath, 'utf-8');
     const sdkPkg = JSON.parse(rawSdkPkg);
@@ -64,22 +66,22 @@ async function main() {
     await fs.writeFile(sdkPkgPath, JSON.stringify(sdkPkg, null, 2) + '\n', 'utf-8');
   }
 
-  console.log('🧹 正在清理根目录 dist...');
+  console.log('🧹 Cleaning root dist directory...');
   await fs.rm(distDir, { recursive: true, force: true });
   await fs.mkdir(distDir, { recursive: true });
 
-  console.log('📦 正在归档 Core 编译产物...');
+  console.log('📦 Archiving core build artifacts...');
   const coreSrcDir = path.join(PROJECT_ROOT, 'packages', 'core');
   const coreDestDir = path.join(distDir, 'core');
   await copyPackageDir(coreSrcDir, coreDestDir, ['config']);
 
-  console.log('📦 正在归档 Core 物理 config 默认模板...');
+  console.log('📦 Archiving core configuration default templates...');
   const configSrc = path.join(PROJECT_ROOT, 'packages', 'core', 'config');
   const configDest = path.join(distDir, 'config');
   await copyDir(configSrc, configDest);
 
   if (!isRelease) {
-    console.log('📦 正在归档 SDK 编译产物...');
+    console.log('📦 Archiving SDK build artifacts...');
     const sdkSrcDir = path.join(PROJECT_ROOT, 'packages', 'sdk');
     const sdkDestDir = path.join(distDir, 'sdk');
     await copyPackageDir(sdkSrcDir, sdkDestDir);
@@ -100,11 +102,11 @@ async function main() {
       .filter((e) => e.isDirectory())
       .map((e) => e.name);
   } catch (err) {
-    console.warn('警告: 无法扫描 plugins 目录:', err.message);
+    console.warn('Warning: Failed to scan plugins directory:', err.message);
   }
 
   for (const plugin of pluginNames) {
-    console.log(`📦 正在归档插件 ${plugin}...`);
+    console.log(`📦 Archiving plugin ${plugin}...`);
     const pluginSrcDir = path.join(pluginsDir, plugin);
     const pluginDestDir = path.join(distDir, 'plugins', plugin);
 
@@ -125,7 +127,7 @@ async function main() {
     }
   }
 
-  console.log('📦 正在归档独立全量源代码区到 dist/src...');
+  console.log('📦 Archiving full source code to dist/src...');
   const distSrcDir = path.join(distDir, 'src');
   try {
     const coreCodeSrc = path.join(PROJECT_ROOT, 'packages', 'core', 'src');
@@ -148,30 +150,30 @@ async function main() {
       } catch { }
     }
   } catch (err) {
-    console.warn('警告: 归档全量源代码区出现异常:', err.message);
+    console.warn('Warning: Exception while archiving source code:', err.message);
   }
 
-  console.log('📦 正在归档前端 UI 静态资源...');
+  console.log('📦 Archiving frontend UI static assets...');
   const uiSrc = path.join(PROJECT_ROOT, 'packages', 'ui', 'dist');
   const uiDest = path.join(distDir, 'ui');
   try {
     await copyDir(uiSrc, uiDest);
   } catch (err) {
-    console.warn('警告: 前端 UI 静态资源归档失败，请先运行 pnpm build 确保编译成功。', err.message);
+    console.warn('Warning: Frontend UI build artifacts not found, ensure pnpm build completed successfully.', err.message);
   }
 
-  console.log('📝 正在拷贝发布版外部引导器 freya.js...');
+  console.log('📝 Copying launcher entry script freya.js...');
   await fs.copyFile(
     path.join(PROJECT_ROOT, 'scripts', 'freya.js'),
     path.join(distDir, 'freya.js')
   );
 
-  console.log('📦 正在归档内置 Skills 默认技能卡...');
+  console.log('📦 Archiving built-in skills cards...');
   const skillsSrc = path.join(PROJECT_ROOT, 'skills');
   const skillsDest = path.join(distDir, 'skills');
   await copyDir(skillsSrc, skillsDest);
 
-  console.log('📦 正在归档文档物理目录 (doc)...');
+  console.log('📦 Archiving documentation directory (doc)...');
   const docSrc = path.join(PROJECT_ROOT, 'doc');
   const docDest = path.join(distDir, 'doc');
   try {
@@ -180,27 +182,27 @@ async function main() {
   } catch {
     await fs.mkdir(docDest, { recursive: true });
   }
-  console.log('📝 正在拷贝物理开源协议 LICENSE 文件...');
-  try {
-    await fs.copyFile(
-      path.join(PROJECT_ROOT, 'LICENSE'),
-      path.join(distDir, 'LICENSE')
-    );
-  } catch (err) {
-    console.warn('警告: LICENSE 文件拷贝失败:', err.message);
+  console.log('📝 Copying root documentation and license files...');
+  const rootDocs = [
+    'LICENSE',
+    'README.md',
+    'README.zh.md',
+    'SECURITY.md',
+    'SECURITY.zh.md',
+    'THIRD_PARTY_NOTICES.md'
+  ];
+  for (const docFile of rootDocs) {
+    try {
+      await fs.copyFile(
+        path.join(PROJECT_ROOT, docFile),
+        path.join(distDir, docFile)
+      );
+    } catch {
+      // 忽略可选文档不存在的异常
+    }
   }
 
-  console.log('📝 正在拷贝物理 README.md 说明文档...');
-  try {
-    await fs.copyFile(
-      path.join(PROJECT_ROOT, 'README.md'),
-      path.join(distDir, 'README.md')
-    );
-  } catch (err) {
-    console.warn('警告: README.md 文件拷贝失败:', err.message);
-  }
-
-  console.log('📝 正在收集并合并全量发布版依赖...');
+  console.log('📝 Collecting and merging distribution dependencies...');
   const finalDeps = {
     "@eoasmxd/freya-sdk": isRelease ? `^${rootVersion}` : "file:./sdk"
   };
@@ -225,10 +227,14 @@ async function main() {
     }
   }
 
-  console.log('📝 正在生成发布版 package.json...');
+  console.log('📝 Generating distribution package.json...');
   const filesToInclude = [
     "LICENSE",
     "README.md",
+    "README.zh.md",
+    "SECURITY.md",
+    "SECURITY.zh.md",
+    "THIRD_PARTY_NOTICES.md",
     "freya.js",
     "core",
     "plugins",
@@ -247,7 +253,7 @@ async function main() {
     "version": rootVersion,
     "license": "MIT",
     "type": "module",
-    "description": rootPkg.description || "Freya - 微内核智能体系统",
+    "description": rootPkg.description || "Freya - Lightweight Microkernel AI Agent System",
     "keywords": rootPkg.keywords || [],
     "repository": rootPkg.repository || {
       "type": "git",
@@ -273,10 +279,10 @@ async function main() {
     'utf-8'
   );
 
-  console.log('✨ Freya 全量发布版打包归档成功！');
+  console.log('✨ Freya full distribution package assembled successfully!');
 }
 
 main().catch(err => {
-  console.error('❌ 打包归档失败:', err);
+  console.error('❌ Distribution assembly failed:', err);
   process.exit(1);
 });

@@ -27,7 +27,10 @@ import { FreyaMetaToolbox } from './tools/meta/index.js';
 import { FreyaToolRegistry } from './tools/tool-registry.js';
 import { FreyaWebContainer } from './web/web-container.js';
 
-/** Freya 核心微内核，负责协调各子系统启动与关闭 */
+/**
+ * Freya 核心微内核，负责协调各子系统启动与关闭
+ * Freya core microkernel responsible for coordinating startup and shutdown of subsystems
+ */
 export class FreyaKernel {
   private context = new DefaultFreyaContext();
   private sessionManager!: FreyaSessionManager;
@@ -45,20 +48,20 @@ export class FreyaKernel {
     const ctx = this.context;
 
     ctx.logger = new FreyaLogger();
-    ctx.logger.info('Freya 核心服务正在启动...');
+    ctx.logger.info('Starting Freya core service...');
     ctx.eventBus = new FreyaEventBus();
 
     const configSchemaRegistry = new FreyaConfigSchemaRegistry();
     const toolRegistry = new FreyaToolRegistry(ctx);
-    const llmRegistry = new FreyaLLMRegistry();
-    const promptRegistry = new FreyaPromptRegistry();
+    const llmRegistry = new FreyaLLMRegistry(ctx);
+    const promptRegistry = new FreyaPromptRegistry(ctx);
 
     const commandRegistry = new FreyaCommandRegistry(ctx);
     this.channelRegistry = new FreyaChannelRegistry();
     const pluginRegistry = new FreyaPluginRegistry(toolRegistry, llmRegistry, this.channelRegistry);
     const skillRegistry = new FreyaSkillRegistry();
 
-    const promptManager = new FreyaPromptManager(promptRegistry, ctx.logger);
+    const promptManager = new FreyaPromptManager(promptRegistry, ctx);
     this.pluginManager = new FreyaPluginManager(configSchemaRegistry, commandRegistry, promptRegistry);
 
     await this.pluginManager.loadConfiguredPlugins(pluginRegistry, ctx);
@@ -84,7 +87,7 @@ export class FreyaKernel {
 
     const defaultLLM = llmRegistry.getDefault();
     if (!defaultLLM) {
-      ctx.logger.warn('未检测到可用的大模型配置。请在核心服务启动后，通过 Web 设置页面或物理配置文件配置大模型密钥与 models.default，以恢复对话功能。');
+      ctx.logger.warn('No available LLM configuration detected. Please configure LLM provider keys and models.default in settings to enable chat functionality.');
     }
 
     ctx.llm = new FreyaLLMProxy(llmRegistry, ctx);
@@ -96,7 +99,7 @@ export class FreyaKernel {
     this.connectionManager = new FreyaConnectionManager(ctx.eventBus, ctx.logger);
 
     const configToolbox = new ConfigToolbox(configManager, ctx);
-    const sessionToolbox = new SessionToolbox(this.sessionManager);
+    const sessionToolbox = new SessionToolbox(this.sessionManager, ctx);
     const metaToolbox = new FreyaMetaToolbox(this.sessionManager, toolRegistry, skillRegistry);
     toolRegistry.registerToolbox(configToolbox);
     toolRegistry.registerToolbox(sessionToolbox);
@@ -149,7 +152,7 @@ export class FreyaKernel {
 
     await this.pluginManager.setupAndStartAll(ctx);
 
-    ctx.logger.info(`Freya 核心服务启动成功。共加载了 ${this.pluginManager.getLoadedPlugins().length} 个物理插件。`);
+    ctx.logger.info(`Freya core service started successfully. Loaded ${this.pluginManager.getLoadedPlugins().length} plugins.`);
 
     ctx.eventBus.on('system:exit', async () => {
       await this.stop();
@@ -163,6 +166,6 @@ export class FreyaKernel {
     await this.cliChannel?.stop(this.context);
     await this.wsChannel?.stop();
     await this.webContainer?.stop();
-    this.context.logger.info('Freya 核心服务已停止。');
+    this.context.logger.info('Freya core service stopped.');
   }
 }

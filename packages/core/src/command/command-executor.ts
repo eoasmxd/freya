@@ -1,12 +1,22 @@
 import type { FreyaContext } from '@eoasmxd/freya-sdk';
 import type { FreyaCommandRegistry } from './command-registry.js';
+import { I18n } from '../i18n/index.js';
+import { zh } from '../i18n/locales/zh.js';
+import { en } from '../i18n/locales/en.js';
 
-/** 指令执行器：解析控制台/网络消息行并调度执行注册的系统指令 */
+/**
+ * 指令执行器：解析控制台/网络消息行并调度执行注册的系统指令
+ * Command executor: parses terminal/network message lines and dispatches registered system commands
+ */
 export class FreyaCommandExecutor {
+  private readonly i18n: I18n;
+
   constructor(
     private context: FreyaContext,
     private registry: FreyaCommandRegistry
-  ) { }
+  ) {
+    this.i18n = new I18n({ zh, en }, context);
+  }
 
   async executeLine(
     line: string,
@@ -27,7 +37,11 @@ export class FreyaCommandExecutor {
     if (!cmd) {
       this.context.eventBus.emit('session:reply:error', {
         sessionId,
-        message: `❌ 未知指令 "/${commandName}"，您可以输入 "/help" 查看所有可用指令。`
+        message: this.i18n.t(
+          'cmd.error.unknown',
+          '❌ Unknown command "/{commandName}". Type "/help" to view all available commands.',
+          { commandName }
+        )
       });
       return true;
     }
@@ -35,7 +49,11 @@ export class FreyaCommandExecutor {
     if (!this.registry.isCommandEnabled(commandName)) {
       this.context.eventBus.emit('session:reply:error', {
         sessionId,
-        message: `❌ 权限拒绝：系统指令 "/${commandName}" 已被系统管理员全局禁用。`
+        message: this.i18n.t(
+          'cmd.error.disabled',
+          '❌ Permission denied: Command "/{commandName}" is disabled by administrator.',
+          { commandName }
+        )
       });
       return true;
     }
@@ -46,10 +64,14 @@ export class FreyaCommandExecutor {
         this.context.eventBus.emit('session:reply:text', { sessionId, content: replyContent });
       }
     } catch (err: any) {
-      this.context.logger.error(`指令 /${commandName} 执行异常:`, err);
+      this.context.logger.error(`Error executing command /${commandName}:`, err);
       this.context.eventBus.emit('session:reply:error', {
         sessionId,
-        message: `❌ 指令执行失败: ${err.message || err}`
+        message: this.i18n.t(
+          'cmd.error.executionFailed',
+          '❌ Command execution failed: {message}',
+          { message: err.message || String(err) }
+        )
       });
     }
 

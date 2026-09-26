@@ -9,19 +9,19 @@ export default class FsToolsPlugin implements ToolPlugin {
 
   async setup(ctx: FreyaContext): Promise<void> {
     this.tools = [
-      new ListDirTool(),
-      new ReadFileTool(),
-      new WriteFileTool(),
-      new EditFileTool()
+      new ListDirTool(ctx),
+      new ReadFileTool(ctx),
+      new WriteFileTool(ctx),
+      new EditFileTool(ctx)
     ];
 
     const workspaceAbs = ctx.paths.workspaceDir;
 
     try {
       await fs.mkdir(workspaceAbs, { recursive: true });
-      ctx.logger.info(`工作区目录已就绪: "${workspaceAbs}"`);
+      ctx.logger.info(`Workspace directory ready: "${workspaceAbs}"`);
     } catch (err: any) {
-      ctx.logger.error(`创建工作区目录失败: "${workspaceAbs}"`, err);
+      ctx.logger.error(`Failed to create workspace directory: "${workspaceAbs}"`, err);
     }
   }
 

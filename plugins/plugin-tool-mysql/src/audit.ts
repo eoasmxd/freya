@@ -8,11 +8,17 @@ export interface AuditResult {
   reason: string;
 }
 
-/** 前置 SQL 安全与完整性审查审计服务 */
+/**
+ * 前置 SQL 安全与完整性审查审计服务
+ * Pre-execution SQL security and integrity audit service
+ */
 export class SqlAuditService {
   private cachedPrompt: string | null = null;
 
-  /** 双通道探针加载审计提示词模板 */
+  /**
+   * 双通道探针加载审计提示词模板
+   * Dual-channel probe loading for audit prompt template
+   */
   private async loadAuditPrompt(ctx: FreyaContext): Promise<string> {
     if (this.cachedPrompt) {
       return this.cachedPrompt;
@@ -29,6 +35,7 @@ export class SqlAuditService {
       }
     } catch {
       // 运行时覆盖不存在，继续降级读取内置模板
+      // Runtime override not found, fallback to built-in template
     }
 
     const currentDir = path.dirname(fileURLToPath(import.meta.url));
@@ -39,21 +46,26 @@ export class SqlAuditService {
       this.cachedPrompt = content;
       return content;
     } catch (err: any) {
-      ctx.logger.error(`加载内置 SQL 审计提示词模板失败: ${packageDefaultPath}`, err);
+      ctx.logger.error(`Failed to load built-in SQL audit prompt template: ${packageDefaultPath}`, err);
       return '';
     }
   }
 
-  /** 执行前置独立 LLM 分析审查 */
+  /**
+   * 执行前置独立 LLM 分析审查
+   * Perform pre-execution independent LLM analysis and review
+   */
   public async audit(sql: string, connectionName: string, ctx: FreyaContext): Promise<AuditResult> {
     const trimmedSql = sql.trim();
     if (!trimmedSql) {
-      return { passed: false, reason: 'SQL 语句内容不能为空。' };
+      // 拦截原因：SQL 语句内容为空
+      return { passed: false, reason: 'SQL statement cannot be empty.' };
     }
 
     const auditPrompt = await this.loadAuditPrompt(ctx);
     if (!auditPrompt) {
-      return { passed: false, reason: 'SQL 审计提示词模板未就绪，安全拒绝执行。' };
+      // 拦截原因：安全审查提示词未就绪
+      return { passed: false, reason: 'SQL audit prompt template is not ready, execution rejected for safety.' };
     }
 
     const messages: LLMMessage[] = [
@@ -84,19 +96,22 @@ export class SqlAuditService {
       if (typeof parsed.passed === 'boolean') {
         return {
           passed: parsed.passed,
-          reason: parsed.reason ? String(parsed.reason) : (parsed.passed ? '审查通过' : '未提供拦截原因')
+          // 审核通过或未提供原因
+          reason: parsed.reason ? String(parsed.reason) : (parsed.passed ? 'Audit passed.' : 'No rejection reason provided.')
         };
       }
 
+      // 响应结构不符合预期
       return {
         passed: false,
-        reason: `审查响应结构不符合预期: ${rawOutput}`
+        reason: `Audit response structure does not match expectation: ${rawOutput}`
       };
     } catch (err: any) {
-      ctx.logger.error('前置 LLM SQL 审计过程发生异常', err);
+      ctx.logger.error('Error during pre-LLM SQL audit process:', err);
+      // 审查服务调用失败
       return {
         passed: false,
-        reason: `SQL 安全审查服务调用失败: ${err?.message || err}`
+        reason: `SQL security audit service call failed: ${err?.message || err}`
       };
     }
   }

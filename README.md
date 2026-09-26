@@ -1,44 +1,48 @@
-# Freya - 微内核智能体系统
+# Freya - Microkernel AI Agent System
 
-`Freya` 是一个专为**学习智能体（Agent）编程**而设计的轻量级、架构清晰、生产可用的微内核智能体系统。项目代码结构保持了极致的简单与高度自我解释性，旨在帮助开发者无障碍、零负担地透彻理解智能体底座的决策机制与运行原理。
+[English](README.md) | [简体中文](README.zh.md)
 
-本项目在设计理念上借鉴自开源项目 **OpenClaw**，但全量底层代码均由独立重写打造。Freya 摒弃了复杂的分布式集群 RPC 与繁重的容器沙箱依赖，采用干净纯粹的单体微内核架构，完整保留并实现了插件化扩展、事件驱动解耦、去硬编码提示词及多通道交互能力。
+> `Freya` 是一个轻量级、架构清晰、生产可用的微内核智能体系统，专为学习与构建 Agent 而设计。（完整中文文档请参阅 [README.zh.md](README.zh.md)）
 
-## ✨ 核心特性
+`Freya` is a lightweight, architecturally clear, and production-ready microkernel AI Agent system designed specifically for **learning Agent programming**. The codebase is intentionally simple and self-documenting, helping developers understand the decision-making mechanics and underlying principles of AI agents without overhead.
 
-- 🔌 **极致插件化 (Microkernel)**：大模型（OpenAI、Gemini 等）、系统工具（文件、网页等）以及通信频道，均基于标准 SDK 实现外置解耦与热加载，保持系统底座极致轻量。
-- ⚡ **事件驱动解耦 (Event-Driven)**：底座与插件、插件与插件之间统一采用 EventEmitter 异步事件进行高并发、低耦合的流式通信与计费追踪。
-- 📝 **零硬编码提示词 (Zero-Hardcoded)**：系统人设、交互约束、插件提示词物理脱离源码，通过内存双通道探针（默认配置 -> 运行时覆盖）实现即时热加载与用户落盘覆盖。
-- 🖥️ **灵活多通道交互 (Multi-Channel)**：原生内建现代 Web 交互界面与 CLI 本地命令行，并支持通过插件自由扩展接入微信、电报等多平台，支持前后台多种运行模式。
+While inspired by the open-source **OpenClaw** project in its design philosophy, Freya is built from the ground up with completely independent code. It eliminates complex distributed cluster RPCs and heavy container sandbox dependencies in favor of a clean, monolithic microkernel architecture—while fully preserving and implementing modular plugin extensions, event-driven decoupling, zero-hardcoded prompts, and multi-channel interaction capabilities.
+
+## ✨ Key Features
+
+- 🔌 **Microkernel Architecture**: LLM providers (OpenAI, Gemini, etc.), system tools (filesystem, web, etc.), and communication channels are decoupled via standard SDK contracts and support hot-reloading, keeping the core runtime lightweight.
+- ⚡ **Event-Driven Decoupling**: Core and plugins communicate asynchronously via an in-process EventEmitter, providing high-concurrency, low-coupling streaming communication and token billing telemetry.
+- 📝 **Zero Hardcoded Prompts**: System identities, constraints, and plugin prompts are strictly separated from source code into physical Markdown files, supporting real-time hot updates and persistent disk overrides through a three-tier cascading probe (`FREYA_HOME` -> `FREYA_LAUNCH` -> `FREYA_APP`) with language fallback.
+- 🖥️ **Multi-Channel Interaction**: Built-in modern Web UI and interactive local CLI out of the box, with extensible support for WeChat, WeCom, Telegram, and more, supporting both foreground and daemon modes.
 
 ---
 
-## ⚡ 快速开始
+## ⚡ Quick Start
 
-### 方式一：通过 NPM 全局安装（推荐）
+### Method 1: Global Install via NPM (Recommended)
 
-系统已发布为全局可执行命令行工具，全局安装后可直接启动：
+Freya is published as a globally executable CLI tool. After global installation, you can launch it directly:
 
 ```bash
-# 1. 全局安装包
+# 1. Install globally
 npm install -g @eoasmxd/freya
 
-# 2. 启动服务 (默认监听 http://localhost:3000)
+# 2. Start the service (listens on http://localhost:3000 by default)
 freya
 
-# 3. 后台静默运行 (关闭本地控制台，适合服务器部署)
+# 3. Run silently in background (disables local console, suitable for servers)
 freya --no-cli
 
-# 4. 停止正在后台运行的 Freya 服务
+# 4. Stop the running background service
 freya stop
 ```
 
-### 方式二：通过 Docker 运行（推荐，免环境配置）
+### Method 2: Run via Docker (Recommended, zero-environment setup)
 
-无需安装 Node.js 与包管理环境，直接通过容器一键启动（支持配置与会话数据持久化）：
+Run instantly without configuring Node.js or package managers (supports persistent configuration and session data):
 
 ```bash
-# 启动并挂载持久化数据目录（宿主机 ./freya-data 映射至容器 /data）
+# Start and mount persistent data volume (maps host ./freya-data to container /data)
 docker run -d \
   --name freya \
   -p 3000:3000 \
@@ -47,55 +51,71 @@ docker run -d \
   ghcr.io/eoasmxd/freya:latest
 ```
 
-或使用本地源码构建镜像运行：
+Or build and run locally from source:
 ```bash
-# 本地构建并启动
+# Build and run locally
 docker build -t freya .
 docker run -d --name freya -p 3000:3000 -v $(pwd)/freya-data:/data freya
 ```
 
 ---
 
-### 方式三：从源码构建运行
+### Method 3: Install via Home Assistant (Recommended for Smart Home users)
 
-运行环境要求：**Node.js** (>= 22.0.0) 和 **pnpm** (9.x)。
+If you use Home Assistant, you can run Freya directly as an Add-on. **This installation natively integrates with Home Assistant**, providing a dedicated toolset for smart home status awareness and device control:
+
+1. **One-Click Add Repository**: Click the button below to navigate to your Home Assistant instance and add the repository:
+
+   [![Add repository to Home Assistant](https://my.home-assistant.io/badges/supervisor_add_addon_repository.svg)](https://my.home-assistant.io/redirect/supervisor_add_addon_repository/?repository_url=https%3A%2F%2Fgithub.com%2Feoasmxd%2Fha-addons)
+
+   *Or manually add the repository URL in HA under **"Settings -> Add-ons -> Add-on Store -> Top-right three dots (Repositories)"**: `https://github.com/eoasmxd/ha-addons`.*
+
+2. **Install & Start**: Locate **Freya** in the Add-on Store, click Install and Start. We recommend enabling "Show in sidebar" and "Start on boot".
+3. **Native HA Interaction Support**:
+   - **Entity State Awareness**: Fully adheres to entities exposed to Assist in the native HA UI (Settings -> Voice assistants -> Expose). The agent reads device states and sensor data on demand.
+   - **Device Security Control**: The application is in safe read-only mode by default. To allow the LLM to control devices (turn on/off lights, control switches, etc.), set `homeassistant.allowControl` to `true` in the Freya Web UI ("Global Config -> Permissions & Security").
+
+---
+
+### Method 4: Build & Run from Source
+
+Requirements: **Node.js** (>= 22.0.0) and **pnpm** (9.x).
 
 ```bash
-# 1. 克隆源码并安装依赖
+# 1. Clone source code and install dependencies
 pnpm install
 
-# 2. 编译打包全量模块
+# 2. Build all packages
 pnpm build
 
-# 3. 启动微内核服务
+# 3. Start the microkernel service
 pnpm start
 ```
 
-*任何一种方式启动服务后，使用浏览器访问 `http://localhost:3000` 即可进入 Web 操作界面。*
-
-
----
-
-## 📚 系统架构与设计文档库 (`doc/`)
-
-为了便于开发者深入了解 Freya 的底座原理与扩展机制，系统在 [doc/](doc/_index.md) 物理目录下提供了完整的技术文档库：
-
-### 🛠️ 技术规范与指南
-
-* 🚀 **[快速使用指引](doc/getting-started.md)**：图形化 LLM 提供商配置、插件开启控制与会话快捷指令。
-* 🛠️ **[安装与构建运行](doc/installation-guide.md)**：分步说明环境准备、安装、编译与控制台开发模式。
-* 🏗️ **[架构设计说明](doc/specifications/architecture-design.md)**：包含 Monorepo 物理结构、核心 ReAct 调用链路图、核心组件职责及 EventBus 异步通信机制。
-* ⚙️ **[配置与数据隔离规范](doc/specifications/config-spec.md)**：介绍 `~/.freya/` 运行时目录结构、配置/数据物理隔离及 Schema 动态合并策略。
-* 📝 **[提示词管理系统](doc/specifications/prompt-system.md)**：介绍 6 大维度提示词管理方案、动态 Prompt Composer 拼装结构与 Dual-Read 探针机制。
-
-### 🎓 白盒开发教程
-
-* 👉 **[智能体开发实战教程](doc/tutorials/_index.md)**：白盒解剖智能体底座，包含 13 个章节硬核教程，从 Next-Token Prediction 到底层 ReAct 循环、多轮会话以及多智能体协同协作等原理解密。
+*After starting the service via any method, navigate to `http://localhost:3000` in your browser (or click on the Home Assistant sidebar) to access the Web UI.*
 
 ---
 
-## 📄 开源协议与安全
+## 📚 System Architecture & Documentation (`doc/`)
 
-* 协议规范参阅 [LICENSE](LICENSE)。
-* 系统安全边界与威胁模型说明参阅 [SECURITY.md](SECURITY.md)。
-* AI 编程助手行为规范参阅 [AGENTS.md](AGENTS.md)。
+Comprehensive technical specifications and documentation are available in the [doc/](doc/_index.en.md) directory:
+
+### 🛠️ Technical Specifications & Guides
+
+* 🚀 **[Getting Started Guide](doc/getting-started.en.md)**: Visual LLM provider configuration, plugin management, and chat shortcuts.
+* 🛠️ **[Installation & Deployment Guide](doc/installation-guide.en.md)**: NPM global install, Docker containerization, Home Assistant Add-on, and source code development.
+* 🏗️ **[Architecture Design Specification](doc/specifications/architecture-design.md)**: Monorepo physical layout, core ReAct loop sequence diagram, component responsibilities, and EventBus asynchronous communication.
+* ⚙️ **[Configuration & Data Isolation Specification](doc/specifications/config-spec.md)**: `~/.freya/` runtime directory layout, data isolation, and dynamic schema merging strategy.
+* 📝 **[Prompt Management System](doc/specifications/prompt-system.md)**: 6-dimensional prompt system, dynamic Prompt Composer, and three-tier cascading probe (Cascading Read) mechanism.
+
+### 🎓 White-Box Agent Tutorials
+
+* 👉 **[Hands-On AI Agent Development Tutorials](doc/tutorials/_index.md)**: White-box deep dive into agent fundamentals, containing 13 structured chapters from Next-Token Prediction to the core ReAct loop, multi-turn conversations, and multi-agent collaboration.
+
+---
+
+## 📄 License & Security
+
+* License terms can be found in [LICENSE](LICENSE).
+* Security boundaries and threat models are documented in [SECURITY.md](SECURITY.md).
+* AI coding assistant behavioral guidelines are documented in [AGENTS.md](AGENTS.md).

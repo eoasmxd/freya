@@ -1,4 +1,5 @@
 /* 对话大厅页眉 */
+/* Chat header */
 .header {
   padding: 1rem 2.5rem;
   display: flex;
@@ -75,6 +76,7 @@
 }
 
 /* 历史消息滚动面板 */
+/* Message history scroll panel */
 .chat-panel {
   flex: 1;
   display: flex;
@@ -140,6 +142,16 @@
 
 .message-meta .name {
   font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.bot-icon {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  object-fit: cover;
 }
 
 .message-wrapper.assistant .message-meta .name {
@@ -154,6 +166,7 @@
 }
 
 /* Markdown 排版 */
+/* Markdown typography */
 .message-content p {
   margin: 0 0 0.75rem 0;
 }
@@ -329,6 +342,7 @@
 }
 
 /* 工具调用聚合外框容器 */
+/* Tool group container */
 .tool-group-container {
   margin: 0.85rem 0;
   border-radius: 10px;
@@ -395,6 +409,7 @@
 }
 
 /* 工具调用聚合底部收起状态栏 */
+/* Tool group collapse footer */
 .tool-group-footer {
   display: flex;
   justify-content: space-between;
@@ -432,6 +447,7 @@
 }
 
 /* 工具调用卡片 */
+/* Tool card */
 .tool-card-container {
   margin: 0.75rem 0;
   border-radius: 10px;
@@ -506,6 +522,7 @@
 }
 
 /* 页脚输入区 */
+/* Footer input area */
 .footer {
   padding: 1rem var(--viewport-padding-x) calc(1.5rem + env(safe-area-inset-bottom)) var(--viewport-padding-x);
   max-width: var(--chat-max-width);
@@ -620,6 +637,7 @@
 }
 
 /* 移动端自适应适配 */
+/* Mobile responsive layout */
 @media (max-width: 768px) {
   .header {
     padding: 0.75rem 1rem;

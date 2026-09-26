@@ -42,7 +42,10 @@ function resolveAbsoluteUrl(href: string, baseUrl?: string): string {
     }
 }
 
-/** HTML 内容净化与结构提取 */
+/**
+ * HTML 内容净化与结构提取
+ * HTML content sanitization and structural extraction
+ */
 export function cleanHtmlContent(html: string, mode: 'auto' | 'text', baseUrl?: string): string {
     let content = html;
 
@@ -64,7 +67,8 @@ export function cleanHtmlContent(html: string, mode: 'auto' | 'text', baseUrl?: 
 
     content = content.replace(IMG_ALT_PATTERN, (_match, g1, g2, g3) => {
         const altText = (g1 || g2 || g3 || '').trim();
-        return altText ? ` [图片: ${altText}] ` : '';
+        // 图片替换标记
+        return altText ? ` [Image: ${altText}] ` : '';
     });
 
     content = content.replace(ANCHOR_TAG_PATTERN, (_match, g1, g2, g3, text) => {
@@ -153,30 +157,37 @@ function isPrivateIPv4(hostname: string): boolean {
     return false;
 }
 
-/** 校验 URL 安全性 */
+/**
+ * 校验 URL 安全性
+ * Validate URL security
+ */
 export function validateUrl(rawUrl: string): URL {
     let url: URL;
     try {
         url = new URL(rawUrl);
     } catch {
-        throw new Error(`无效的 URL: "${rawUrl}"，请提供完整的 HTTP/HTTPS 地址。`);
+        // 无效的 URL 格式
+        throw new Error(`Invalid URL: "${rawUrl}". Please provide a complete HTTP/HTTPS URL.`);
     }
 
     if (url.protocol !== 'http:' && url.protocol !== 'https:') {
+        // 不支持的协议
         throw new Error(
-            `不支持的协议 "${url.protocol}"，仅允许 http: 和 https: 协议。`
+            `Unsupported protocol "${url.protocol}". Only "http:" and "https:" protocols are allowed.`
         );
     }
 
     const hostname = url.hostname.toLowerCase();
 
     if (BLOCKED_HOSTS.has(hostname)) {
-        throw new Error(`安全拒绝：禁止访问本地地址 "${hostname}"。`);
+        // 安全拒绝访问本地地址
+        throw new Error(`Security rejection: Access to local address "${hostname}" is prohibited.`);
     }
 
     if (isPrivateIPv4(hostname)) {
+        // 安全拒绝访问内网地址
         throw new Error(
-            `安全拒绝：禁止访问内网地址 "${hostname}"。`
+            `Security rejection: Access to private network address "${hostname}" is prohibited.`
         );
     }
 
@@ -185,7 +196,10 @@ export function validateUrl(rawUrl: string): URL {
 
 const DEFAULT_MAX_LENGTH = 100 * 1024;
 
-/** 截断响应文本 */
+/**
+ * 截断响应文本
+ * Truncate response text
+ */
 export function truncateContent(content: string, maxLength?: number): string {
     const limit = maxLength && maxLength > 0 ? maxLength : DEFAULT_MAX_LENGTH;
 
@@ -194,15 +208,19 @@ export function truncateContent(content: string, maxLength?: number): string {
     }
 
     const truncated = content.slice(0, limit);
+    // 响应内容截断提示
     return (
         truncated +
-        `\n\n... [响应内容已截断，原始长度 ${content.length} 字符，当前限制 ${limit} 字符。可通过 maxLength 参数调整限制]`
+        `\n\n... [Response content truncated, original length ${content.length} chars, limit ${limit} chars. Adjust limit via maxLength parameter]`
     );
 }
 
 export const DEFAULT_TIMEOUT_MS = 30_000;
 
-/** 解析请求 Headers 参数 */
+/**
+ * 解析请求 Headers 参数
+ * Parse request Headers parameters
+ */
 export function parseHeaders(rawHeaders: unknown): Record<string, string> {
     if (!rawHeaders) return {};
 
@@ -213,7 +231,8 @@ export function parseHeaders(rawHeaders: unknown): Record<string, string> {
                 return ensureStringValues(parsed);
             }
         } catch {
-            throw new Error('headers 参数 JSON 解析失败，请提供合法的 JSON 对象字符串。');
+            // 请求头 JSON 解析失败
+            throw new Error('Failed to parse headers JSON. Please provide a valid JSON object string.');
         }
     }
 
@@ -221,8 +240,9 @@ export function parseHeaders(rawHeaders: unknown): Record<string, string> {
         return ensureStringValues(rawHeaders as Record<string, unknown>);
     }
 
+    // 请求头格式不正确
     throw new Error(
-        'headers 参数格式不正确，需为 JSON 对象字符串（如 \'{"Authorization": "Bearer xxx"}\'）。'
+        'Invalid headers format. Must be a JSON object string (e.g. \'{"Authorization": "Bearer xxx"}\').'
     );
 }
 
@@ -234,9 +254,12 @@ function ensureStringValues(obj: Record<string, unknown>): Record<string, string
     return result;
 }
 
-/** 获取工作区绝对路径 */
-export function getWorkspaceDir(ctx: FreyaContext): string {
-    return ctx.paths.workspaceDir;
+/**
+ * 获取工作区绝对路径
+ * Get workspace absolute directory path
+ */
+export function getWorkspaceDir(ctx?: FreyaContext): string {
+    return ctx?.paths?.workspaceDir ?? process.cwd();
 }
 
 function isBinaryContentType(contentType: string): boolean {
@@ -244,7 +267,10 @@ function isBinaryContentType(contentType: string): boolean {
     return BINARY_CONTENT_TYPES.some((prefix) => lower.startsWith(prefix));
 }
 
-/** 智能判定是否自动落盘 */
+/**
+ * 智能判定是否自动落盘
+ * Intelligently determine whether to automatically save to disk
+ */
 export function shouldAutoSave(
     args: Record<string, any>,
     bodyLength: number,
@@ -278,7 +304,10 @@ function inferExtension(contentType: string): string {
     return '.txt';
 }
 
-/** 将响应内容保存到工作区文件 */
+/**
+ * 将响应内容保存到工作区文件
+ * Save response content to workspace file
+ */
 export async function saveToWorkspace(
     workspaceDir: string,
     url: string,
@@ -309,7 +338,10 @@ export async function saveToWorkspace(
     return relativePath;
 }
 
-/** 格式化文件大小 */
+/**
+ * 格式化文件大小
+ * Format file size in bytes
+ */
 export function formatBytes(bytes: number): string {
     if (bytes === 0) return '0 B';
     const k = 1024;

@@ -6,9 +6,16 @@
   "publishConfig": {
     "access": "public"
   },
-  "description": "Freya 文件系统管理工具集插件",
+  "description": "Freya file system management toolbox plugin",
   "freya": {
-    "displayName": "文件系统管理工具集",
+    "displayName": {
+      "zh": "文件系统管理工具集",
+      "en": "File System Toolbox"
+    },
+    "description": {
+      "zh": "Freya 文件系统管理工具集插件，支持沙箱工作区内的文件读写与浏览",
+      "en": "Freya file system management toolbox plugin for reading and writing files within the sandbox"
+    },
     "defaultEnabled": true,
     "prompts": [
       "plugin.prompt.fs.md"

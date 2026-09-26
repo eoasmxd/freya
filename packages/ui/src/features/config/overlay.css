@@ -1,4 +1,5 @@
 /* 全局配置模态框大背景与容器 */
+/* Global config modal background and container */
 .modal-overlay {
   position: absolute;
   top: 0;
@@ -31,6 +32,7 @@
 }
 
 /* 吐司通知悬浮层 */
+/* Toast notification floating layer */
 .toast-container {
   position: fixed;
   top: 24px;
@@ -78,6 +80,7 @@
 }
 
 /* 二次确认模态框 */
+/* Secondary confirmation modal */
 .confirm-modal-overlay {
   position: fixed;
   top: 0;
@@ -129,6 +132,7 @@
 }
 
 /* 动效 Keyframes */
+/* Animation keyframes */
 @keyframes fadeIn {
   from { opacity: 0; }
   to { opacity: 1; }
@@ -157,6 +161,7 @@
 }
 
 /* 移动端弹窗容器自适应 */
+/* Mobile modal container responsive layout */
 @media (max-width: 768px) {
   .modal-container {
     width: 100%;

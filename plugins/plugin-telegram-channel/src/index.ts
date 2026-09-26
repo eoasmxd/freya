@@ -107,7 +107,8 @@ export default class TelegramChannelPlugin implements ChannelPlugin {
         });
         const json = (await res.json()) as { ok: boolean; result: T; description?: string };
         if (!json.ok) {
-            throw new Error(`Telegram API ${method} 调用失败: ${json.description ?? "未知错误"}`);
+            // Telegram API 调用失败
+            throw new Error(`Telegram API ${method} failed: ${json.description ?? "Unknown error"}`);
         }
         return json.result;
     }
@@ -152,16 +153,16 @@ export default class TelegramChannelPlugin implements ChannelPlugin {
 
         this.syncTimer = setInterval(() => {
             this.syncBots(ctx).catch((err) => {
-                ctx.logger.error("Telegram 机器人热重载同步失败:", err.message);
+                ctx.logger.error("Telegram bot hot reload sync failed:", err.message);
             });
         }, 5000);
 
-        ctx.logger.info(`Telegram 频道插件初始化完成，已发现 ${this.bots.length} 个机器人配置，热更新服务就绪。`);
+        ctx.logger.info(`Telegram channel plugin initialized, found ${this.bots.length} bot configurations, hot reload ready.`);
     }
 
     async start(ctx: FreyaContext): Promise<void> {
         if (this.bots.length === 0) {
-            ctx.logger.warn("Telegram 机器人配置未检测到，将等待心跳同步。");
+            ctx.logger.warn("No Telegram bot configuration detected, waiting for heartbeat sync.");
             return;
         }
 
@@ -180,7 +181,7 @@ export default class TelegramChannelPlugin implements ChannelPlugin {
 
             await this.callApi(token, "deleteWebhook", { drop_pending_updates: true }).catch(() => { });
             this.startSingleBotLoop(ctx, botId, state);
-            ctx.logger.info(`Telegram 机器人 [${botId}] 轮询服务已拉起。`);
+            ctx.logger.info(`Telegram bot [${botId}] polling service started.`);
         }
     }
     private startSingleBotLoop(
@@ -190,7 +191,9 @@ export default class TelegramChannelPlugin implements ChannelPlugin {
     ): void {
         (async () => {
             let offset = 0;
-            let retryDelay = 5000; // 初始重试间隔为 5 秒
+            // 初始重试间隔为 5 秒
+            // Initial retry delay is 5 seconds
+            let retryDelay = 5000;
             while (state.running) {
                 try {
                     const signal = state.abortController.signal;
@@ -200,6 +203,7 @@ export default class TelegramChannelPlugin implements ChannelPlugin {
                     }, signal);
 
                     // 轮询成功，立即重置退避时间为 5 秒
+                    // Polling succeeded, reset backoff delay to 5 seconds
                     retryDelay = 5000;
 
                     for (const update of updates) {
@@ -209,7 +213,13 @@ export default class TelegramChannelPlugin implements ChannelPlugin {
 
                         const chatId = msg.chat.id.toString();
                         const connectionId = this.connId(botId, chatId);
-                        ctx.eventBus.emit('connection:active', { connectionId, defaultSessionId: `telegram:${botId}:${chatId}`, staleThresholdMs: 0 });
+                        ctx.eventBus.emit('connection:active', {
+                            connectionId,
+                            defaultSessionId: `telegram:${botId}:${chatId}`,
+                            staleThresholdMs: 0,
+                            channelType: 'telegram',
+                            defaultLanguage: 'en'
+                        });
                         this.registeredConnections.add(connectionId);
 
                         if (msg.text) {
@@ -217,7 +227,8 @@ export default class TelegramChannelPlugin implements ChannelPlugin {
                             if (text.length > 4096) {
                                 this.callApi(state.token, "sendMessage", {
                                     chat_id: msg.chat.id,
-                                    text: "消息过长，请控制在 4096 字符以内。",
+                                    // 消息过长提示
+                                    text: "Message is too long. Please keep it within 4096 characters.",
                                     reply_to_message_id: msg.message_id,
                                 }).catch(() => { });
                                 continue;
@@ -225,7 +236,9 @@ export default class TelegramChannelPlugin implements ChannelPlugin {
                             ctx.eventBus.emit("connection:message", {
                                 connectionId,
                                 content: text,
-                                defaultSessionId: `telegram:${botId}:${chatId}`
+                                defaultSessionId: `telegram:${botId}:${chatId}`,
+                                channelType: "telegram",
+                                defaultLanguage: "en"
                             });
                             continue;
                         }
@@ -269,20 +282,23 @@ export default class TelegramChannelPlugin implements ChannelPlugin {
                                 connectionId,
                                 content: caption,
                                 attachments,
+                                channelType: "telegram",
+                                defaultLanguage: "en"
                             });
                         }
                     }
                 } catch (err) {
                     if (!state.running) break;
                     const message = err instanceof Error ? err.message : String(err);
-                    ctx.logger.error(`Telegram 机器人 [${botId}] 轮询出错（将在 ${retryDelay / 1000} 秒后重试）:`, message);
+                    ctx.logger.error(`Telegram bot [${botId}] polling error (retrying in ${retryDelay / 1000}s):`, message);
                     await new Promise((resolve) => setTimeout(resolve, retryDelay));
 
                     // 指数退避：每次失败翻倍，最大为 5 分钟 (300,000 毫秒)
+                    // Exponential backoff: double on failure, maximum 5 minutes (300,000 ms)
                     retryDelay = Math.min(retryDelay * 2, 5 * 60 * 1000);
                 }
             }
-            ctx.logger.info(`Telegram 机器人 [${botId}] 轮询循环已安全结束。`);
+            ctx.logger.info(`Telegram bot [${botId}] polling loop ended safely.`);
         })();
     }
     private async syncBots(ctx: FreyaContext): Promise<void> {
@@ -296,7 +312,7 @@ export default class TelegramChannelPlugin implements ChannelPlugin {
                 active.running = false;
                 active.abortController.abort();
                 this.activeBots.delete(botId);
-                ctx.logger.info(`[Telegram热更新] 成功热停用机器人: ${botId}`);
+                ctx.logger.info(`[Telegram Hot Reload] Hot deactivated bot: ${botId}`);
 
                 for (const connectionId of this.registeredConnections) {
                     if (connectionId.startsWith(`telegram:${botId}:`)) {
@@ -323,7 +339,7 @@ export default class TelegramChannelPlugin implements ChannelPlugin {
 
                 await this.callApi(token, "deleteWebhook", { drop_pending_updates: true }).catch(() => { });
                 this.startSingleBotLoop(ctx, botId, state);
-                ctx.logger.info(`[Telegram热更新] 成功热连接拉起新机器人: ${botId}`);
+                ctx.logger.info(`[Telegram Hot Reload] Hot connected and started new bot: ${botId}`);
             }
         }
 
@@ -339,7 +355,7 @@ export default class TelegramChannelPlugin implements ChannelPlugin {
         for (const [botId, state] of this.activeBots.entries()) {
             state.running = false;
             state.abortController.abort();
-            ctx.logger.info(`Telegram 机器人 [${botId}] 轮询线程已中止。`);
+            ctx.logger.info(`Telegram bot [${botId}] polling thread terminated.`);
         }
         this.activeBots.clear();
 
@@ -347,7 +363,7 @@ export default class TelegramChannelPlugin implements ChannelPlugin {
             ctx.eventBus.emit('connection:inactive', { connectionId });
         }
         this.registeredConnections.clear();
-        ctx.logger.info("Telegram 频道插件已彻底停止所有服务。");
+        ctx.logger.info("Telegram channel plugin stopped all services.");
     }
 
     private async sendToChat(botId: string, chatId: string, text: string): Promise<void> {

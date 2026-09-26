@@ -8,4 +8,6 @@ export interface ChannelMessage {
   content: string;
   attachments?: FreyaAttachment[];
   connectionId?: string;
+  channelType?: string;
+  defaultLanguage?: string;
 }

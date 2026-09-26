@@ -7,35 +7,45 @@ export class ListModelsTool implements FreyaTool {
   getDefinition(): ToolDefinition {
     return {
       name: 'list_model',
-      description: '查询所有模型提供商下挂载的模型列表，返回每个模型的 ID、名称、所属提供商、价格、上下文窗口及能力集。',
+      // 查询所有模型列表
+      description: 'Query all models configured across providers, returning model ID, name, provider, pricing, context window, and capabilities.',
       parameters: {
         type: 'object',
         properties: {
-          providerId: { type: 'string', description: '可选：仅查询指定提供商下的模型' }
+          providerId: {
+            type: 'string',
+            // 目标提供商 ID
+            description: 'Optional: Filter models under specified provider only'
+          }
         }
       }
     };
   }
 
-  async execute(args: Record<string, any>, ctx: FreyaContext): Promise<string> {
+  async execute(args: Record<string, any>): Promise<string> {
     try {
       const providerId = args.providerId ? String(args.providerId).trim() : undefined;
       const models = await this.configService.listModels(providerId);
-      if (models.length === 0) return '⚠️ 当前未配置任何模型。';
+      if (models.length === 0) {
+        // 未配置任何模型提示
+        return '⚠️ No models configured currently.';
+      }
 
       const lines: string[] = [];
       for (const m of models) {
-        const caps = Array.isArray(m.capabilities) ? m.capabilities.join(', ') : '未知';
+        const caps = Array.isArray(m.capabilities) ? m.capabilities.join(', ') : 'Unknown';
         lines.push(
           `[${m.providerId}] ${m.id} (${m.name})\n` +
-          `   输入价格: ${m.inputPrice ?? 0} (1M) | 输出价格: ${m.outputPrice ?? 0} (1M) | 缓存输入: ${m.cachedInputPrice ?? 0} (1M)\n` +
-          `   上下文窗口: ${m.contextWindow ?? m.contextTokens ?? '未设置'} | 最大输出: ${m.maxTokens ?? '未设置'} | 能力: ${caps}`
+          `   Input Price: ${m.inputPrice ?? 0} (1M) | Output Price: ${m.outputPrice ?? 0} (1M) | Cached Input: ${m.cachedInputPrice ?? 0} (1M)\n` +
+          `   Context Window: ${m.contextWindow ?? m.contextTokens ?? 'Not set'} | Max Output: ${m.maxTokens ?? 'Not set'} | Capabilities: ${caps}`
         );
       }
 
-      return `当前共 ${lines.length} 个模型：\n\n${lines.join('\n\n')}`;
+      // 模型列表出参
+      return `Total ${lines.length} models found:\n\n${lines.join('\n\n')}`;
     } catch (err: any) {
-      return `❌ 查询模型列表失败: ${err.message}`;
+      // 查询模型列表失败错误提示
+      return `❌ Failed to list models: ${err.message}`;
     }
   }
 }
@@ -46,24 +56,61 @@ export class AddModelTool implements FreyaTool {
   getDefinition(): ToolDefinition {
     return {
       name: 'add_model',
-      description: '在指定提供商下新增一个模型配置。需要指定提供商 ID、模型 ID 和名称，其余价格与能力字段可选。',
+      // 新增模型配置
+      description: 'Add a new model configuration under a specified provider. Provider ID, model ID, and name are required; pricing and capabilities are optional.',
       parameters: {
         type: 'object',
         properties: {
-          providerId: { type: 'string', description: '目标提供商 ID' },
-          id: { type: 'string', description: '模型唯一标识（如 "deepseek-chat"）' },
-          name: { type: 'string', description: '模型显示名称（如 "DeepSeek Chat"）' },
-          inputPrice: { type: 'number', description: '输入价格（/ 1M Tokens，可选）' },
-          outputPrice: { type: 'number', description: '输出价格（/ 1M Tokens，可选）' },
-          cachedInputPrice: { type: 'number', description: '缓存输入价格（/ 1M Tokens，可选）' },
-
-          contextWindow: { type: 'number', description: '模型原生上下文物理窗口 Token 数（模型物理限制，默认 128000，可选）' },
-          contextTokens: { type: 'number', description: '智能体控制的上下文 Token 上限（智能体输入控制，超限主动压缩，默认 128000，可选）' },
-          maxTokens: { type: 'number', description: '智能体控制的单次回复最大输出 Token 数（智能体输出控制，默认 4096，可选）' },
+          providerId: {
+            type: 'string',
+            // 目标提供商 ID
+            description: 'Target provider ID'
+          },
+          id: {
+            type: 'string',
+            // 模型唯一标识
+            description: 'Unique model identifier (e.g. "deepseek-chat")'
+          },
+          name: {
+            type: 'string',
+            // 模型显示名称
+            description: 'Display name of the model (e.g. "DeepSeek Chat")'
+          },
+          inputPrice: {
+            type: 'number',
+            // 输入价格
+            description: 'Input price (/ 1M Tokens, optional)'
+          },
+          outputPrice: {
+            type: 'number',
+            // 输出价格
+            description: 'Output price (/ 1M Tokens, optional)'
+          },
+          cachedInputPrice: {
+            type: 'number',
+            // 缓存输入价格
+            description: 'Cached input price (/ 1M Tokens, optional)'
+          },
+          contextWindow: {
+            type: 'number',
+            // 模型原生上下文物理窗口 Token 数
+            description: 'Native physical context window limit in tokens (model hard limit, default 128000, optional)'
+          },
+          contextTokens: {
+            type: 'number',
+            // 智能体控制的上下文 Token 上限
+            description: 'Agent-controlled context token threshold (triggers compaction when exceeded, default 128000, optional)'
+          },
+          maxTokens: {
+            type: 'number',
+            // 智能体控制的单次回复最大输出 Token 数
+            description: 'Agent-controlled maximum tokens per response turn (default 4096, optional)'
+          },
           capabilities: {
             type: 'array',
             items: { type: 'string' },
-            description: '模型能力集（如 ["text", "image"]，可选，默认 ["text"]）'
+            // 模型能力集
+            description: 'Model capabilities (e.g. ["text", "image"], optional, default ["text"])'
           }
         },
         required: ['providerId', 'id', 'name']
@@ -71,7 +118,7 @@ export class AddModelTool implements FreyaTool {
     };
   }
 
-  async execute(args: Record<string, any>, ctx: FreyaContext): Promise<string> {
+  async execute(args: Record<string, any>): Promise<string> {
     try {
       const result = await this.configService.addModel(
         String(args.providerId || '').trim(),
@@ -89,7 +136,8 @@ export class AddModelTool implements FreyaTool {
       );
       return result.startsWith('❌') ? result : `✅ ${result}`;
     } catch (err: any) {
-      return `❌ 新增模型失败: ${err.message}`;
+      // 新增模型失败错误提示
+      return `❌ Failed to add model: ${err.message}`;
     }
   }
 }
@@ -100,23 +148,61 @@ export class EditModelTool implements FreyaTool {
   getDefinition(): ToolDefinition {
     return {
       name: 'edit_model',
-      description: '修改指定提供商下某个模型的属性（name、价格、上下文窗口、上下文上限、最大输出限制、能力集等）。',
+      // 修改模型配置
+      description: 'Modify properties of an existing model under a specified provider (name, pricing, context window, output limit, capabilities).',
       parameters: {
         type: 'object',
         properties: {
-          providerId: { type: 'string', description: '目标提供商 ID' },
-          modelId: { type: 'string', description: '目标模型 ID' },
-          name: { type: 'string', description: '新的显示名称（可选）' },
-          inputPrice: { type: 'number', description: '新的输入价格（可选）' },
-          outputPrice: { type: 'number', description: '新的输出价格（可选）' },
-          cachedInputPrice: { type: 'number', description: '新的缓存输入价格（可选）' },
-          contextWindow: { type: 'number', description: '模型原生上下文物理窗口 Token 数（模型物理限制，可选）' },
-          contextTokens: { type: 'number', description: '智能体控制的上下文 Token 上限（智能体输入控制，可选）' },
-          maxTokens: { type: 'number', description: '智能体控制的单次输出最大 Token 数（智能体输出控制，可选）' },
+          providerId: {
+            type: 'string',
+            // 目标提供商 ID
+            description: 'Target provider ID'
+          },
+          modelId: {
+            type: 'string',
+            // 目标模型 ID
+            description: 'Target model ID'
+          },
+          name: {
+            type: 'string',
+            // 新的显示名称
+            description: 'New display name (optional)'
+          },
+          inputPrice: {
+            type: 'number',
+            // 新的输入价格
+            description: 'New input price (optional)'
+          },
+          outputPrice: {
+            type: 'number',
+            // 新的输出价格
+            description: 'New output price (optional)'
+          },
+          cachedInputPrice: {
+            type: 'number',
+            // 新的缓存输入价格
+            description: 'New cached input price (optional)'
+          },
+          contextWindow: {
+            type: 'number',
+            // 模型原生上下文物理窗口 Token 数
+            description: 'Native physical context window limit in tokens (optional)'
+          },
+          contextTokens: {
+            type: 'number',
+            // 智能体控制的上下文 Token 上限
+            description: 'Agent-controlled context token threshold (optional)'
+          },
+          maxTokens: {
+            type: 'number',
+            // 智能体控制的单次输出最大 Token 数
+            description: 'Agent-controlled maximum tokens per response turn (optional)'
+          },
           capabilities: {
             type: 'array',
             items: { type: 'string' },
-            description: '新的能力集（可选）'
+            // 新的能力集
+            description: 'New model capabilities (optional)'
           }
         },
         required: ['providerId', 'modelId']
@@ -124,7 +210,7 @@ export class EditModelTool implements FreyaTool {
     };
   }
 
-  async execute(args: Record<string, any>, ctx: FreyaContext): Promise<string> {
+  async execute(args: Record<string, any>): Promise<string> {
     try {
       const updates: Record<string, any> = {};
       if (args.name !== undefined) updates.name = args.name;
@@ -143,7 +229,8 @@ export class EditModelTool implements FreyaTool {
       );
       return result.startsWith('❌') ? result : `✅ ${result}`;
     } catch (err: any) {
-      return `❌ 修改模型失败: ${err.message}`;
+      // 修改模型失败错误提示
+      return `❌ Failed to edit model: ${err.message}`;
     }
   }
 }
@@ -154,19 +241,28 @@ export class RemoveModelTool implements FreyaTool {
   getDefinition(): ToolDefinition {
     return {
       name: 'remove_model',
-      description: '从指定提供商下删除一个模型配置。',
+      // 删除模型配置
+      description: 'Delete a model configuration from a specified provider.',
       parameters: {
         type: 'object',
         properties: {
-          providerId: { type: 'string', description: '目标提供商 ID' },
-          modelId: { type: 'string', description: '要删除的模型 ID' }
+          providerId: {
+            type: 'string',
+            // 目标提供商 ID
+            description: 'Target provider ID'
+          },
+          modelId: {
+            type: 'string',
+            // 要删除的模型 ID
+            description: 'Model ID to remove'
+          }
         },
         required: ['providerId', 'modelId']
       }
     };
   }
 
-  async execute(args: Record<string, any>, ctx: FreyaContext): Promise<string> {
+  async execute(args: Record<string, any>): Promise<string> {
     try {
       const result = await this.configService.removeModel(
         String(args.providerId || '').trim(),
@@ -174,7 +270,8 @@ export class RemoveModelTool implements FreyaTool {
       );
       return result.startsWith('❌') ? result : `✅ ${result}`;
     } catch (err: any) {
-      return `❌ 删除模型失败: ${err.message}`;
+      // 删除模型失败错误提示
+      return `❌ Failed to remove model: ${err.message}`;
     }
   }
 }

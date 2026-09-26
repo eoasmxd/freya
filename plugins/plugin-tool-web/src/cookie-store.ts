@@ -1,4 +1,7 @@
-/** Cookie 状态管理器：按域名存储，记录总是执行，发送可选控制 */
+/**
+ * Cookie 状态管理器：按域名存储，记录总是执行，发送可选控制
+ * Cookie state manager: stores by domain, always records, sends conditionally
+ */
 
 function extractDomain(urlString: string): string {
     const url = new URL(urlString);
@@ -36,14 +39,20 @@ function serializeCookieHeader(cookieMap: Map<string, string>): string {
 export class CookieStore {
     private jar: Map<string, Map<string, string>> = new Map();
 
-    /** 获取指定域名的 Cookie 请求头 */
+    /**
+     * 获取指定域名的 Cookie 请求头
+     * Get Cookie request header for specified domain
+     */
     getCookieHeader(domain: string): string | null {
         const cookies = this.jar.get(domain);
         if (!cookies || cookies.size === 0) return null;
         return serializeCookieHeader(cookies);
     }
 
-    /** 从 HTTP 响应的 Set-Cookie 记录 Cookie */
+    /**
+     * 从 HTTP 响应的 Set-Cookie 记录 Cookie
+     * Record cookies from Set-Cookie in HTTP response
+     */
     recordFromResponse(url: string, setCookieHeaders: string[] | string | undefined): void {
         if (!setCookieHeaders) return;
         if (Array.isArray(setCookieHeaders) && setCookieHeaders.length === 0) return;
