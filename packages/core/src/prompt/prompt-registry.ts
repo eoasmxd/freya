@@ -27,17 +27,38 @@ export class FreyaPromptRegistry {
   }
 
 
+  /**
+   * 解析提示词物理探针路径列表（兼顾用户空间独占、宿主空间多语言覆盖与程序出厂物理基线）
+   * Resolve physical probe paths for prompt (user space exclusivity, host space multilingual overrides, and program baseline)
+   */
   private resolveProbePaths(prompt: Omit<FreyaPrompt, 'content'>): string[] {
     const baseName = path.basename(prompt.defaultPath);
+    const ext = path.extname(baseName);
+    const stem = ext ? baseName.slice(0, -ext.length) : baseName;
+    const lang = (this.ctx?.getLanguage('en') ?? 'en').toLowerCase().split('-')[0];
+
+    const cfgExt = prompt.configFileName ? path.extname(prompt.configFileName) : '';
+    const cfgStem = prompt.configFileName && cfgExt ? prompt.configFileName.slice(0, -cfgExt.length) : (prompt.configFileName || '');
+
     const rawPaths: string[] = [];
 
+    // 1. 用户私有空间 (FREYA_HOME)：单文件独占，不探测语言后缀
     if (prompt.configFileName) {
       rawPaths.push(path.join(FREYA_HOME, 'config', prompt.configFileName));
+    }
+    rawPaths.push(path.join(FREYA_HOME, 'config', 'prompts', baseName));
+
+    // 2. 宿主启动空间 (FREYA_LAUNCH)：优先按当前语言寻找特化文件，不存在则平滑回退
+    if (prompt.configFileName) {
+      rawPaths.push(path.join(FREYA_LAUNCH, 'config', `${cfgStem}.${lang}${cfgExt}`));
       rawPaths.push(path.join(FREYA_LAUNCH, 'config', prompt.configFileName));
     }
-
-    rawPaths.push(path.join(FREYA_HOME, 'config', 'prompts', baseName));
+    rawPaths.push(path.join(FREYA_LAUNCH, 'config', 'prompts', `${stem}.${lang}${ext}`));
     rawPaths.push(path.join(FREYA_LAUNCH, 'config', 'prompts', baseName));
+
+    // 3. 程序内置空间 (defaultPath 所在出厂物理目录)：优先寻找当前语言模板，回退到英文基线默认文件
+    const defaultDir = path.dirname(prompt.defaultPath);
+    rawPaths.push(path.join(defaultDir, `${stem}.${lang}${ext}`));
     rawPaths.push(prompt.defaultPath);
 
     const candidates: string[] = [];
@@ -112,7 +133,7 @@ export class FreyaPromptRegistry {
   async loadKernelPrompts(): Promise<void> {
     const defaultDirPath = path.join(FREYA_APP, 'config', 'prompts');
     try {
-      const corePrompts = ['identity', 'soul', 'tools', 'agents', 'user', 'memory'];
+      const corePrompts = new Set(['identity', 'soul', 'tools', 'agents', 'user', 'memory']);
       for (const name of corePrompts) {
         await this.register({
           key: `core.prompt.${name}`,
@@ -122,20 +143,31 @@ export class FreyaPromptRegistry {
       }
 
       try {
-        const defaultFiles = await fs.readdir(defaultDirPath);
-        for (const file of defaultFiles) {
-          if (file.endsWith('.md')) {
-            const key = file.slice(0, -3);
-            const baseName = key.replace('core.prompt.', '');
-            if (corePrompts.includes(baseName)) {
-              continue;
-            }
+        const rawFiles = await fs.readdir(defaultDirPath);
 
-            await this.register({
-              key,
-              defaultPath: path.join(defaultDirPath, file)
-            });
-          }
+        const candidateFiles = rawFiles.filter((file) => {
+          if (!file.endsWith('.md')) return false;
+          if (/-guide\.md$|\.guide\.md$/i.test(file)) return false;
+          return true;
+        });
+
+        const baseFileSet = new Set<string>();
+        for (const file of candidateFiles) {
+          const normalizedBase = file.replace(/\.[a-z]{2}(-[a-z]{2})?\.md$/i, '.md');
+          baseFileSet.add(normalizedBase);
+        }
+
+        const targetFiles = Array.from(baseFileSet).filter((file) => {
+          const key = file.slice(0, -3);
+          const stem = key.replace('core.prompt.', '');
+          return !corePrompts.has(stem);
+        });
+
+        for (const file of targetFiles) {
+          await this.register({
+            key: file.slice(0, -3),
+            defaultPath: path.join(defaultDirPath, file)
+          });
         }
       } catch {}
     } catch {}

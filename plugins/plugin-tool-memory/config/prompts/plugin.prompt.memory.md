@@ -1,3 +1,3 @@
-长期主动记忆（Active Memory）工具箱。
+Long-term active memory toolbox.
 
-提供在本地持久化记录用户的个人偏好、习惯或需要长期记住的事实，并在需要时进行模糊索引检索、维护或擦除过期记忆的能力。
+Provides capabilities to persistently record user preferences, habits, or key facts, and retrieve, update, or clear outdated memories via fuzzy index search when needed.

@@ -1,3 +1,3 @@
-会话生命周期与子任务（Session & Sub-agent）管理工具箱。
+Session lifecycle and sub-agent management toolbox.
 
-提供查询历史会话、检索压缩快照与对话历史，以及在执行繁重步骤时派生独立的子任务智能体进行隔离验证的能力。
+Provides capabilities to query session history, retrieve compressed snapshots and context logs, and spawn isolated sub-agents to execute heavy or complex subtasks.
