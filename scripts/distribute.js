@@ -182,18 +182,9 @@ async function main() {
   } catch {
     await fs.mkdir(docDest, { recursive: true });
   }
-  console.log('📝 Copying LICENSE file...');
-  try {
-    await fs.copyFile(
-      path.join(PROJECT_ROOT, 'LICENSE'),
-      path.join(distDir, 'LICENSE')
-    );
-  } catch (err) {
-    console.warn('Warning: Failed to copy LICENSE file:', err.message);
-  }
-
-  console.log('📝 Copying root documentation files (bilingual)...');
+  console.log('📝 Copying root documentation and license files...');
   const rootDocs = [
+    'LICENSE',
     'README.md',
     'README.zh.md',
     'SECURITY.md',
