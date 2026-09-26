@@ -306,7 +306,7 @@ export default class FreyaWeixinChannelPlugin implements ChannelPlugin {
 
       return (
         this.i18n.t("cmd.weixin.login.qrGenerated", "⚠️ **Login QR code generated successfully for WeChat account [{accountId}]!**\n\n**[WeChat Scan] Please scan the QR code below to bind account [{accountId}]**:\n\n", { accountId }) +
-        "```text\n" +
+        "```qrcode\n" +
         qrAscii +
         "\n```\n\n" +
         this.i18n.t("cmd.weixin.login.qrFallbackHint", "*(Tip: If character QR code does not display properly, click [Open WeChat QR Page]({scanUrl}) to scan)*", { scanUrl })

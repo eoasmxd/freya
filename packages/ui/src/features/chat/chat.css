@@ -300,6 +300,53 @@
   color: #cbd5e1;
 }
 
+.md-qrcode-wrapper {
+  padding: 1.25rem;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background: #000000;
+  overflow-x: auto;
+}
+
+.md-qrcode-matrix {
+  display: flex;
+  flex-direction: column;
+  line-height: 0;
+  font-size: 0;
+  user-select: none;
+  background: #000000;
+}
+
+.md-qrcode-row {
+  display: flex;
+  flex-direction: row;
+  line-height: 0;
+}
+
+.md-qrcode-cell {
+  width: 6px;
+  height: 12px;
+  flex-shrink: 0;
+  box-sizing: border-box;
+}
+
+.md-qrcode-cell.qr-empty {
+  background: #000000;
+}
+
+.md-qrcode-cell.qr-full {
+  background: #ffffff;
+}
+
+.md-qrcode-cell.qr-upper {
+  background: linear-gradient(to bottom, #ffffff 50%, #000000 50%);
+}
+
+.md-qrcode-cell.qr-lower {
+  background: linear-gradient(to bottom, #000000 50%, #ffffff 50%);
+}
+
 .md-code-keyword {
   color: #f472b6;
   font-weight: 600;
