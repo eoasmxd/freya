@@ -95,24 +95,25 @@ export const PluginConfigPanel: React.FC<PluginConfigPanelProps> = ({ getApiUrl 
           <div key={plugin.id} className="plugin-card">
             <div>
               <div className="plugin-title">
-                {displayName}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', flexWrap: 'wrap' }}>
+                  <span>{displayName}</span>
+                  {plugin.source && (
+                    <span
+                      style={{
+                        fontSize: '0.68rem',
+                        padding: '0.1rem 0.4rem',
+                        borderRadius: '4px',
+                        background: tagMeta.bg,
+                        color: tagMeta.color
+                      }}
+                    >
+                      {tagMeta.label}
+                    </span>
+                  )}
+                </div>
                 {shouldShowIdTag && (
-                  <span style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', fontWeight: 'normal', marginLeft: '0.5rem' }}>
+                  <span className="plugin-id-tag">
                     ({plugin.id})
-                  </span>
-                )}
-                {plugin.source && (
-                  <span
-                    style={{
-                      fontSize: '0.68rem',
-                      marginLeft: '0.5rem',
-                      padding: '0.1rem 0.4rem',
-                      borderRadius: '4px',
-                      background: tagMeta.bg,
-                      color: tagMeta.color
-                    }}
-                  >
-                    {tagMeta.label}
                   </span>
                 )}
               </div>

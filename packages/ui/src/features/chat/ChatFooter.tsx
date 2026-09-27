@@ -51,22 +51,6 @@ export const ChatFooter: React.FC<ChatFooterProps> = ({
 
   return (
     <footer className="footer">
-      <div className="billing-bar">
-        <div>
-          {t('footer.tokenUsage', 'Tokens: {total} (Prompt: {prompt} | Cached: {cached} | Output: {completion})', {
-            total: billing.totalTokens,
-            prompt: billing.promptTokens,
-            cached: billing.cachedPromptTokens,
-            completion: billing.completionTokens
-          })}
-        </div>
-        <div>
-          {t('footer.estimatedCost', 'Estimated Cost: {cost}', {
-            cost: billing.cost.toFixed(6)
-          })}
-        </div>
-      </div>
-
       <div className="input-container">
         <textarea
           ref={textareaRef}
@@ -91,6 +75,36 @@ export const ChatFooter: React.FC<ChatFooterProps> = ({
             {t('footer.send', 'Send')}
           </button>
         )}
+      </div>
+
+      <div className="billing-bar">
+        <div className="billing-tokens">
+          <span className="billing-tokens-full">
+            {t('footer.tokenUsage', 'Tokens: {total} (Prompt: {prompt} | Cached: {cached} | Output: {completion})', {
+              total: billing.totalTokens,
+              prompt: billing.promptTokens,
+              cached: billing.cachedPromptTokens,
+              completion: billing.completionTokens
+            })}
+          </span>
+          <span className="billing-tokens-short">
+            {t('footer.tokenUsageShort', 'Tokens: {total}', {
+              total: billing.totalTokens
+            })}
+          </span>
+        </div>
+        <div className="billing-cost">
+          <span className="billing-cost-full">
+            {t('footer.estimatedCost', 'Estimated Cost: {cost}', {
+              cost: billing.cost.toFixed(6)
+            })}
+          </span>
+          <span className="billing-cost-short">
+            {t('footer.estimatedCostShort', 'Cost: {cost}', {
+              cost: billing.cost.toFixed(6)
+            })}
+          </span>
+        </div>
       </div>
     </footer>
   );

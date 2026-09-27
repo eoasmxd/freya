@@ -636,7 +636,7 @@ export const ProviderConfigPanel: React.FC<ProviderConfigPanelProps> = ({ getApi
                       ) : (
                         <>
                           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(255,255,255,0.03)', paddingBottom: '0.35rem' }}>
-                            <div style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                            <div className="model-item-title-box" style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-primary)' }}>
                               <span>{m.name || m.id}</span>
                               <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', background: 'rgba(255,255,255,0.06)', padding: '0.1rem 0.4rem', borderRadius: '4px', fontFamily: 'monospace' }}>{m.id}</span>
                             </div>

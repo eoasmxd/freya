@@ -456,7 +456,7 @@ export const GlobalConfigPanel: React.FC<GlobalConfigPanelProps> = ({ getApiUrl 
                               <span style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>{t('global.fallbackChainHint', 'Fallback Chain (Higher has greater priority)')}</span>
                             </div>
 
-                            <div className="models-list" style={{ margin: '0.4rem 0', marginLeft: '0.6rem', paddingLeft: '0.85rem', borderLeft: '2px solid rgba(255, 255, 255, 0.08)', display: 'flex', flexDirection: 'column', gap: '0.45rem' }}>
+                            <div className="models-list config-children-list" style={{ margin: '0.4rem 0', display: 'flex', flexDirection: 'column', gap: '0.45rem' }}>
                               {bindings.length === 0 ? (
                                 <div style={{ fontSize: '0.76rem', color: 'var(--text-secondary)', padding: '0.4rem 0', fontStyle: 'italic' }}>
                                   {t('global.noModelBound', 'No runtime model bound. System will use default routing.')}
@@ -464,10 +464,12 @@ export const GlobalConfigPanel: React.FC<GlobalConfigPanelProps> = ({ getApiUrl 
                               ) : (
                                 bindings.map((b, idx) => (
                                   <div key={idx} className="model-item" style={{ padding: '0.55rem 0.85rem', background: 'rgba(255,255,255,0.02)', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.03)' }}>
-                                    <div className="model-name" style={{ fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                                      <span style={{ background: 'rgba(255,255,255,0.08)', padding: '0.1rem 0.35rem', borderRadius: '4px', fontSize: '0.7rem' }}>#{idx + 1}</span>
-                                      <span style={{ fontWeight: 600 }}>{b.name}</span>
-                                      <span style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', fontWeight: 'normal' }}>
+                                    <div className="model-binding-item-header" style={{ fontSize: '0.8rem' }}>
+                                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
+                                        <span style={{ background: 'rgba(255,255,255,0.08)', padding: '0.1rem 0.35rem', borderRadius: '4px', fontSize: '0.7rem' }}>#{idx + 1}</span>
+                                        <span style={{ fontWeight: 600 }}>{b.name}</span>
+                                      </div>
+                                      <span style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', fontFamily: 'monospace' }}>
                                         ({b.provider} / {b.model})
                                       </span>
                                     </div>
@@ -504,7 +506,7 @@ export const GlobalConfigPanel: React.FC<GlobalConfigPanelProps> = ({ getApiUrl 
                             </div>
 
                             {!field.readonly && (
-                              <div style={{ display: 'flex', gap: '0.65rem', alignItems: 'center', marginTop: '0.4rem', marginLeft: '0.6rem' }}>
+                              <div className="model-binding-form" style={{ marginLeft: '0.6rem' }}>
                                 <select
                                   className="config-input"
                                   style={{ flex: 1, fontSize: '0.78rem', padding: '0.4rem 0.6rem', height: '32px' }}
@@ -517,21 +519,23 @@ export const GlobalConfigPanel: React.FC<GlobalConfigPanelProps> = ({ getApiUrl 
                                     </option>
                                   ))}
                                 </select>
-                                <input
-                                  type="text"
-                                  placeholder={t('global.aliasPlaceholder', 'Custom alias (optional)')}
-                                  className="config-input"
-                                  style={{ width: '160px', fontSize: '0.78rem', padding: '0.4rem 0.6rem', height: '32px', boxSizing: 'border-box' }}
-                                  value={alias}
-                                  onChange={(e) => setTempAliases(prev => ({ ...prev, [field.key]: e.target.value }))}
-                                />
-                                <button
-                                  className="btn-primary"
-                                  style={{ padding: '0.4rem 1rem', fontSize: '0.78rem', height: '32px' }}
-                                  onClick={() => handleAddBinding(field.key, selectedSource, alias)}
-                                >
-                                  {t('global.btnBind', 'Bind')}
-                                </button>
+                                <div className="model-binding-subrow">
+                                  <input
+                                    type="text"
+                                    placeholder={t('global.aliasPlaceholder', 'Custom alias (optional)')}
+                                    className="config-input"
+                                    style={{ width: '160px', fontSize: '0.78rem', padding: '0.4rem 0.6rem', height: '32px', boxSizing: 'border-box' }}
+                                    value={alias}
+                                    onChange={(e) => setTempAliases(prev => ({ ...prev, [field.key]: e.target.value }))}
+                                  />
+                                  <button
+                                    className="btn-primary"
+                                    style={{ padding: '0.4rem 1rem', fontSize: '0.78rem', height: '32px', whiteSpace: 'nowrap' }}
+                                    onClick={() => handleAddBinding(field.key, selectedSource, alias)}
+                                  >
+                                    {t('global.btnBind', 'Bind')}
+                                  </button>
+                                </div>
                               </div>
                             )}
                           </div>
@@ -555,7 +559,7 @@ export const GlobalConfigPanel: React.FC<GlobalConfigPanelProps> = ({ getApiUrl 
                               <span style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>{t('global.configuredItemsCount', '{count} items configured', { count: itemsList.length })}</span>
                             </div>
 
-                            <div className="models-list" style={{ margin: (field.readonly && itemsList.length === 0) ? 0 : '0.6rem 0', marginLeft: '1.2rem', paddingLeft: '1rem', borderLeft: (field.readonly && itemsList.length === 0) ? 'none' : '2px solid rgba(255, 255, 255, 0.1)', display: (field.readonly && itemsList.length === 0) ? 'none' : 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                            <div className="models-list config-children-list" style={{ display: (field.readonly && itemsList.length === 0) ? 'none' : 'flex' }}>
                               {itemsList.length === 0 && !isAddingThisField ? (
                                 !field.readonly ? (
                                   <div style={{ fontSize: '0.76rem', color: 'var(--text-secondary)', padding: '0.4rem 0', fontStyle: 'italic' }}>
@@ -658,7 +662,7 @@ export const GlobalConfigPanel: React.FC<GlobalConfigPanelProps> = ({ getApiUrl 
                                             const isSensitive = child.sensitive || child.uiHint === 'password';
                                             const valStr = isSensitive ? '******' : (item[child.key] !== undefined && item[child.key] !== '' ? String(item[child.key]) : '-');
                                             return (
-                                              <div key={child.key} style={{ flex: '1 1 calc(50% - 1.2rem)', minWidth: '240px', maxWidth: '100%', display: 'flex', flexDirection: 'column', gap: '0.2rem', overflow: 'hidden' }}>
+                                              <div key={child.key} className="child-item-field" style={{ flex: '1 1 calc(50% - 1.2rem)', minWidth: '240px', maxWidth: '100%', display: 'flex', flexDirection: 'column', gap: '0.2rem', overflow: 'hidden' }}>
                                                 <span style={{ color: 'var(--text-secondary)', fontSize: '0.72rem', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>{child.description || child.key}</span>
                                                 <span style={{ fontFamily: 'monospace', fontWeight: 600, fontSize: '0.8rem', color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={isSensitive ? undefined : valStr}>{valStr}</span>
                                               </div>
@@ -768,7 +772,7 @@ export const GlobalConfigPanel: React.FC<GlobalConfigPanelProps> = ({ getApiUrl 
                     const isBoolean = field.type === 'boolean';
 
                     return (
-                      <div key={field.key} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.75rem 0.25rem', borderBottom: '1px solid rgba(255, 255, 255, 0.025)' }}>
+                      <div key={field.key} className={`config-field-row ${isBoolean ? 'is-boolean' : 'is-input'}`}>
                         <label className="config-label" style={{ fontSize: '0.84rem', color: field.readonly ? 'rgba(255, 255, 255, 0.45)' : 'rgba(255, 255, 255, 0.85)', fontWeight: 500, margin: 0, display: 'flex', alignItems: 'center', gap: '6px' }}>
                           {displayLabel}
                           {field.readonly && <span title={t('global.fieldReadonlyHint', 'Current item is locked as read-only')} style={{ fontSize: '12px', cursor: 'help' }}>🔒</span>}
@@ -786,8 +790,8 @@ export const GlobalConfigPanel: React.FC<GlobalConfigPanelProps> = ({ getApiUrl 
                         ) : field.enumValues && field.enumValues.length > 0 ? (
                           <select
                             disabled={field.readonly}
-                            className="config-input"
-                            style={{ width: '280px', height: '34px', boxSizing: 'border-box', margin: 0, opacity: field.readonly ? 0.5 : 1, cursor: field.readonly ? 'not-allowed' : undefined }}
+                            className="config-input config-field-input"
+                            style={{ opacity: field.readonly ? 0.5 : 1, cursor: field.readonly ? 'not-allowed' : undefined }}
                             value={currentValue ?? field.defaultValue ?? (typeof field.enumValues[0] === 'object' ? field.enumValues[0]?.value : field.enumValues[0])}
                             onChange={(e) => setDynamicValues(prev => ({ ...prev, [field.key]: e.target.value }))}
                           >
@@ -803,8 +807,8 @@ export const GlobalConfigPanel: React.FC<GlobalConfigPanelProps> = ({ getApiUrl 
                           <input
                             type="number"
                             disabled={field.readonly}
-                            className="config-input"
-                            style={{ width: '280px', height: '34px', boxSizing: 'border-box', margin: 0, opacity: field.readonly ? 0.5 : 1, cursor: field.readonly ? 'not-allowed' : undefined }}
+                            className="config-input config-field-input"
+                            style={{ opacity: field.readonly ? 0.5 : 1, cursor: field.readonly ? 'not-allowed' : undefined }}
                             value={currentValue ?? ''}
                             onChange={(e) => setDynamicValues(prev => ({ ...prev, [field.key]: Number(e.target.value) }))}
                           />
@@ -812,8 +816,8 @@ export const GlobalConfigPanel: React.FC<GlobalConfigPanelProps> = ({ getApiUrl 
                           <input
                             type="text"
                             disabled={field.readonly}
-                            className="config-input"
-                            style={{ width: '280px', height: '34px', boxSizing: 'border-box', margin: 0, opacity: field.readonly ? 0.5 : 1, cursor: field.readonly ? 'not-allowed' : undefined }}
+                            className="config-input config-field-input"
+                            style={{ opacity: field.readonly ? 0.5 : 1, cursor: field.readonly ? 'not-allowed' : undefined }}
                             value={typeof currentValue === 'object' ? JSON.stringify(currentValue) : (currentValue ?? '')}
                             onChange={(e) => {
                               let val: any = e.target.value;

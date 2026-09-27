@@ -105,21 +105,22 @@ export const SkillConfigPanel: React.FC<SkillConfigPanelProps> = ({ getApiUrl })
           <div key={skill.id} className="plugin-card">
             <div>
               <div className="plugin-title">
-                {displayName}
-                <span style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', fontWeight: 'normal', marginLeft: '0.5rem' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', flexWrap: 'wrap' }}>
+                  <span>{displayName}</span>
+                  <span
+                    style={{
+                      fontSize: '0.68rem',
+                      padding: '0.1rem 0.4rem',
+                      borderRadius: '4px',
+                      background: tagMeta.bg,
+                      color: tagMeta.color
+                    }}
+                  >
+                    {tagMeta.label}
+                  </span>
+                </div>
+                <span className="plugin-id-tag">
                   ({skill.id})
-                </span>
-                <span
-                  style={{
-                    fontSize: '0.68rem',
-                    marginLeft: '0.5rem',
-                    padding: '0.1rem 0.4rem',
-                    borderRadius: '4px',
-                    background: tagMeta.bg,
-                    color: tagMeta.color
-                  }}
-                >
-                  {tagMeta.label}
                 </span>
               </div>
               <div className="plugin-desc">{displayDesc}</div>
