@@ -139,6 +139,32 @@
   color: #ffffff;
 }
 
+.config-field-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.75rem 0.25rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.025);
+  gap: 1rem;
+}
+
+.config-field-input {
+  width: 280px;
+  height: 34px;
+  box-sizing: border-box;
+  margin: 0;
+}
+
+.config-children-list {
+  margin: 0.6rem 0;
+  margin-left: 1.2rem;
+  padding-left: 1rem;
+  border-left: 2px solid rgba(255, 255, 255, 0.1);
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
 .config-input {
   background: var(--color-input-bg);
   border: 1px solid var(--color-input-border);
@@ -428,11 +454,47 @@
   box-sizing: border-box;
 }
 
+.model-item-title-box {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.model-binding-form {
+  display: flex;
+  gap: 0.65rem;
+  align-items: center;
+  margin-top: 0.4rem;
+}
+
+.model-binding-subrow {
+  display: flex;
+  gap: 0.65rem;
+  align-items: center;
+}
+
+.model-binding-item-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
 .plugin-title {
   font-size: 0.86rem;
   font-weight: 600;
-  margin-bottom: 0.2rem;
+  margin-bottom: 0.25rem;
   color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.plugin-id-tag {
+  font-size: 0.72rem;
+  color: var(--text-secondary);
+  font-weight: normal;
+  font-family: 'Fira Code', monospace;
 }
 
 .plugin-desc {
@@ -572,6 +634,97 @@ input:checked+.slider:before {
     justify-content: flex-end;
     border-top: 1px solid rgba(255, 255, 255, 0.03);
     padding-top: 0.4rem;
+  }
+
+  .config-field-row.is-input {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.45rem;
+    padding: 0.85rem 0.2rem;
+  }
+
+  .config-field-row.is-input .config-label {
+    align-self: flex-start;
+    text-align: left;
+    max-width: 90%;
+    padding-right: 1.2rem;
+  }
+
+  .config-field-row.is-input .config-field-input {
+    align-self: flex-end;
+    margin-left: auto;
+    width: calc(100% - 1.25rem) !important;
+    height: 36px;
+  }
+
+  .config-field-row.is-boolean {
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.75rem 0.2rem;
+  }
+
+  .config-children-list {
+    margin-left: 0.6rem !important;
+    padding-left: 0.65rem !important;
+    border-left: 2px solid rgba(255, 255, 255, 0.12) !important;
+  }
+
+  .model-item {
+    padding: 0.75rem 0.85rem !important;
+  }
+
+  .child-item-field {
+    flex: 1 1 100% !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+    width: 100% !important;
+  }
+
+  .model-item-title-box {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.25rem;
+  }
+
+  .plugin-title {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.2rem;
+  }
+
+  .plugin-id-tag {
+    margin-left: 0 !important;
+    word-break: break-all;
+  }
+
+  .model-binding-form {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.5rem;
+  }
+
+  .model-binding-form select {
+    width: 100% !important;
+  }
+
+  .model-binding-subrow {
+    width: 100%;
+  }
+
+  .model-binding-subrow input {
+    flex: 1 !important;
+    width: auto !important;
+  }
+
+  .model-binding-item-header {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.2rem;
   }
 }
 
