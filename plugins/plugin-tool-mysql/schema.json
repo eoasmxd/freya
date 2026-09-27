@@ -6,11 +6,7 @@
       "zh": "默认使用的数据库连接名称",
       "en": "Default database connection profile name"
     },
-    "type": "string",
-    "category": {
-      "zh": "MySQL 连接",
-      "en": "MySQL Connection"
-    }
+    "type": "string"
   },
   {
     "key": "mysql.maxRows",
@@ -22,10 +18,6 @@
     "type": "number",
     "min": 1,
     "max": 1000,
-    "category": {
-      "zh": "MySQL 安全",
-      "en": "MySQL Security"
-    },
     "uiHint": "slider"
   },
   {
@@ -36,10 +28,6 @@
       "en": "List of named MySQL database connection configurations"
     },
     "type": "array",
-    "category": {
-      "zh": "MySQL 连接",
-      "en": "MySQL Connection"
-    },
     "children": [
       {
         "key": "name",

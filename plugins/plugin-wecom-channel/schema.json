@@ -7,10 +7,6 @@
       "en": "List of WeCom bot persistent connection configurations"
     },
     "type": "array",
-    "category": {
-      "zh": "频道",
-      "en": "Channel"
-    },
     "children": [
       {
         "key": "botId",

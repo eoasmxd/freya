@@ -7,10 +7,6 @@
       "en": "List of Telegram bot configurations"
     },
     "type": "array",
-    "category": {
-      "zh": "频道",
-      "en": "Channel"
-    },
     "children": [
       {
         "key": "id",
