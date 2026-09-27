@@ -1,9 +1,12 @@
 export const en: Record<string, string> = {
   'header.title': 'Freya Console',
+  'header.titleShort': 'Freya',
   'header.connected': 'Connected',
   'header.disconnected': 'Disconnected',
   'header.resetSession': 'Reset Session',
+  'header.resetShort': 'Reset',
   'header.settings': 'Settings',
+  'header.settingsShort': 'Settings',
 
   'chat.user': 'User',
   'chat.toolUsing': 'Using tool: {name}',

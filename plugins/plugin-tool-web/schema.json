@@ -9,10 +9,6 @@
     "type": "number",
     "min": 1024,
     "max": 10485760,
-    "category": {
-      "zh": "网络工具",
-      "en": "Web Toolbox"
-    },
     "uiHint": "slider"
   },
   {
@@ -25,10 +21,6 @@
     "type": "number",
     "min": 1024,
     "max": 10485760,
-    "category": {
-      "zh": "网络工具",
-      "en": "Web Toolbox"
-    },
     "uiHint": "slider"
   },
   {
@@ -41,10 +33,6 @@
     "type": "number",
     "min": 1000,
     "max": 300000,
-    "category": {
-      "zh": "网络工具",
-      "en": "Web Toolbox"
-    },
     "uiHint": "slider"
   }
 ]

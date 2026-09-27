@@ -8,15 +8,31 @@ description: "介绍如何配置大模型 API Key、开启插件功能以及在�
 
 ## 1. 大模型 (LLM) API 配置
 
-首次启动服务访问 `http://localhost:3000` 后，需要先配置大模型参数：
+首次进入控制台后，需按以下三步完成大模型接入：
 
-1. 点击界面右上角齿轮图标 **设置** ⚙️，打开设置弹窗。
-2. 切换到 **LLM 提供商** 页签，点击 **添加提供商**：
-   - 填入提供商名称与 API 端点 (Base URL) 以及 API Key（如 OpenAI 或 DeepSeek 等兼容服务）。
-3. 选择添加的提供商，点击 **添加模型**：
-   - 填写模型 ID（例如 `deepseek-chat` 或 `gpt-4o`）。
-4. 切换到 **全局配置** 页签：
-   - 在默认模型列表中设置添加好的模型，系统即可正常响应对话。
+### 步骤 1：添加提供商 (Provider)
+1. 点击右上角齿轮图标 **设置 ⚙️**，进入 **LLM 提供商** 页签。
+2. 点击 **添加提供商**，填入 **提供商 ID**、**Base URL** 与 **API Key**（类型默认 `OPENAI` 兼容）。
+   > **注意**：如需使用 Google Gemini 原生接口，需先在 **插件配置** 页签开启 **Gemini 模型插件**（系统默认处于关闭状态）。
+
+### 步骤 2：添加模型 (Model)
+1. 在左侧列表中选中刚刚添加的提供商。
+2. 点击 **+ 添加模型**，填入目标 **模型 ID**（例如 `gemini-3.5-flash-lite`、`deepseek-v4-flash`、`gpt-4o-mini`）并确认。
+
+### 步骤 3：绑定默认降级链并保存 (Global Config)
+1. 切换到 **全局配置** 页签，展开分类 **“模型” (Models)**，找到 **默认模型降级链列表 (`models.default`)**。
+2. 在下方下拉框中选中刚添加的模型，点击 **绑定**（可添加多个模型并通过箭头调整故障降级优先级）。
+3. **点击弹窗右下角的【保存配置】按钮**落盘，即可开始对话。
+
+#### 常用提供商配置参考
+
+| 提供商 | 官方默认 Base URL | 典型模型 ID 示例 | 协议 / 插件要求 |
+| :--- | :--- | :--- | :--- |
+| **Google Gemini** | 官方默认端点 | `gemini-3.5-flash-lite` | 需先启用 Gemini 模型插件 |
+| **DeepSeek** | `https://api.deepseek.com` | `deepseek-v4-flash` | OPENAI 兼容协议 |
+| **OpenAI** | `https://api.openai.com/v1` | `gpt-4o-mini` | OPENAI 兼容协议 |
+
+> 💡 **端点说明**：表中 Base URL 仅为官方默认端点。Freya 遵循标准 OpenAI 协议规范，亦完全支持各类第三方中转/聚合平台（如 SiliconFlow、OpenRouter 等）以及开源本地部署大模型（如 Ollama、vLLM 等，端点形如 `http://<IP>:11434/v1`）。
 
 ---
 

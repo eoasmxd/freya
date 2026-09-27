@@ -416,15 +416,20 @@ export const GlobalConfigPanel: React.FC<GlobalConfigPanelProps> = ({ getApiUrl 
     <div>
       {sortedNamespaces.map((ns) => {
         const fields = schemas[ns] || [];
+        if (fields.length === 0) return null;
 
+        const uncategorizedFields: ConfigFieldSchema[] = [];
         const fieldsByCategory: Record<string, ConfigFieldSchema[]> = {};
         for (const field of fields) {
-          const cat = field.category || t('global.defaultCategory', 'General Settings');
-          if (!fieldsByCategory[cat]) fieldsByCategory[cat] = [];
-          fieldsByCategory[cat].push(field);
+          if (field.category) {
+            if (!fieldsByCategory[field.category]) fieldsByCategory[field.category] = [];
+            fieldsByCategory[field.category].push(field);
+          } else {
+            uncategorizedFields.push(field);
+          }
         }
 
-        if (Object.keys(fieldsByCategory).length === 0) return null;
+        if (uncategorizedFields.length === 0 && Object.keys(fieldsByCategory).length === 0) return null;
 
         const friendlyNsName = ns === 'core'
           ? t('global.coreNsName', 'Core System Parameters')
@@ -432,19 +437,7 @@ export const GlobalConfigPanel: React.FC<GlobalConfigPanelProps> = ({ getApiUrl 
             ? t('global.pluginNsPrefix', 'Plugin Config: {name}', { name: ns.replace('@eoasmxd/freya-plugin-', '') })
             : t('global.extNsPrefix', 'Extension Config: {name}', { name: ns });
 
-        return (
-          <div key={ns} className="config-group" style={{ marginBottom: '1.8rem', borderBottom: '1px solid rgba(255,255,255,0.02)', paddingBottom: '1.2rem' }}>
-            <label className="config-label" style={{ fontSize: '1.05rem', color: '#ffffff', fontWeight: 'bold', borderLeft: '3px solid var(--accent)', paddingLeft: '0.6rem', marginBottom: '1rem' }}>
-              {friendlyNsName}
-            </label>
-
-            {Object.entries(fieldsByCategory).map(([category, items]) => (
-              <div key={category} style={{ marginBottom: '1.4rem' }}>
-                <div style={{ fontSize: '0.86rem', fontWeight: 600, color: 'rgba(255, 255, 255, 0.75)', borderLeft: '2px solid var(--accent)', paddingLeft: '0.5rem', marginTop: '1.4rem', marginBottom: '0.8rem' }}>
-                  {category}
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.1rem' }}>
-                  {items.map((field) => {
+        const renderFieldItem = (field: ConfigFieldSchema) => {
                     const currentValue = dynamicValues[field.key];
 
                     if (field.type === 'array' && field.key.startsWith('models.')) {
@@ -837,7 +830,27 @@ export const GlobalConfigPanel: React.FC<GlobalConfigPanelProps> = ({ getApiUrl 
                         )}
                       </div>
                     );
-                  })}
+        };
+
+        return (
+          <div key={ns} className="config-group" style={{ marginBottom: '1.8rem', borderBottom: '1px solid rgba(255,255,255,0.02)', paddingBottom: '1.2rem' }}>
+            <label className="config-label" style={{ fontSize: '1.05rem', color: '#ffffff', fontWeight: 'bold', borderLeft: '3px solid var(--accent)', paddingLeft: '0.6rem', marginBottom: '1rem' }}>
+              {friendlyNsName}
+            </label>
+
+            {uncategorizedFields.length > 0 && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.1rem', marginBottom: Object.keys(fieldsByCategory).length > 0 ? '1.4rem' : '0' }}>
+                {uncategorizedFields.map(renderFieldItem)}
+              </div>
+            )}
+
+            {Object.entries(fieldsByCategory).map(([category, items]) => (
+              <div key={category} style={{ marginBottom: '1.4rem' }}>
+                <div style={{ fontSize: '0.86rem', fontWeight: 600, color: 'rgba(255, 255, 255, 0.75)', borderLeft: '2px solid var(--accent)', paddingLeft: '0.5rem', marginTop: '1.4rem', marginBottom: '0.8rem' }}>
+                  {category}
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.1rem' }}>
+                  {items.map(renderFieldItem)}
                 </div>
               </div>
             ))}

@@ -17,18 +17,28 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
   return (
     <header className="header">
       <div className="logo-container">
-        <div className="logo">{t('header.title', 'Freya Console')}</div>
+        <div className="logo">
+          <span className="header-text-full">{t('header.title', 'Freya Console')}</span>
+          <span className="header-text-short">{t('header.titleShort', 'Freya')}</span>
+        </div>
       </div>
       <div className="header-actions">
-        <div className="status-container">
+        <div
+          className="status-container"
+          title={isConnected ? t('header.connected', 'Connected') : t('header.disconnected', 'Disconnected')}
+        >
           <span className={`status-dot ${isConnected ? 'connected' : ''}`} />
-          <span>{isConnected ? t('header.connected', 'Connected') : t('header.disconnected', 'Disconnected')}</span>
+          <span className="status-text">
+            {isConnected ? t('header.connected', 'Connected') : t('header.disconnected', 'Disconnected')}
+          </span>
         </div>
-        <button className="btn-header" onClick={onClear}>
-          {t('header.resetSession', 'Reset Session')}
+        <button className="btn-header" onClick={onClear} title={t('header.resetSession', 'Reset Session')}>
+          <span className="header-text-full">{t('header.resetSession', 'Reset Session')}</span>
+          <span className="header-text-short">{t('header.resetShort', 'Reset')}</span>
         </button>
-        <button className="btn-header" onClick={onOpenConfig}>
-          {t('header.settings', 'Settings')}
+        <button className="btn-header" onClick={onOpenConfig} title={t('header.settings', 'Settings')}>
+          <span className="header-text-full">{t('header.settings', 'Settings')}</span>
+          <span className="header-text-short">{t('header.settingsShort', 'Settings')}</span>
         </button>
       </div>
     </header>

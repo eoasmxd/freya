@@ -1,9 +1,12 @@
 export const zh: Record<string, string> = {
   'header.title': 'Freya 控制台',
+  'header.titleShort': 'Freya',
   'header.connected': '已连接',
   'header.disconnected': '已断开',
   'header.resetSession': '重置会话',
+  'header.resetShort': '重置',
   'header.settings': '系统设置',
+  'header.settingsShort': '设置',
 
   'chat.user': '用户',
   'chat.toolUsing': '使用工具: {name}',

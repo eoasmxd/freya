@@ -1,6 +1,6 @@
 {
     "name": "@eoasmxd/freya-plugin-tool-web",
-    "version": "0.1.0",
+    "version": "0.6.4",
     "private": false,
     "license": "MIT",
     "publishConfig": {
