@@ -24,6 +24,10 @@
   letter-spacing: 0.5px;
 }
 
+.header-text-short {
+  display: none;
+}
+
 .header-actions {
   display: flex;
   align-items: center;
@@ -78,7 +82,8 @@
 /* 历史消息滚动面板 */
 /* Message history scroll panel */
 .chat-panel {
-  flex: 1;
+  flex: 1 1 0%;
+  min-height: 0;
   display: flex;
   flex-direction: column;
   padding: 2rem var(--viewport-padding-x);
@@ -690,8 +695,28 @@
     padding: 0.75rem 1rem;
   }
 
+  .header-text-full {
+    display: none;
+  }
+
+  .header-text-short {
+    display: inline;
+  }
+
   .header-actions {
-    gap: 0.5rem;
+    gap: 0.4rem;
+  }
+
+  .status-container {
+    padding: 0.35rem 0.5rem;
+  }
+
+  .status-container .status-text {
+    display: none;
+  }
+
+  .btn-header {
+    padding: 0.35rem 0.65rem;
   }
 
   .message-bubble {
@@ -699,7 +724,7 @@
   }
 
   .footer {
-    padding: 0.75rem var(--viewport-padding-x) calc(1rem + env(safe-area-inset-bottom)) var(--viewport-padding-x);
+    padding: 0.6rem var(--viewport-padding-x) calc(0.6rem + env(safe-area-inset-bottom, 0px)) var(--viewport-padding-x);
   }
 
   .chat-textarea {
@@ -707,8 +732,6 @@
   }
 
   .billing-bar {
-    font-size: 0.7rem;
-    flex-wrap: wrap;
-    gap: 0.3rem;
+    display: none;
   }
 }
