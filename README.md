@@ -2,7 +2,7 @@
 
 [English](README.md) | [简体中文](README.zh.md)
 
-> `Freya` 是一个轻量级、架构清晰、生产可用的微内核智能体系统，专为学习与构建 Agent 而设计。（完整中文文档请参阅 [README.zh.md](README.zh.md)）
+> `Freya` 是一个轻量级、架构清晰、生产可用的微内核智能体系统，专为学习与构建 Agent 而设计。
 
 `Freya` is a lightweight, architecturally clear, and production-ready microkernel AI Agent system designed specifically for **learning Agent programming**. The codebase is intentionally simple and self-documenting, helping developers understand the decision-making mechanics and underlying principles of AI agents without overhead.
 
