@@ -27,7 +27,9 @@ export const en: Record<string, string> = {
   'chat.toolStatusFailed': 'Failed: {error}',
 
   'footer.tokenUsage': 'Tokens: {total} (Prompt: {prompt} | Cached: {cached} | Output: {completion})',
+  'footer.tokenUsageShort': 'Tokens: {total}',
   'footer.estimatedCost': 'Estimated Cost: {cost}',
+  'footer.estimatedCostShort': 'Cost: {cost}',
   'footer.placeholderConnected': 'Type a message to chat with Freya...',
   'footer.placeholderDisconnected': 'Connecting to server, please wait...',
   'footer.interrupt': 'Stop',

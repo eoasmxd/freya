@@ -27,7 +27,9 @@ export const zh: Record<string, string> = {
   'chat.toolStatusFailed': '执行失败: {error}',
 
   'footer.tokenUsage': 'Token 消耗: {total} Tokens (输入: {prompt} | 缓存: {cached} | 输出: {completion})',
+  'footer.tokenUsageShort': 'Token: {total}',
   'footer.estimatedCost': '估算账单: {cost}',
+  'footer.estimatedCostShort': '账单: {cost}',
   'footer.placeholderConnected': '输入消息，与 Freya 对话...',
   'footer.placeholderDisconnected': '正在连接服务器，请稍候...',
   'footer.interrupt': '中断',

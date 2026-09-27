@@ -609,6 +609,11 @@
   font-weight: 600;
 }
 
+.billing-tokens-short,
+.billing-cost-short {
+  display: none;
+}
+
 .input-container {
   display: flex;
   gap: 0.65rem;
@@ -731,7 +736,21 @@
     font-size: 16px;
   }
 
-  .billing-bar {
+  .billing-tokens-full,
+  .billing-cost-full {
     display: none;
+  }
+
+  .billing-tokens-short,
+  .billing-cost-short {
+    display: inline;
+  }
+
+  .billing-bar {
+    display: flex;
+    font-size: 0.72rem;
+    padding: 0 0.25rem;
+    color: var(--text-secondary);
+    opacity: 0.85;
   }
 }
