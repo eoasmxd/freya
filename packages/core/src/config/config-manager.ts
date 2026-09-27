@@ -748,8 +748,40 @@ export class FreyaConfigManager {
           { value: 'zh', label: this.i18n.all('schema.core.system.language.enum.zh', 'Chinese (zh)') },
           { value: 'en', label: this.i18n.all('schema.core.system.language.enum.en', 'English (en)') }
         ],
-        uiHint: 'select',
-        category: this.i18n.all('schema.core.category.system', 'System Parameters')
+        uiHint: 'select'
+      },
+      {
+        key: 'models.default',
+        defaultValue: [],
+        description: this.i18n.all('schema.core.models.default.desc', 'Default model fallback chain list'),
+        type: 'array',
+        category: this.i18n.all('schema.core.category.models', 'Models'),
+        children: modelItemChildren,
+        manualOnly: true
+      },
+      {
+        key: 'models.image',
+        defaultValue: [],
+        description: this.i18n.all('schema.core.models.image.desc', 'Image models list'),
+        type: 'array',
+        category: this.i18n.all('schema.core.category.models', 'Models'),
+        children: modelItemChildren
+      },
+      {
+        key: 'models.audio',
+        defaultValue: [],
+        description: this.i18n.all('schema.core.models.audio.desc', 'Audio transcription models list'),
+        type: 'array',
+        category: this.i18n.all('schema.core.category.models', 'Models'),
+        children: modelItemChildren
+      },
+      {
+        key: 'server.enabled',
+        defaultValue: true,
+        description: this.i18n.all('schema.core.server.enabled.desc', 'Enable Web gateway service and WebSocket channel'),
+        type: 'boolean',
+        category: this.i18n.all('schema.core.category.server', 'Server'),
+        manualOnly: true
       },
       {
         key: 'server.port',
@@ -763,19 +795,11 @@ export class FreyaConfigManager {
         manualOnly: true
       },
       {
-        key: 'server.enabled',
-        defaultValue: true,
-        description: this.i18n.all('schema.core.server.enabled.desc', 'Enable Web gateway service and WebSocket channel'),
-        type: 'boolean',
-        category: this.i18n.all('schema.core.category.server', 'Server'),
-        manualOnly: true
-      },
-      {
         key: 'cli.enabled',
         defaultValue: true,
         description: this.i18n.all('schema.core.cli.enabled.desc', 'Enable command-line terminal interaction channel'),
         type: 'boolean',
-        category: this.i18n.all('schema.core.category.cli', 'CLI'),
+        category: this.i18n.all('schema.core.category.server', 'Server'),
         manualOnly: true
       },
       {
@@ -784,7 +808,17 @@ export class FreyaConfigManager {
         description: this.i18n.all('schema.core.workspace.desc', 'User document workspace directory name'),
         type: 'string',
         required: true,
-        category: this.i18n.all('schema.core.category.workspace', 'Workspace'),
+        category: this.i18n.all('schema.core.category.system', 'System Parameters'),
+        manualOnly: true
+      },
+      {
+        key: 'config.authTimeout',
+        defaultValue: 30,
+        description: this.i18n.all('schema.core.config.authTimeout.desc', 'Timeout seconds for AI agent waiting for config authorization'),
+        type: 'number',
+        min: 10,
+        max: 300,
+        category: this.i18n.all('schema.core.category.system', 'System Parameters'),
         manualOnly: true
       },
       {
@@ -847,76 +881,6 @@ export class FreyaConfigManager {
         category: this.i18n.all('schema.core.category.context', 'Context Management')
       },
       {
-        key: 'log.console.error',
-        defaultValue: true,
-        description: this.i18n.all('schema.core.log.console.error.desc', 'Console ERROR logs output (red)'),
-        type: 'boolean',
-        category: this.i18n.all('schema.core.category.log', 'Logging')
-      },
-      {
-        key: 'log.console.warn',
-        defaultValue: false,
-        description: this.i18n.all('schema.core.log.console.warn.desc', 'Console WARN logs output (yellow)'),
-        type: 'boolean',
-        category: this.i18n.all('schema.core.category.log', 'Logging')
-      },
-      {
-        key: 'log.console.info',
-        defaultValue: false,
-        description: this.i18n.all('schema.core.log.console.info.desc', 'Console INFO logs output (green)'),
-        type: 'boolean',
-        category: this.i18n.all('schema.core.category.log', 'Logging')
-      },
-      {
-        key: 'log.console.debug',
-        defaultValue: false,
-        description: this.i18n.all('schema.core.log.console.debug.desc', 'Console DEBUG logs output (gray)'),
-        type: 'boolean',
-        category: this.i18n.all('schema.core.category.log', 'Logging')
-      },
-      {
-        key: 'log.llm',
-        defaultValue: false,
-        description: this.i18n.all('schema.core.log.llm.desc', 'Record LLM interaction logs'),
-        type: 'boolean',
-        category: this.i18n.all('schema.core.category.log', 'Logging')
-      },
-      {
-        key: 'models.default',
-        defaultValue: [],
-        description: this.i18n.all('schema.core.models.default.desc', 'Default model fallback chain list'),
-        type: 'array',
-        category: this.i18n.all('schema.core.category.models', 'Models'),
-        children: modelItemChildren,
-        manualOnly: true
-      },
-      {
-        key: 'models.image',
-        defaultValue: [],
-        description: this.i18n.all('schema.core.models.image.desc', 'Image models list'),
-        type: 'array',
-        category: this.i18n.all('schema.core.category.models', 'Models'),
-        children: modelItemChildren
-      },
-      {
-        key: 'models.audio',
-        defaultValue: [],
-        description: this.i18n.all('schema.core.models.audio.desc', 'Audio transcription models list'),
-        type: 'array',
-        category: this.i18n.all('schema.core.category.models', 'Models'),
-        children: modelItemChildren
-      },
-      {
-        key: 'config.authTimeout',
-        defaultValue: 30,
-        description: this.i18n.all('schema.core.config.authTimeout.desc', 'Timeout seconds for AI agent waiting for config authorization'),
-        type: 'number',
-        min: 10,
-        max: 300,
-        category: this.i18n.all('schema.core.category.security', 'Security'),
-        manualOnly: true
-      },
-      {
         key: 'tools.builtin.config.enabled',
         defaultValue: true,
         description: this.i18n.all('schema.core.tools.config.enabled.desc', 'Enable core config toolbox (allows model to view/modify config)'),
@@ -955,6 +919,41 @@ export class FreyaConfigManager {
         type: 'boolean',
         category: this.i18n.all('schema.core.category.commands', 'Builtin Commands'),
         manualOnly: true
+      },
+      {
+        key: 'log.console.error',
+        defaultValue: true,
+        description: this.i18n.all('schema.core.log.console.error.desc', 'Console ERROR logs output (red)'),
+        type: 'boolean',
+        category: this.i18n.all('schema.core.category.log', 'Logging')
+      },
+      {
+        key: 'log.console.warn',
+        defaultValue: false,
+        description: this.i18n.all('schema.core.log.console.warn.desc', 'Console WARN logs output (yellow)'),
+        type: 'boolean',
+        category: this.i18n.all('schema.core.category.log', 'Logging')
+      },
+      {
+        key: 'log.console.info',
+        defaultValue: false,
+        description: this.i18n.all('schema.core.log.console.info.desc', 'Console INFO logs output (green)'),
+        type: 'boolean',
+        category: this.i18n.all('schema.core.category.log', 'Logging')
+      },
+      {
+        key: 'log.console.debug',
+        defaultValue: false,
+        description: this.i18n.all('schema.core.log.console.debug.desc', 'Console DEBUG logs output (gray)'),
+        type: 'boolean',
+        category: this.i18n.all('schema.core.category.log', 'Logging')
+      },
+      {
+        key: 'log.llm',
+        defaultValue: false,
+        description: this.i18n.all('schema.core.log.llm.desc', 'Record LLM interaction logs'),
+        type: 'boolean',
+        category: this.i18n.all('schema.core.category.log', 'Logging')
       }
     ];
 

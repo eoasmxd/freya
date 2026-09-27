@@ -3,81 +3,67 @@
  * Core English localization dictionary
  */
 export const en: Record<string, string> = {
-  // 提示词管理
-  // Prompt management
-  'prompt.error.onlyCore': 'Execution rejected: Configuration management tools only allow managing core prompts',
-  'prompt.error.targetNotFound': 'Failed to match the specified target replacement fragment in document "{name}", edit cancelled.',
-  'prompt.success.overwritten': 'Prompt document "{name}" overwritten physically, in-memory hot reload ready.',
-  'prompt.success.edited': 'Prompt document "{name}" locally replaced, in-memory hot reload ready.',
+  // 大模型与执行引擎
+  // LLM and Agent execution
+  'llm.candidate.default': 'Default',
+  'llm.error.noPluginLoaded': '❌ No valid LLM plugin loaded in system. Please check plugin and model configurations.',
+  'llm.error.allCandidatesFailed': 'All candidate models failed to invoke, no fallback available.',
+  'llm.error.missingApiKey': 'No available LLM configuration detected or API key is invalid.',
+  'llm.error.noPluginForProvider': 'No LLM plugin instance found to handle provider "{providerId}".',
 
-  // CLI 通道
-  // CLI channel
-  'cli.start.launched': '[CliChannel] Local console interaction started. Type your message to chat, or "/exit" to quit.',
-  'cli.start.backgroundTip': '[CliChannel] Tip: Append "--no-cli" to the startup command to run in background mode.',
-  'cli.auth.title': '⚠️  [Sensitive Operation Authorization Request]',
-  'cli.auth.valueLabel': 'to value',
-  'cli.auth.detail': 'The AI model is attempting to [{action}] the sensitive file "{filePath}" at key path "{keyPath}"{valuePart}.',
-  'cli.auth.decision': 'Please make a decision:',
-  'cli.auth.approveHint': '👉 Type "/approve {authId}" to approve this operation',
-  'cli.auth.rejectHint': '👉 Type "/reject {authId}" to reject this operation',
-  'cli.prompt.user': '\n👤 [You]: ',
+  'agent.error.aborted': 'Chat generation was aborted by user.',
+  'agent.error.noValidResponse': 'Failed to obtain a valid model response.',
+  'agent.error.jsonParseFailed': 'JSON parsing failed: {message}',
+  'agent.error.executionFailed': 'Execution failed',
+  'agent.error.kernelError': '❌ [Kernel Execution Error] {message}',
 
-  // Web 容器
-  // Web container
-  'web.error.notInitialized': '[WebContainer] HTTP server has not been initialized.',
+  // 系统指令与交互
+  // System commands and interactions
+  'cmd.error.unknown': '❌ Unknown command "/{commandName}". Type "/help" to view all available commands.',
+  'cmd.error.disabled': '❌ Permission denied: Command "/{commandName}" is disabled by administrator.',
+  'cmd.error.executionFailed': '❌ Command execution failed: {message}',
 
-  // REST API 错误
-  // REST API errors
-  'api.error.bodyTooLarge': 'Request body exceeds 1MB size limit.',
-  'api.error.bodyInvalidJson': 'Request body is not valid JSON.',
-  'api.error.missingKeyPath': 'Missing required parameter: keyPath',
-  'api.error.updatesNotObject': 'Missing required parameter: updates must be an object',
-  'api.error.missingPluginId': 'Missing required parameter: pluginId',
-  'api.error.missingSkillId': 'Missing required parameter: skillId',
-  'api.error.notSupported': 'Unsupported API method or path: {method} {pathname}',
-  'api.error.internal': 'Internal API processing error',
-
-  // 授权命令
-  // Auth commands
-  'cmd.approve.description': 'Approve a sensitive configuration read/write operation initiated by the AI model',
-  'cmd.approve.missingId': '❌ Error: Please specify the authorization request ID (e.g. `/approve auth_xxxx`).',
-  'cmd.approve.sent': 'ℹ️ Authorization command sent: approved request `{authId}`.',
-  'cmd.reject.description': 'Reject a sensitive configuration read/write operation initiated by the AI model',
-  'cmd.reject.missingId': '❌ Error: Please specify the authorization request ID (e.g. `/reject auth_xxxx`).',
-  'cmd.reject.sent': 'ℹ️ Authorization command sent: rejected request `{authId}`.',
-
-  // 帮助命令
-  // Help commands
   'cmd.help.description': 'List all available commands and their descriptions',
   'cmd.help.empty': 'ℹ️ No commands are currently registered.',
   'cmd.help.aliasLabel': 'aliases',
   'cmd.help.usageLabel': 'usage',
   'cmd.help.title': '### ℹ️ Available Commands ({count} total)',
 
-  // 中止命令
-  // Stop commands
   'cmd.stop.description': 'Abort the current AI model generation',
   'cmd.stop.sent': 'ℹ️ Interrupt signal sent.',
 
-  // 技能管理命令执行输出
-  // Skill management command outputs
-  'cmd.skill.description': 'Skill management',
-  'cmd.skill.sub.info': 'Show current active skill',
-  'cmd.skill.sub.list': 'List all available skills',
-  'cmd.skill.sub.set': 'Activate a specified skill',
-  'cmd.skill.sub.clear': 'Deactivate current skill binding',
-  'cmd.skill.info.active': '🔧 Active skill: **{name}** `{id}` — {desc}',
-  'cmd.skill.info.none': '🔧 No skill is currently active.',
-  'cmd.skill.list.empty': '📋 No available skills.',
-  'cmd.skill.list.noDesc': 'No description',
-  'cmd.skill.list.title': '### 📋 Available Skills',
-  'cmd.skill.set.missingId': '❌ Usage: `/skill set <skillId>`.',
-  'cmd.skill.set.notFound': '❌ Skill `{id}` does not exist or is not enabled. Use `/skill list` to view available skills.',
-  'cmd.skill.set.success': '✅ Skill activated: **{name}** `{id}`.',
-  'cmd.skill.clear.success': '✅ Skill binding deactivated.',
+  'cmd.approve.description': 'Approve a sensitive configuration read/write operation initiated by the AI model',
+  'cmd.approve.missingId': '❌ Error: Please specify the authorization request ID (e.g. `/approve auth_xxxx`).',
+  'cmd.approve.sent': 'ℹ️ Authorization command sent: approved request `{authId}`.',
 
-  // 会话管理命令执行输出
-  // Session management command outputs
+  'cmd.reject.description': 'Reject a sensitive configuration read/write operation initiated by the AI model',
+  'cmd.reject.missingId': '❌ Error: Please specify the authorization request ID (e.g. `/reject auth_xxxx`).',
+  'cmd.reject.sent': 'ℹ️ Authorization command sent: rejected request `{authId}`.',
+
+  'cmd.model.description': 'Model management',
+  'cmd.model.sub.info': 'View the model bound to the current session',
+  'cmd.model.sub.list': 'List all configured models',
+  'cmd.model.sub.set': 'Set the model bound to the current session',
+  'cmd.model.sub.reset': 'Unbind the model and revert to default',
+  'cmd.model.info.bound': '🔧 Current session bound model: `{modelId}` (Provider: `{provider}`).',
+  'cmd.model.info.default': '🔧 Current session has no specific model bound; system default model will be used.',
+  'cmd.model.info.defaultProvider': 'default',
+  'cmd.model.list.noneConfigured': '❌ No models are configured yet. Please configure the `models` field in Web settings or `config/freya.json`.',
+  'cmd.model.list.empty': 'ℹ️ No enabled models found in `models` configuration.',
+  'cmd.model.list.title': '### 📋 Configured Models (from `config/freya.json`)',
+  'cmd.model.list.categoryDefault': 'Default',
+  'cmd.model.list.categoryImage': 'Image',
+  'cmd.model.list.categoryAudio': 'Audio',
+  'cmd.model.set.usage': '❌ Usage: `/model set <modelId>` or `/model set <providerId> <modelId>`.',
+  'cmd.model.set.chainEmpty': '❌ No models are configured in the system default model fallback chain.',
+  'cmd.model.set.notFound': '❌ Model `{modelId}` (Provider: `{providerId}`) was not found in default model configuration.',
+  'cmd.model.set.notFoundHint': '❌ Model `{modelId}` was not found in default model configuration. Available models: {hint}{more}.',
+  'cmd.model.set.moreCount': ' ... and {count} more',
+  'cmd.model.set.duplicateHint': '❌ Ambiguous model name exists. Please use `/model set <providerId> <modelId>` to specify provider explicitly. Available providers: {providers}.',
+  'cmd.model.set.success': '🔧 Session model changed to: `{modelId}` (Provider: `{provider}`).',
+  'cmd.model.reset.success': '🔧 Model binding removed, restored to default.',
+  'cmd.models.description': 'List all configured models',
+
   'cmd.session.description': 'Session management',
   'cmd.session.sub.info': 'Show current session info',
   'cmd.session.sub.reset': 'Archive current session and start a new one',
@@ -122,31 +108,108 @@ export const en: Record<string, string> = {
   'cmd.session.unknown': '❌ Unknown subcommand `{sub}`. Available: `info` `reset` `new` `main` `switch` `list`.',
   'cmd.reset.description': 'Archive current session and create a new main session',
 
-  // 模型管理命令
-  // Model management commands
-  'cmd.model.description': 'Model management',
-  'cmd.model.sub.info': 'View the model bound to the current session',
-  'cmd.model.sub.list': 'List all configured models',
-  'cmd.model.sub.set': 'Set the model bound to the current session',
-  'cmd.model.sub.reset': 'Unbind the model and revert to default',
-  'cmd.model.info.bound': '🔧 Current session bound model: `{modelId}` (Provider: `{provider}`).',
-  'cmd.model.info.default': '🔧 Current session has no specific model bound; system default model will be used.',
-  'cmd.model.info.defaultProvider': 'default',
-  'cmd.model.list.noneConfigured': '❌ No models are configured yet. Please configure the `models` field in Web settings or `config/freya.json`.',
-  'cmd.model.list.empty': 'ℹ️ No enabled models found in `models` configuration.',
-  'cmd.model.list.title': '### 📋 Configured Models (from `config/freya.json`)',
-  'cmd.model.list.categoryDefault': 'Default',
-  'cmd.model.list.categoryImage': 'Image',
-  'cmd.model.list.categoryAudio': 'Audio',
-  'cmd.model.set.usage': '❌ Usage: `/model set <modelId>` or `/model set <providerId> <modelId>`.',
-  'cmd.model.set.chainEmpty': '❌ No models are configured in the system default model fallback chain.',
-  'cmd.model.set.notFound': '❌ Model `{modelId}` (Provider: `{providerId}`) was not found in default model configuration.',
-  'cmd.model.set.notFoundHint': '❌ Model `{modelId}` was not found in default model configuration. Available models: {hint}{more}.',
-  'cmd.model.set.moreCount': ' ... and {count} more',
-  'cmd.model.set.duplicateHint': '❌ Ambiguous model name exists. Please use `/model set <providerId> <modelId>` to specify provider explicitly. Available providers: {providers}.',
-  'cmd.model.set.success': '🔧 Session model changed to: `{modelId}` (Provider: `{provider}`).',
-  'cmd.model.reset.success': '🔧 Model binding removed, restored to default.',
-  'cmd.models.description': 'List all configured models',
+  'cmd.skill.description': 'Skill management',
+  'cmd.skill.sub.info': 'Show current active skill',
+  'cmd.skill.sub.list': 'List all available skills',
+  'cmd.skill.sub.set': 'Activate a specified skill',
+  'cmd.skill.sub.clear': 'Deactivate current skill binding',
+  'cmd.skill.info.active': '🔧 Active skill: **{name}** `{id}` — {desc}',
+  'cmd.skill.info.none': '🔧 No skill is currently active.',
+  'cmd.skill.list.empty': '📋 No available skills.',
+  'cmd.skill.list.noDesc': 'No description',
+  'cmd.skill.list.title': '### 📋 Available Skills',
+  'cmd.skill.set.missingId': '❌ Usage: `/skill set <skillId>`.',
+  'cmd.skill.set.notFound': '❌ Skill `{id}` does not exist or is not enabled. Use `/skill list` to view available skills.',
+  'cmd.skill.set.success': '✅ Skill activated: **{name}** `{id}`.',
+  'cmd.skill.clear.success': '✅ Skill binding deactivated.',
+
+  // 核心配置 Schema
+  // Core Configuration Schema
+  'schema.core.category.models': 'Models',
+  'schema.core.category.system': 'System Parameters',
+  'schema.core.category.server': 'Server & Channels',
+  'schema.core.category.context': 'Context Management',
+  'schema.core.category.tools': 'Builtin Tools',
+  'schema.core.category.commands': 'Builtin Commands',
+  'schema.core.category.log': 'Logging',
+
+  'schema.core.system.language.desc': 'System UI and interaction language',
+  'schema.core.system.language.enum.auto': 'Auto Detect (auto)',
+  'schema.core.system.language.enum.zh': 'Chinese (zh)',
+  'schema.core.system.language.enum.en': 'English (en)',
+  'schema.core.workspace.desc': 'User document workspace directory name',
+  'schema.core.config.authTimeout.desc': 'Timeout seconds for AI agent waiting for config authorization',
+
+  'schema.core.models.default.desc': 'Default model fallback chain list',
+  'schema.core.models.image.desc': 'Image models list',
+  'schema.core.models.audio.desc': 'Audio transcription models list',
+  'schema.core.models.item.provider.desc': 'LLM provider identifier',
+  'schema.core.models.item.model.desc': 'Model name',
+  'schema.core.models.item.name.desc': 'Display name',
+
+  'schema.core.server.enabled.desc': 'Enable Web gateway service and WebSocket channel',
+  'schema.core.server.port.desc': 'Web gateway service port',
+  'schema.core.cli.enabled.desc': 'Enable command-line terminal interaction channel',
+
+  'schema.core.context.enabled.desc': 'Enable context management',
+  'schema.core.context.maxHistoryTurns.desc': 'Maximum turns of context history',
+  'schema.core.context.historyLimit.desc': 'Upper limit of context history message count',
+  'schema.core.context.keepRecentTurns.desc': 'Recent turns preserved during compression',
+  'schema.core.context.summarizeEnabled.desc': 'Enable context summary compression',
+  'schema.core.context.summaryMaxTokens.desc': 'Maximum token length of summary generated during compression',
+  'schema.core.context.toolboxIdleTimeoutRounds.desc': 'Max idle turns before automatically unloading an active toolbox',
+
+  'schema.core.tools.config.enabled.desc': 'Enable core config toolbox (allows model to view/modify config)',
+  'schema.core.tools.session.enabled.desc': 'Enable session toolbox (allows model to view history/spawn subtasks)',
+  'schema.core.commands.auth.enabled.desc': 'Enable sensitive operation approval commands (/approve and /reject)',
+  'schema.core.commands.session.enabled.desc': 'Enable session management commands (/session and subcommands)',
+  'schema.core.commands.model.enabled.desc': 'Enable model switching commands (/model and subcommands)',
+
+  'schema.core.log.console.error.desc': 'Console ERROR logs output (red)',
+  'schema.core.log.console.warn.desc': 'Console WARN logs output (yellow)',
+  'schema.core.log.console.info.desc': 'Console INFO logs output (green)',
+  'schema.core.log.console.debug.desc': 'Console DEBUG logs output (gray)',
+  'schema.core.log.llm.desc': 'Record LLM interaction logs',
+
+  // 配置管理器运行态文案
+  // Configuration Manager runtime messages
+  'config.error.readonlyRejected': '❌ Property "{keyPath}" is currently read-only (locked by startup arguments or disabled plugin) and cannot be modified.',
+  'config.update.propertySuccess': 'Core configuration property "{keyPath}" updated successfully and took effect immediately.',
+  'config.update.globalSuccess': 'Global configuration updated successfully and took effect immediately.',
+  'config.provider.missingId': '❌ Missing required parameter: id cannot be empty.',
+  'config.provider.alreadyExists': '❌ Model provider ID "{id}" already exists.',
+  'config.provider.addSuccess': 'Model provider "{id}" added successfully.',
+  'config.provider.notFound': '❌ Model provider "{id}" not found.',
+  'config.provider.noUpdates': '⚠️ No attributes specified to update.',
+  'config.provider.updateSuccess': 'Attributes [{keys}] of provider "{id}" updated successfully.',
+  'config.provider.deleteSuccess': 'Model provider "{id}" and all its models deleted successfully.',
+  'config.model.missingId': '❌ Missing required parameter: id cannot be empty.',
+  'config.model.alreadyExists': '❌ Model ID "{modelId}" already exists under provider "{providerId}".',
+  'config.model.addSuccess': 'Model "{modelId}" added successfully to provider "{providerId}".',
+  'config.model.notFound': '❌ Model ID "{modelId}" not found under provider "{providerId}".',
+  'config.model.updateSuccess': 'Attributes [{keys}] of model "{modelId}" (provider "{providerId}") updated successfully.',
+  'config.model.deleteSuccess': 'Model "{modelId}" (provider "{providerId}") deleted successfully.',
+  'config.plugin.notInit': '❌ Plugin service is not initialized.',
+  'config.skill.notInit': '❌ Skill registry service is not initialized.',
+  'config.prompt.notAllowed': '❌ Access denied: Primary prompt document "{name}" is not in whitelist (allowed: IDENTITY, SOUL, USER, TOOLS, AGENTS, MEMORY).',
+  'config.prompt.notInit': '❌ Prompt manager service is not initialized.',
+  'config.prompt.overwriteSuccess': 'Primary prompt document [{name}] overwritten successfully and took effect immediately.',
+  'config.prompt.editSuccess': 'Primary prompt document [{name}] partially replaced successfully and took effect immediately.',
+  'config.prompt.editFailed': '❌ Edit failed: {message}',
+
+  // 通信通道与服务
+  // Channels and container
+  'cli.start.launched': '[CliChannel] Local console interaction started. Type your message to chat, or "/exit" to quit.',
+  'cli.start.backgroundTip': '[CliChannel] Tip: Append "--no-cli" to the startup command to run in background mode.',
+  'cli.auth.title': '⚠️  [Sensitive Operation Authorization Request]',
+  'cli.auth.valueLabel': 'to value',
+  'cli.auth.detail': 'The AI model is attempting to [{action}] the sensitive file "{filePath}" at key path "{keyPath}"{valuePart}.',
+  'cli.auth.decision': 'Please make a decision:',
+  'cli.auth.approveHint': '👉 Type "/approve {authId}" to approve this operation',
+  'cli.auth.rejectHint': '👉 Type "/reject {authId}" to reject this operation',
+  'cli.prompt.user': '\n👤 [You]: ',
+  'channel.ws.connected': 'Connected to Freya backend WebSocket service successfully.',
+  'web.error.notInitialized': '[WebContainer] HTTP server has not been initialized.',
 
   // 插件管理
   // Plugin management
@@ -178,6 +241,13 @@ export const en: Record<string, string> = {
   'skill.toggle.writeFailed': '❌ Skill state changed, but failed to write skills.json: {message}',
   'skill.toggle.success': '✅ Skill "{name}" has been successfully {state}.',
 
+  // 提示词工具管理
+  // Prompt tool management
+  'prompt.error.onlyCore': 'Execution rejected: Configuration management tools only allow managing core prompts',
+  'prompt.error.targetNotFound': 'Failed to match the specified target replacement fragment in document "{name}", edit cancelled.',
+  'prompt.success.overwritten': 'Prompt document "{name}" overwritten physically, in-memory hot reload ready.',
+  'prompt.success.edited': 'Prompt document "{name}" locally replaced, in-memory hot reload ready.',
+
   // 引导启动器
   // Launcher
   'launcher.depMissing': 'ℹ️ Missing runtime dependencies. Installing now, please wait...',
@@ -192,96 +262,15 @@ export const en: Record<string, string> = {
   'launcher.bgStarted': '✨ Freya core service has been started in the background.',
   'launcher.bgStopTip': '👉 You can run "freya stop" to terminate this background service.\n',
 
-  // 核心配置 Schema
-  // Core Configuration Schema
-  'schema.core.category.system': 'System Parameters',
-  'schema.core.category.server': 'Server',
-  'schema.core.category.cli': 'CLI',
-  'schema.core.category.workspace': 'Workspace',
-  'schema.core.category.context': 'Context Management',
-  'schema.core.category.log': 'Logging',
-  'schema.core.category.models': 'Models',
-  'schema.core.category.security': 'Security',
-  'schema.core.category.tools': 'Builtin Tools',
-  'schema.core.category.commands': 'Builtin Commands',
-
-  'schema.core.models.item.provider.desc': 'LLM provider identifier',
-  'schema.core.models.item.model.desc': 'Model name',
-  'schema.core.models.item.name.desc': 'Display name',
-  'schema.core.system.language.desc': 'System UI and interaction language',
-  'schema.core.system.language.enum.auto': 'Auto Detect (auto)',
-  'schema.core.system.language.enum.zh': 'Chinese (zh)',
-  'schema.core.system.language.enum.en': 'English (en)',
-  'schema.core.server.port.desc': 'Web gateway service port',
-  'schema.core.server.enabled.desc': 'Enable Web gateway service and WebSocket channel',
-  'schema.core.cli.enabled.desc': 'Enable command-line terminal interaction channel',
-  'schema.core.workspace.desc': 'User document workspace directory name',
-  'schema.core.context.enabled.desc': 'Enable context management',
-  'schema.core.context.maxHistoryTurns.desc': 'Maximum turns of context history',
-  'schema.core.context.historyLimit.desc': 'Upper limit of context history message count',
-  'schema.core.context.keepRecentTurns.desc': 'Recent turns preserved during compression',
-  'schema.core.context.summarizeEnabled.desc': 'Enable context summary compression',
-  'schema.core.context.summaryMaxTokens.desc': 'Maximum token length of summary generated during compression',
-  'schema.core.context.toolboxIdleTimeoutRounds.desc': 'Max idle turns before automatically unloading an active toolbox',
-  'schema.core.log.console.error.desc': 'Console ERROR logs output (red)',
-  'schema.core.log.console.warn.desc': 'Console WARN logs output (yellow)',
-  'schema.core.log.console.info.desc': 'Console INFO logs output (green)',
-  'schema.core.log.console.debug.desc': 'Console DEBUG logs output (gray)',
-  'schema.core.log.llm.desc': 'Record LLM interaction logs',
-  'schema.core.models.default.desc': 'Default model fallback chain list',
-  'schema.core.models.image.desc': 'Image models list',
-  'schema.core.models.audio.desc': 'Audio transcription models list',
-  'schema.core.config.authTimeout.desc': 'Timeout seconds for AI agent waiting for config authorization',
-  'schema.core.tools.config.enabled.desc': 'Enable core config toolbox (allows model to view/modify config)',
-  'schema.core.tools.session.enabled.desc': 'Enable session toolbox (allows model to view history/spawn subtasks)',
-  'schema.core.commands.auth.enabled.desc': 'Enable sensitive operation approval commands (/approve and /reject)',
-  'schema.core.commands.session.enabled.desc': 'Enable session management commands (/session and subcommands)',
-  'schema.core.commands.model.enabled.desc': 'Enable model switching commands (/model and subcommands)',
-
-  // 配置管理器运行态文案
-  // Configuration Manager runtime messages
-  'config.error.readonlyRejected': '❌ Property "{keyPath}" is currently read-only (locked by startup arguments or disabled plugin) and cannot be modified.',
-  'config.update.propertySuccess': 'Core configuration property "{keyPath}" updated successfully and took effect immediately.',
-  'config.update.globalSuccess': 'Global configuration updated successfully and took effect immediately.',
-  'config.provider.missingId': '❌ Missing required parameter: id cannot be empty.',
-  'config.provider.alreadyExists': '❌ Model provider ID "{id}" already exists.',
-  'config.provider.addSuccess': 'Model provider "{id}" added successfully.',
-  'config.provider.notFound': '❌ Model provider "{id}" not found.',
-  'config.provider.noUpdates': '⚠️ No attributes specified to update.',
-  'config.provider.updateSuccess': 'Attributes [{keys}] of provider "{id}" updated successfully.',
-  'config.provider.deleteSuccess': 'Model provider "{id}" and all its models deleted successfully.',
-  'config.model.missingId': '❌ Missing required parameter: id cannot be empty.',
-  'config.model.alreadyExists': '❌ Model ID "{modelId}" already exists under provider "{providerId}".',
-  'config.model.addSuccess': 'Model "{modelId}" added successfully to provider "{providerId}".',
-  'config.model.notFound': '❌ Model ID "{modelId}" not found under provider "{providerId}".',
-  'config.model.updateSuccess': 'Attributes [{keys}] of model "{modelId}" (provider "{providerId}") updated successfully.',
-  'config.model.deleteSuccess': 'Model "{modelId}" (provider "{providerId}") deleted successfully.',
-  'config.plugin.notInit': '❌ Plugin service is not initialized.',
-  'config.skill.notInit': '❌ Skill registry service is not initialized.',
-  'config.prompt.notAllowed': '❌ Access denied: Primary prompt document "{name}" is not in whitelist (allowed: IDENTITY, SOUL, USER, TOOLS, AGENTS, MEMORY).',
-  'config.prompt.notInit': '❌ Prompt manager service is not initialized.',
-  'config.prompt.overwriteSuccess': 'Primary prompt document [{name}] overwritten successfully and took effect immediately.',
-  'config.prompt.editSuccess': 'Primary prompt document [{name}] partially replaced successfully and took effect immediately.',
-  'config.prompt.editFailed': '❌ Edit failed: {message}',
-
-  // 大模型与执行引擎异常提示
-  // LLM and Agent Executor error messages
-  'llm.error.noPluginLoaded': '❌ No valid LLM plugin loaded in system. Please check plugin and model configurations.',
-  'llm.error.allCandidatesFailed': 'All candidate models failed to invoke, no fallback available.',
-  'llm.error.missingApiKey': 'No available LLM configuration detected or API key is invalid.',
-  'llm.error.noPluginForProvider': 'No LLM plugin instance found to handle provider "{providerId}".',
-  'agent.error.aborted': 'Chat generation was aborted by user.',
-  'agent.error.noValidResponse': 'Failed to obtain a valid model response.',
-  'agent.error.jsonParseFailed': 'JSON parsing failed: {message}',
-  'agent.error.executionFailed': 'Execution failed',
-
-  // 核心服务与指令交互提示
-  // Core service and command interaction messages
-  'cmd.error.unknown': '❌ Unknown command "/{commandName}". Type "/help" to view all available commands.',
-  'cmd.error.disabled': '❌ Permission denied: Command "/{commandName}" is disabled by administrator.',
-  'cmd.error.executionFailed': '❌ Command execution failed: {message}',
-  'agent.error.kernelError': '❌ [Kernel Execution Error] {message}',
-  'channel.ws.connected': 'Connected to Freya backend WebSocket service successfully.',
-  'llm.candidate.default': 'Default',
+  // REST API 错误
+  // REST API errors
+  'api.error.bodyTooLarge': 'Request body exceeds 1MB size limit.',
+  'api.error.bodyInvalidJson': 'Request body is not valid JSON.',
+  'api.error.missingKeyPath': 'Missing required parameter: keyPath',
+  'api.error.updatesNotObject': 'Missing required parameter: updates must be an object',
+  'api.error.missingPluginId': 'Missing required parameter: pluginId',
+  'api.error.missingSkillId': 'Missing required parameter: skillId',
+  'api.error.notSupported': 'Unsupported API method or path: {method} {pathname}',
+  'api.error.internal': 'Internal API processing error',
 };
 
