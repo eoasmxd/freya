@@ -92,7 +92,7 @@ pnpm freya   # 启动微内核服务 (或使用 pnpm start)
 ### 2.1 Web 界面操作指引
 点击右上角设置图标（齿轮），选择 **LLM 提供商** 面板：
 - **添加提供商**：填写提供商 ID（如 `deepseek`）、显示名称（如 `DeepSeek`）、提供商类型（通常为 `openai`）、API 代理端点 (Base URL) 与 API Key。
-- **挂载模型实例**：选中提供商后点击“添加模型”，配置模型 ID（如 `deepseek-chat`）、显示名称、输入/输出/缓存 Tokens 单价、Context Window 以及模态 Capability。
+- **挂载模型实例**：选中提供商后点击“添加模型”，配置模型 ID（如 `gemini-3.5-flash-lite`、`deepseek-v4-flash`、`gpt-4o-mini`）、显示名称、输入/输出/缓存 Tokens 单价、Context Window 以及模态 Capability。
 
 ### 2.2 AI Agent 自动配置指引
 当用户请求“添加 DeepSeek 提供商”或“修改模型的 Token 限制”时：
