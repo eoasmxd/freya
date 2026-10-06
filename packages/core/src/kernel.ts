@@ -26,6 +26,8 @@ import { SessionToolbox } from './tools/session/index.js';
 import { FreyaMetaToolbox } from './tools/meta/index.js';
 import { FreyaToolRegistry } from './tools/tool-registry.js';
 import { FreyaWebContainer } from './web/web-container.js';
+import { FreyaConfigApi } from './config/config-api.js';
+import { FREYA_APP } from './utils/paths.js';
 
 /**
  * Freya 核心微内核，负责协调各子系统启动与关闭
@@ -131,12 +133,23 @@ export class FreyaKernel {
 
     if (webEnabled) {
       this.webContainer = new FreyaWebContainer();
-      await this.webContainer.start(ctx, configManager);
+      ctx.http = this.webContainer;
+
+      const configApi = new FreyaConfigApi(configManager, ctx);
+      this.webContainer.registerApi('/api/config', (req, res) => configApi.handleRequest(req, res));
+
+      const uiDistPath = this.webContainer.getUiDistPath(FREYA_APP);
+      this.webContainer.registerStatic('/', uiDistPath, { spaFallback: true, injectLanguage: true });
+
+      await this.webContainer.start(ctx);
     }
 
     if (this.channelRegistry) {
       if (webEnabled && this.webContainer) {
-        this.wsChannel = new FreyaWsChannel(this.webContainer.getServer());
+        this.wsChannel = new FreyaWsChannel();
+        this.webContainer.registerUpgrade('/ws', (req, socket, head) => {
+          this.wsChannel?.handleUpgrade(req, socket, head);
+        });
         this.channelRegistry.register(this.wsChannel);
         await this.wsChannel.setup(ctx);
         await this.wsChannel.start(ctx);

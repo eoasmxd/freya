@@ -1,5 +1,5 @@
 import type { ConfigFieldSchema, FreyaContext } from '@eoasmxd/freya-sdk';
-import type { FreyaConfigManager } from '../config/config-manager.js';
+import type { FreyaConfigManager } from './config-manager.js';
 import type http from 'node:http';
 import { I18n } from '../i18n/index.js';
 import { zh } from '../i18n/locales/zh.js';

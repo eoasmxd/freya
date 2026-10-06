@@ -1,6 +1,7 @@
 import type { FreyaContext } from '@eoasmxd/freya-sdk';
 import crypto from 'node:crypto';
 import http from 'node:http';
+import type { Duplex } from 'node:stream';
 import { WebSocket, WebSocketServer } from 'ws';
 import { I18n } from '../i18n/index.js';
 import { zh } from '../i18n/locales/zh.js';
@@ -39,7 +40,7 @@ export class FreyaWsChannel {
     private isSetup = false;
     private readonly i18n = new I18n({ zh, en });
 
-    constructor(private httpServer: http.Server) { }
+    constructor(private httpServer?: http.Server) { }
 
     async setup(ctx: FreyaContext): Promise<void> {
         if (this.isSetup) return;
@@ -53,7 +54,9 @@ export class FreyaWsChannel {
     }
 
     async start(ctx: FreyaContext): Promise<void> {
-        this.wss = new WebSocketServer({ server: this.httpServer });
+        this.wss = this.httpServer
+            ? new WebSocketServer({ server: this.httpServer })
+            : new WebSocketServer({ noServer: true });
 
         this.wss.on('connection', (ws, req) => {
             const reqUrl = new URL(req.url || '/', `http://${req.headers.host || 'localhost'}`);
@@ -397,4 +400,10 @@ export class FreyaWsChannel {
             }
         }
     };
+
+    handleUpgrade(req: http.IncomingMessage, socket: Duplex, head: Buffer): void {
+        this.wss?.handleUpgrade(req, socket, head, (ws) => {
+            this.wss?.emit('connection', ws, req);
+        });
+    }
 }

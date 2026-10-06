@@ -3,6 +3,7 @@ import type {
   ConnectionInfo,
   EventBus,
   FreyaContext,
+  FreyaHttpService,
   FreyaPaths,
   ILLMService,
   Logger,
@@ -27,6 +28,7 @@ export class DefaultFreyaContext implements FreyaContext {
   eventBus!: EventBus;
   config: Readonly<Record<string, any>> = {};
   llm!: ILLMService;
+  http?: FreyaHttpService;
 
   getLanguage(defaultLang?: string): string {
     const configLang = this.config?.system?.language;

@@ -1,4 +1,5 @@
 import type { ILLMService } from './llm.js';
+import type { FreyaHttpService } from './http.js';
 
 export interface EventBus {
   on(event: string, listener: (...args: any[]) => void): void;
@@ -55,6 +56,6 @@ export interface FreyaContext {
   paths: FreyaPaths;
   getLanguage(defaultLang?: string): string;
   getConnection(): ConnectionInfo | undefined;
-
+  http?: FreyaHttpService;
 }
 

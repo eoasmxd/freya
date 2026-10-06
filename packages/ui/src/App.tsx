@@ -87,8 +87,8 @@ function ChatApp() {
         ? window.location.pathname
         : `${window.location.pathname}/`;
       const baseWsUrl = isDev
-        ? 'ws://localhost:3000'
-        : `${protocol}//${window.location.host}${basePath}`;
+        ? 'ws://localhost:3000/ws'
+        : `${protocol}//${window.location.host}${basePath}ws`;
 
       const wsUrlObj = new URL(baseWsUrl, window.location.href);
       wsUrlObj.searchParams.set('clientId', clientId);
