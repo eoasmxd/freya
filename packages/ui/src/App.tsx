@@ -3,7 +3,29 @@ import { ChatHeader } from './features/chat/ChatHeader.jsx';
 import { ChatArea } from './features/chat/ChatArea.jsx';
 import { ChatFooter } from './features/chat/ChatFooter.jsx';
 import { ConfigModal } from './features/config/ConfigModal.jsx';
+import { LoginModal } from './components/LoginModal.jsx';
 import { I18nProvider, useI18n } from './i18n/index.js';
+
+if (typeof window !== 'undefined' && !(window as any).__FREYA_AUTH_FETCH_ATTACHED__) {
+  (window as any).__FREYA_AUTH_FETCH_ATTACHED__ = true;
+  const originalFetch = window.fetch;
+  window.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
+    const token = localStorage.getItem('freya_token');
+    if (token) {
+      init = init || {};
+      const headers = new Headers(init.headers || {});
+      if (!headers.has('Authorization')) {
+        headers.set('Authorization', `Bearer ${token}`);
+      }
+      init.headers = headers;
+    }
+    const res = await originalFetch(input, init);
+    if (res.status === 401 && !String(input).includes('/api/auth/login')) {
+      window.dispatchEvent(new CustomEvent('freya:unauthorized'));
+    }
+    return res;
+  };
+}
 
 interface Message {
   id: string;
@@ -43,6 +65,9 @@ function ChatApp() {
 
   const [showConfig, setShowConfig] = useState(false);
   const [confirmModal, setConfirmModal] = useState<{ title: string; message: string; onConfirm: () => void } | null>(null);
+  const [authChecking, setAuthChecking] = useState(true);
+  const [authRequired, setAuthRequired] = useState(false);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
 
   const wsRef = useRef<WebSocket | null>(null);
   const sessionIdRef = useRef<string>('web:main');
@@ -68,6 +93,42 @@ function ChatApp() {
   };
 
   useEffect(() => {
+    async function checkAuth() {
+      try {
+        const res = await fetch(getApiUrl('/api/auth/status'));
+        if (res.ok) {
+          const data = await res.json();
+          if (data.requireAuth) {
+            setAuthRequired(true);
+            setIsAuthenticated(Boolean(data.authenticated));
+          } else {
+            setAuthRequired(false);
+            setIsAuthenticated(true);
+          }
+        }
+      } catch {
+        // ignore
+      } finally {
+        setAuthChecking(false);
+      }
+    }
+    checkAuth();
+  }, []);
+
+  useEffect(() => {
+    const handleUnauthorized = () => {
+      localStorage.removeItem('freya_token');
+      setIsAuthenticated(false);
+    };
+    window.addEventListener('freya:unauthorized', handleUnauthorized);
+    return () => window.removeEventListener('freya:unauthorized', handleUnauthorized);
+  }, []);
+
+  useEffect(() => {
+    if (authChecking || (authRequired && !isAuthenticated)) {
+      return;
+    }
+
     let ws: WebSocket | null = null;
     let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
     let isUnmounted = false;
@@ -95,7 +156,10 @@ function ChatApp() {
       wsUrlObj.searchParams.set('sessionId', 'web:main');
       wsUrlObj.searchParams.set('channelType', 'web');
 
-      ws = new WebSocket(wsUrlObj.toString());
+      const token = localStorage.getItem('freya_token');
+      const protocols = token ? ['freya-auth', token] : undefined;
+
+      ws = protocols ? new WebSocket(wsUrlObj.toString(), protocols) : new WebSocket(wsUrlObj.toString());
       wsRef.current = ws;
 
       ws.onopen = () => {
@@ -270,7 +334,7 @@ function ChatApp() {
       if (ws) ws.close();
       if (reconnectTimer) clearTimeout(reconnectTimer);
     };
-  }, []);
+  }, [authChecking, authRequired, isAuthenticated]);
 
   const handleSend = () => {
     if (!input.trim() || !isConnected) return;
@@ -343,12 +407,38 @@ function ChatApp() {
     });
   };
 
+  if (authChecking) {
+    return <div className="app-container" />;
+  }
+
+  if (authRequired && !isAuthenticated) {
+    return (
+      <div className="app-container" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <LoginModal
+          onSuccess={(token) => {
+            localStorage.setItem('freya_token', token);
+            setIsAuthenticated(true);
+          }}
+          getApiUrl={getApiUrl}
+        />
+      </div>
+    );
+  }
+
   return (
     <div className="app-container">
       <ChatHeader
         isConnected={isConnected}
         onClear={handleClear}
         onOpenConfig={() => setShowConfig(true)}
+        authRequired={authRequired}
+        onLogout={async () => {
+          try {
+            await fetch(getApiUrl('/api/auth/logout'), { method: 'POST' });
+          } catch {}
+          localStorage.removeItem('freya_token');
+          setIsAuthenticated(false);
+        }}
       />
 
       <ChatArea

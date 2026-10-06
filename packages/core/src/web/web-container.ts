@@ -1,12 +1,19 @@
-import type { FreyaContext, FreyaHttpService, HttpRouteHandler, RouteContext, StaticMountOptions } from '@eoasmxd/freya-sdk';
+import type { FreyaContext, FreyaHttpService, HttpRouteHandler, RouteContext, RouteOptions, StaticMountOptions } from '@eoasmxd/freya-sdk';
 import { I18n } from '../i18n/index.js';
 import { zh } from '../i18n/locales/zh.js';
 import { en } from '../i18n/locales/en.js';
 import http from 'node:http';
 import type { Duplex } from 'node:stream';
 import { createStaticHandler, getUiDistPath, normalizePrefix } from './static-handler.js';
+import { FreyaAuthService } from './auth-service.js';
 
 export type UpgradeHandler = (req: http.IncomingMessage, socket: Duplex, head: Buffer) => void;
+
+interface RouteEntry<T> {
+    prefix: string;
+    handler: T;
+    auth: boolean;
+}
 
 /**
  * Standard Web runtime host and route dispatch gateway
@@ -16,10 +23,12 @@ export class FreyaWebContainer implements FreyaHttpService {
     private port: number = 3000;
     private ctx?: FreyaContext;
     private readonly i18n = new I18n({ zh, en });
+    private readonly authService = new FreyaAuthService();
+    private isNoAuthCli: boolean = false;
 
-    private apiRoutes = new Map<string, HttpRouteHandler>();
-    private staticRoutes = new Map<string, HttpRouteHandler>();
-    private upgradeRoutes = new Map<string, UpgradeHandler>();
+    private apiRoutes = new Map<string, RouteEntry<HttpRouteHandler>>();
+    private staticRoutes = new Map<string, RouteEntry<HttpRouteHandler>>();
+    private upgradeRoutes = new Map<string, RouteEntry<UpgradeHandler>>();
 
     constructor() { }
 
@@ -30,9 +39,17 @@ export class FreyaWebContainer implements FreyaHttpService {
         return this.httpServer;
     }
 
-    registerApi(pathPrefix: string, handler: HttpRouteHandler): () => void {
+    getAuthService(): FreyaAuthService {
+        return this.authService;
+    }
+
+    registerApi(pathPrefix: string, handler: HttpRouteHandler, options: RouteOptions = {}): () => void {
         const normalized = normalizePrefix(pathPrefix);
-        this.apiRoutes.set(normalized, handler);
+        this.apiRoutes.set(normalized, {
+            prefix: normalized,
+            handler,
+            auth: options.auth ?? false
+        });
         return () => this.unregisterApi(normalized);
     }
 
@@ -44,7 +61,11 @@ export class FreyaWebContainer implements FreyaHttpService {
     registerStatic(pathPrefix: string, localDir: string, options: StaticMountOptions = {}): () => void {
         const normalized = normalizePrefix(pathPrefix);
         const handler = createStaticHandler(normalized, localDir, options, () => this.ctx);
-        this.staticRoutes.set(normalized, handler);
+        this.staticRoutes.set(normalized, {
+            prefix: normalized,
+            handler,
+            auth: options.auth ?? false
+        });
         return () => this.unregisterStatic(normalized);
     }
 
@@ -53,9 +74,13 @@ export class FreyaWebContainer implements FreyaHttpService {
         return this.staticRoutes.delete(normalized);
     }
 
-    registerUpgrade(pathPrefix: string, handler: UpgradeHandler): () => void {
+    registerUpgrade(pathPrefix: string, handler: UpgradeHandler, options: RouteOptions = {}): () => void {
         const normalized = normalizePrefix(pathPrefix);
-        this.upgradeRoutes.set(normalized, handler);
+        this.upgradeRoutes.set(normalized, {
+            prefix: normalized,
+            handler,
+            auth: options.auth ?? false
+        });
         return () => this.unregisterUpgrade(normalized);
     }
 
@@ -69,13 +94,18 @@ export class FreyaWebContainer implements FreyaHttpService {
         return pathname === prefix || pathname.startsWith(`${prefix}/`);
     }
 
-    private getSortedRoutes<T>(routes: Map<string, T>): [string, T][] {
+    private getSortedRoutes<T>(routes: Map<string, RouteEntry<T>>): [string, RouteEntry<T>][] {
         return Array.from(routes.entries()).sort((a, b) => b[0].length - a[0].length);
     }
 
     async start(ctx: FreyaContext): Promise<void> {
         this.ctx = ctx;
         this.i18n.setContext(ctx);
+
+        this.isNoAuthCli = process.argv.includes('--no-auth');
+        if (this.isNoAuthCli) {
+            ctx.logger.warn('[WebContainer] Warning: Authentication forcefully disabled via CLI flag (--no-auth).');
+        }
 
         const portIdx = process.argv.indexOf('--port');
         if (portIdx !== -1 && portIdx + 1 < process.argv.length) {
@@ -88,6 +118,10 @@ export class FreyaWebContainer implements FreyaHttpService {
         } else {
             this.port = (ctx.config as any)?.server?.port ?? 3000;
         }
+
+        this.registerApi('/api/auth', (req, res, context) => {
+            return this.authService.handleAuthApi(req, res, context, this.ctx, this.isNoAuthCli);
+        }, { auth: false });
 
         this.httpServer = http.createServer(async (req, res) => {
             await this.handleHttpRequest(req, res);
@@ -117,10 +151,17 @@ export class FreyaWebContainer implements FreyaHttpService {
             query: urlObj.searchParams
         };
 
-        for (const [prefix, handler] of this.getSortedRoutes(this.apiRoutes)) {
+        for (const [prefix, entry] of this.getSortedRoutes(this.apiRoutes)) {
             if (this.matchPrefix(pathname, prefix)) {
+                if (entry.auth && !this.authService.isAuthorized(req, this.ctx, this.isNoAuthCli)) {
+                    res.statusCode = 401;
+                    res.setHeader('Content-Type', 'application/json; charset=utf-8');
+                    res.end(JSON.stringify({ error: 'Unauthorized', requireAuth: true }));
+                    return;
+                }
+
                 try {
-                    const handled = await handler(req, res, context);
+                    const handled = await entry.handler(req, res, context);
                     if (handled !== false || res.writableEnded) {
                         return;
                     }
@@ -136,10 +177,17 @@ export class FreyaWebContainer implements FreyaHttpService {
             }
         }
 
-        for (const [prefix, handler] of this.getSortedRoutes(this.staticRoutes)) {
+        for (const [prefix, entry] of this.getSortedRoutes(this.staticRoutes)) {
             if (this.matchPrefix(pathname, prefix)) {
+                if (entry.auth && !this.authService.isAuthorized(req, this.ctx, this.isNoAuthCli)) {
+                    res.statusCode = 401;
+                    res.setHeader('Content-Type', 'application/json; charset=utf-8');
+                    res.end(JSON.stringify({ error: 'Unauthorized', requireAuth: true }));
+                    return;
+                }
+
                 try {
-                    const handled = await handler(req, res, context);
+                    const handled = await entry.handler(req, res, context);
                     if (handled !== false || res.writableEnded) {
                         return;
                     }
@@ -158,9 +206,15 @@ export class FreyaWebContainer implements FreyaHttpService {
         const urlObj = new URL(req.url || '/', `http://${req.headers.host || 'localhost'}`);
         const pathname = urlObj.pathname;
 
-        for (const [prefix, handler] of this.getSortedRoutes(this.upgradeRoutes)) {
+        for (const [prefix, entry] of this.getSortedRoutes(this.upgradeRoutes)) {
             if (this.matchPrefix(pathname, prefix)) {
-                handler(req, socket, head);
+                if (entry.auth && !this.authService.isAuthorized(req, this.ctx, this.isNoAuthCli)) {
+                    socket.write('HTTP/1.1 401 Unauthorized\r\nConnection: close\r\n\r\n');
+                    socket.destroy();
+                    return;
+                }
+
+                entry.handler(req, socket, head);
                 return;
             }
         }

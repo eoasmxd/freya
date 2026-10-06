@@ -41,6 +41,16 @@ export const en: Record<string, string> = {
   'app.confirmReset': 'Confirm Reset',
   'app.interrupted': ' [Interrupted]',
 
+  'auth.loginTitle': 'Access Authentication',
+  'auth.loginDesc': 'This console is password protected. Please enter access password to continue.',
+  'auth.passwordPlaceholder': 'Enter access password...',
+  'auth.unlock': 'Verify and Enter',
+  'auth.incorrectPassword': 'Incorrect password, please try again',
+  'auth.passwordRequired': 'Password is required',
+  'auth.logout': 'Log Out',
+  'auth.logoutShort': 'Exit',
+  'auth.networkError': 'Authentication failed, please check connection',
+
   'common.copy': 'Copy',
   'common.copied': 'Copied',
   'common.close': 'Close',

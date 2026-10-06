@@ -814,7 +814,7 @@ export const GlobalConfigPanel: React.FC<GlobalConfigPanelProps> = ({ getApiUrl 
                           />
                         ) : (
                           <input
-                            type="text"
+                            type={field.type === 'sha256' || field.uiHint === 'password' || field.sensitive ? 'password' : 'text'}
                             disabled={field.readonly}
                             className="config-input config-field-input"
                             style={{ opacity: field.readonly ? 0.5 : 1, cursor: field.readonly ? 'not-allowed' : undefined }}

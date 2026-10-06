@@ -41,6 +41,16 @@ export const zh: Record<string, string> = {
   'app.confirmReset': '确定重置',
   'app.interrupted': ' [生成已中断]',
 
+  'auth.loginTitle': '系统访问认证',
+  'auth.loginDesc': '当前控制台已开启安全认证保护，请输入访问密码以继续。',
+  'auth.passwordPlaceholder': '请输入访问密码...',
+  'auth.unlock': '验证并进入',
+  'auth.incorrectPassword': '密码错误，请重新输入',
+  'auth.passwordRequired': '请输入访问密码',
+  'auth.logout': '退出登录',
+  'auth.logoutShort': '退出',
+  'auth.networkError': '认证请求失败，请检查网络连接',
+
   'common.copy': '复制',
   'common.copied': '已复制',
   'common.close': '关闭',

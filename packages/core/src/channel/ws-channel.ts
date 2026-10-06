@@ -54,9 +54,14 @@ export class FreyaWsChannel {
     }
 
     async start(ctx: FreyaContext): Promise<void> {
+        const handleProtocols = (protocols: Set<string>) => {
+            if (protocols.has('freya-auth')) return 'freya-auth';
+            return false;
+        };
+
         this.wss = this.httpServer
-            ? new WebSocketServer({ server: this.httpServer })
-            : new WebSocketServer({ noServer: true });
+            ? new WebSocketServer({ server: this.httpServer, handleProtocols })
+            : new WebSocketServer({ noServer: true, handleProtocols });
 
         this.wss.on('connection', (ws, req) => {
             const reqUrl = new URL(req.url || '/', `http://${req.headers.host || 'localhost'}`);

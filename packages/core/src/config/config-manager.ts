@@ -5,6 +5,7 @@ import type { FreyaPromptManager } from '../prompt/prompt-manager.js';
 import { FreyaConfigFileHandler } from './file-handler.js';
 import { FreyaConfigSchemaRegistry } from './schema-registry.js';
 import type { FreyaSkillRegistry, FreyaSkill } from '../skill/skill-registry.js';
+import crypto from 'node:crypto';
 import path from 'node:path';
 import { FREYA_HOME } from '../utils/paths.js';
 import { I18n } from '../i18n/index.js';
@@ -304,6 +305,10 @@ export class FreyaConfigManager {
       return true;
     }
 
+    if ((keyPath === 'server.auth.enabled' || keyPath === 'server.auth.password') && process.argv.includes('--no-auth')) {
+      return true;
+    }
+
     if (this.pluginManager) {
       let targetPluginId = namespace;
       if (!targetPluginId) {
@@ -353,7 +358,17 @@ export class FreyaConfigManager {
       return newValue;
     };
 
-    const safeValue = restoreMaskedValues(value, oldValue);
+    let safeValue = restoreMaskedValues(value, oldValue);
+    const fieldSchema = this.schemaRegistry.findField(keyPath);
+    if (fieldSchema?.type === 'sha256') {
+      if (value === '******' || value === oldValue || typeof value !== 'string') {
+        safeValue = oldValue;
+      } else if (value.trim().length > 0) {
+        safeValue = crypto.createHash('sha256').update(value).digest('hex');
+      } else {
+        safeValue = '';
+      }
+    }
 
     setValueByKeyPath(jsonObj, keyPath, safeValue);
     await this.fileHandler.writeFreyaConfig(jsonObj);
@@ -400,18 +415,28 @@ export class FreyaConfigManager {
       return newValue;
     };
 
+    const actualValues: Record<string, any> = {};
     for (const [keyPath, value] of Object.entries(updates)) {
       const oldValue = getValueByKeyPath(jsonObj, keyPath);
-      const safeValue = restoreMaskedValues(value, oldValue);
+      let safeValue = restoreMaskedValues(value, oldValue);
+      const fieldSchema = this.schemaRegistry.findField(keyPath);
+      if (fieldSchema?.type === 'sha256') {
+        if (value === '******' || value === oldValue || typeof value !== 'string') {
+          safeValue = oldValue;
+        } else if (value.trim().length > 0) {
+          safeValue = crypto.createHash('sha256').update(value).digest('hex');
+        } else {
+          safeValue = '';
+        }
+      }
+      actualValues[keyPath] = safeValue;
       setValueByKeyPath(jsonObj, keyPath, safeValue);
     }
 
     await this.fileHandler.writeFreyaConfig(jsonObj);
 
     const rawConfig = JSON.parse(JSON.stringify(this.context.config));
-    for (const [keyPath, value] of Object.entries(updates)) {
-      const oldValue = getValueByKeyPath(rawConfig, keyPath);
-      const safeValue = restoreMaskedValues(value, oldValue);
+    for (const [keyPath, safeValue] of Object.entries(actualValues)) {
       setValueByKeyPath(rawConfig, keyPath, safeValue);
     }
     this.updateContextConfig(rawConfig);
@@ -791,6 +816,24 @@ export class FreyaConfigManager {
         required: true,
         min: 1,
         max: 65535,
+        category: this.i18n.all('schema.core.category.server', 'Server'),
+        manualOnly: true
+      },
+      {
+        key: 'server.auth.enabled',
+        defaultValue: false,
+        description: this.i18n.all('schema.core.server.auth.enabled.desc', 'Enable Web and WebSocket login authentication'),
+        type: 'boolean',
+        category: this.i18n.all('schema.core.category.server', 'Server'),
+        manualOnly: true
+      },
+      {
+        key: 'server.auth.password',
+        defaultValue: '',
+        description: this.i18n.all('schema.core.server.auth.password.desc', 'Web console login password'),
+        type: 'sha256',
+        sensitive: true,
+        uiHint: 'password',
         category: this.i18n.all('schema.core.category.server', 'Server'),
         manualOnly: true
       },

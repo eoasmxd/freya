@@ -11,6 +11,15 @@ export class FreyaConfigSchemaRegistry {
     return this.schema;
   }
 
+  findField(keyPath: string): ConfigFieldSchema | undefined {
+    for (const fields of this.schema.values()) {
+      for (const field of fields) {
+        if (field.key === keyPath) return field;
+      }
+    }
+    return undefined;
+  }
+
   getDefaults(): Record<string, any> {
     const defaults: Record<string, any> = {};
     for (const fields of this.schema.values()) {
@@ -36,7 +45,7 @@ export class FreyaConfigSchemaRegistry {
     const keys: string[] = [];
     const traverse = (field: ConfigFieldSchema, currentPrefix: string) => {
       const path = currentPrefix ? `${currentPrefix}.${field.key}` : field.key;
-      if (field.sensitive) {
+      if (field.sensitive || field.type === 'sha256') {
         keys.push(path);
       }
       if (field.children) {

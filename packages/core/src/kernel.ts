@@ -136,10 +136,10 @@ export class FreyaKernel {
       ctx.http = this.webContainer;
 
       const configApi = new FreyaConfigApi(configManager, ctx);
-      this.webContainer.registerApi('/api/config', (req, res) => configApi.handleRequest(req, res));
+      this.webContainer.registerApi('/api/config', (req, res) => configApi.handleRequest(req, res), { auth: true });
 
       const uiDistPath = this.webContainer.getUiDistPath(FREYA_APP);
-      this.webContainer.registerStatic('/', uiDistPath, { spaFallback: true, injectLanguage: true });
+      this.webContainer.registerStatic('/', uiDistPath, { spaFallback: true, injectLanguage: true, auth: false });
 
       await this.webContainer.start(ctx);
     }
@@ -149,7 +149,7 @@ export class FreyaKernel {
         this.wsChannel = new FreyaWsChannel();
         this.webContainer.registerUpgrade('/ws', (req, socket, head) => {
           this.wsChannel?.handleUpgrade(req, socket, head);
-        });
+        }, { auth: true });
         this.channelRegistry.register(this.wsChannel);
         await this.wsChannel.setup(ctx);
         await this.wsChannel.start(ctx);

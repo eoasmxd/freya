@@ -5,12 +5,16 @@ interface ChatHeaderProps {
   isConnected: boolean;
   onClear: () => void;
   onOpenConfig: () => void;
+  authRequired?: boolean;
+  onLogout?: () => void;
 }
 
 export const ChatHeader: React.FC<ChatHeaderProps> = ({
   isConnected,
   onClear,
-  onOpenConfig
+  onOpenConfig,
+  authRequired,
+  onLogout
 }) => {
   const { t } = useI18n();
 
@@ -40,6 +44,12 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
           <span className="header-text-full">{t('header.settings', 'Settings')}</span>
           <span className="header-text-short">{t('header.settingsShort', 'Settings')}</span>
         </button>
+        {authRequired && onLogout && (
+          <button className="btn-header" onClick={onLogout} title={t('auth.logout', 'Log Out')}>
+            <span className="header-text-full">{t('auth.logout', 'Log Out')}</span>
+            <span className="header-text-short">{t('auth.logoutShort', 'Exit')}</span>
+          </button>
+        )}
       </div>
     </header>
   );
