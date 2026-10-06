@@ -1,6 +1,6 @@
 {
   "name": "@eoasmxd/freya-plugin-wecom-channel",
-  "version": "0.6.5",
+  "version": "0.7.1",
   "private": false,
   "license": "MIT",
   "publishConfig": {
@@ -9,15 +9,18 @@
   "description": "Freya WeCom intelligent bot persistent connection channel plugin",
   "freya": {
     "displayName": {
-      "zh": "企业微信频道",
-      "en": "WeCom Channel Plugin"
+      "zh": "企业微信频道与工具",
+      "en": "WeCom Channel & Tools"
     },
     "description": {
-      "zh": "Freya 企业微信智能机器人长连接频道插件，通过 WebSocket 连接企业微信官方接口",
-      "en": "Freya WeCom intelligent bot persistent connection channel plugin via official WebSocket interface"
+      "zh": "Freya 企业微信长连接频道与群 Webhook 发送工具插件，支持智能机器人长连接及群消息与文件推送",
+      "en": "Freya WeCom persistent connection channel and group webhook sender plugin"
     },
     "defaultEnabled": false,
-    "schema": "./schema.json"
+    "schema": "./schema.json",
+    "prompts": [
+      "plugin.prompt.wecom.md"
+    ]
   },
   "type": "module",
   "main": "./dist/index.js",

@@ -123,7 +123,7 @@ Freya's interaction with Home Assistant follows a Security by Default strategy:
 * **Entity State Perception Authorization**:
   The devices and sensor entities Freya can observe are strictly limited to the entities exposed to Assist in the native Home Assistant interface (**Settings -> Voice assistants -> Expose**), preventing unauthorized entity data leaks.
 * **Device Control Permissions Switch**:
-  The application starts in **safe read-only mode** by default (querying entity states only). To allow the agent to execute actions such as switching lights or toggling appliances based on conversation requests, navigate to the Freya Web UI (**Settings -> Global Config -> Permissions & Security**) and set `homeassistant.allowControl` to `true` (takes effect dynamically without restarting).
+  The application starts in **safe read-only mode** by default (querying entity states only). To allow the agent to execute actions such as switching lights or toggling appliances based on conversation requests, navigate to the Freya Web UI (**Settings -> Plugins -> Home Assistant Plugin Configuration**) and set `homeassistant.allowControl` to `true` (takes effect dynamically without restarting).
 
 ### 4.4 Data Persistence & Backup
 All application configurations and conversation memories are persistently stored on the Home Assistant host under `/config/freya/`:

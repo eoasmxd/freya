@@ -149,6 +149,8 @@ export const en: Record<string, string> = {
 
   'schema.core.server.enabled.desc': 'Enable Web gateway service and WebSocket channel',
   'schema.core.server.port.desc': 'Web gateway service port',
+  'schema.core.server.auth.enabled.desc': 'Enable Web console and WebSocket login authentication',
+  'schema.core.server.auth.password.desc': 'Web console login password',
   'schema.core.cli.enabled.desc': 'Enable command-line terminal interaction channel',
 
   'schema.core.context.enabled.desc': 'Enable context management',

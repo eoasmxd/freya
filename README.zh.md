@@ -71,7 +71,7 @@ docker run -d --name freya -p 3000:3000 -v $(pwd)/freya-data:/data freya
 2. **安装并启动**：在应用列表中找到 **Freya**，点击安装并启动。建议勾选“在侧边栏中显示”与“开机自启”。
 3. **原生 HA 交互支持**：
    - **实体状态感知**：完全遵循 HA 原生界面（设置 -> 语音助手 -> 暴露）中暴露给 Assist 的实体列表，智能体可按需读取设备状态与传感器数据。
-   - **设备安全控制**：应用默认处于安全只读模式。如需允许大模型执行开关灯、控制电器等动作，可在 Freya Web 界面（“全局配置 -> 权限与安全”）将 `homeassistant.allowControl` 开启为 `true`。
+   - **设备安全控制**：应用默认处于安全只读模式。如需允许大模型执行开关灯、控制电器等动作，可在 Freya Web 界面（“系统设置 -> 插件管理 -> Home Assistant 插件配置”）将 `homeassistant.allowControl` 开启为 `true`。
 
 ---
 

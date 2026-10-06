@@ -29,5 +29,44 @@
         "uiHint": "password"
       }
     ]
+  },
+  {
+    "key": "wecom.webhooks",
+    "defaultValue": [],
+    "description": {
+      "zh": "企业微信群 Webhook 机器人配置列表",
+      "en": "List of WeCom group webhook bot configurations"
+    },
+    "type": "array",
+    "children": [
+      {
+        "key": "name",
+        "description": {
+          "zh": "Webhook 名称/别名（用于 AI 工具定位，如 ops-alert）",
+          "en": "Webhook name/alias for AI tool routing"
+        },
+        "type": "string",
+        "required": true
+      },
+      {
+        "key": "key",
+        "description": {
+          "zh": "Webhook Key 或完整地址（支持直接粘贴完整 Webhook URL）",
+          "en": "Webhook Key or complete webhook URL"
+        },
+        "type": "string",
+        "required": true,
+        "sensitive": true,
+        "manualOnly": true
+      },
+      {
+        "key": "description",
+        "description": {
+          "zh": "备注",
+          "en": "Remarks"
+        },
+        "type": "string"
+      }
+    ]
   }
 ]

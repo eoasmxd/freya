@@ -1,5 +1,5 @@
 import type { ConfigFieldSchema, FreyaContext } from '@eoasmxd/freya-sdk';
-import type { FreyaConfigManager } from '../config/config-manager.js';
+import type { FreyaConfigManager } from './config-manager.js';
 import type http from 'node:http';
 import { I18n } from '../i18n/index.js';
 import { zh } from '../i18n/locales/zh.js';
@@ -68,8 +68,7 @@ export class FreyaConfigApi {
 
     try {
       if (pathname === '/api/config' && req.method === 'GET') {
-        const reveal = urlObj.searchParams.get('reveal') === 'true';
-        const config = await this.configManager.readConfig(reveal);
+        const config = await this.configManager.readConfig(true);
         res.writeHead(200, this.headers);
         res.end(JSON.stringify({ success: true, data: config }));
         return true;
@@ -116,6 +115,7 @@ export class FreyaConfigApi {
       }
 
       if (pathname === '/api/config/schema' && req.method === 'GET') {
+        const targetNamespace = urlObj.searchParams.get('namespace') || undefined;
         const schemaMap = this.configManager.getSchema();
         const resolveEnumOption = (opt: any): any => {
           if (typeof opt === 'object' && opt !== null && opt.value !== undefined) {
@@ -135,6 +135,14 @@ export class FreyaConfigApi {
           enumValues: f.enumValues ? f.enumValues.map(resolveEnumOption) : undefined,
           children: f.children ? f.children.map(c => resolveField(c, ns)) : undefined
         });
+
+        if (targetNamespace) {
+          const fields = schemaMap.get(targetNamespace) || [];
+          const data = fields.map(f => resolveField(f, targetNamespace));
+          res.writeHead(200, this.headers);
+          res.end(JSON.stringify({ success: true, data, namespace: targetNamespace }));
+          return true;
+        }
 
         const data: Record<string, any> = {};
         for (const [ns, fields] of schemaMap.entries()) {

@@ -31,13 +31,14 @@ description:
 
 1. 打开浏览器访问控制台（默认 `http://localhost:3000`）。
 2. 点击右上角 **设置图标 (齿轮)** 展开配置中心。
-3. **确认开启插件**：在 **插件配置** 面板中，确保 **企业微信频道插件 (`@eoasmxd/freya-plugin-wecom-channel`)** 开关处于启用状态。
-4. 选项卡选择 **全局配置**，向下滚动至 **扩展模块配置** 区域。
-5. 找到 **`wecom.bots` (企业微信智能机器人配置列表)**：
-   - 点击 **添加新项**；
+3. **启用并配置插件**：
+   - 切换至 **插件管理** 面板，确保 **企业微信频道插件 (`@eoasmxd/freya-plugin-wecom-channel`)** 开关处于启用状态；
+   - 点击该插件卡片右侧的 **⚙️ 配置** 按钮展开设置项。
+4. **配置机器人凭证 (`wecom.bots`)**：
+   - 在展开的配置面板中点击 **添加配置项**；
    - 填入 **机器人ID (`botId`)**；
    - 填入 **机器人密钥 (`secret`)**。
-6. 点击页面最下方的 **保存全局配置**。系统将在 5 秒内免重启自动热拉起连接。
+5. 点击卡片底部的 **保存配置**。系统将在 5 秒内免重启自动热拉起连接。
 
 ---
 
@@ -61,5 +62,23 @@ description:
 
 ### 步骤 5: 反馈结果
 成功写入后，告知用户配置已实时落盘，系统底座会在 5 秒内自动建立 WebSocket 连接。
+
+---
+
+## 📢 4. 企业微信群 Webhook 机器人与消息发送工具
+
+除智能机器人长连接外，插件还提供了 `wecom_send_webhook` 工具，可向企微群主动推送文本、Markdown、工作区图片与文件。
+
+### Webhook 配置说明 (`wecom.webhooks`)
+在插件配置面板中，可登记常用群 Webhook 列表：
+- **`name`**：群别名（如 `ops-alert` 或 `dev`），供 AI 工具精准调用；
+- **`key`**：企微群机器人的 Webhook Key 或完整 Webhook URL；
+- **`description`**：备注说明（仅供管理员备忘，防止遗忘对应群用途）。
+
+### Webhook 发送工具调用规范 (`wecom_send_webhook`)
+- **`target`**：配置中预设的 `name`（如 `ops-alert`）或直接传入的 Webhook Key / 完整 URL；
+- **`messageType`**：`text` | `markdown` | `image` | `file`；
+- **`content`**：发送文本或 Markdown 时的内容；
+- **`filePath`**：发送图片（JPG/PNG ≤ 2MB）或文件（≤ 20MB）时的工作区相对路径（沙箱安全隔离）。
 
 

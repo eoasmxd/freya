@@ -9,7 +9,7 @@ import type { ToolDefinition } from './tool.js';
 export type PluginType = 'llm' | 'tool' | 'channel';
 
 export interface FreyaPlugin {
-  type: PluginType | PluginType[];
+  type: PluginType | PluginType[] | readonly PluginType[];
   id?: string;
   name?: LocalizedText;
   description?: LocalizedText;
@@ -23,9 +23,7 @@ export interface FreyaPlugin {
 
 export interface ChannelPlugin extends FreyaPlugin {}
 
-export interface ToolPlugin extends FreyaPlugin, FreyaToolbox {
-  type: 'tool';
-}
+export interface ToolPlugin extends FreyaPlugin, FreyaToolbox {}
 
 export interface LLMPlugin extends FreyaPlugin {
   providerTypes?: string[];

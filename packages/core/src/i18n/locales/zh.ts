@@ -149,6 +149,8 @@ export const zh: Record<string, string> = {
 
   'schema.core.server.enabled.desc': '是否启用 Web 网关服务与 WebSocket 频道',
   'schema.core.server.port.desc': 'Web 网关服务端口',
+  'schema.core.server.auth.enabled.desc': '是否开启 Web 控制台与 WebSocket 访问登录认证',
+  'schema.core.server.auth.password.desc': 'Web 控制台访问登录密码',
   'schema.core.cli.enabled.desc': '是否启用命令行终端交互频道',
 
   'schema.core.context.enabled.desc': '是否启用上下文管理',

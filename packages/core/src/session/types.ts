@@ -26,6 +26,7 @@ export interface SessionIndex {
     totalTokens?: number;
     cost?: number;
     toolboxIdleRounds?: Record<string, number>;
+    ephemeral?: boolean;
 }
 
 /**
@@ -35,6 +36,7 @@ export interface SessionIndex {
 export interface Session extends SessionIndex {
     history: LLMMessage[];
     lastSnapshotId: string | null;
+    dirty?: boolean;
 }
 
 export interface SessionData {

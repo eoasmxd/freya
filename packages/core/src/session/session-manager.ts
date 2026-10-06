@@ -1,6 +1,8 @@
 import type { FreyaContext, LLMMessage, LLMTokenUsage } from '@eoasmxd/freya-sdk';
 import crypto from 'node:crypto';
 import type { FreyaPromptRegistry } from '../prompt/prompt-registry.js';
+import type { FreyaToolRegistry } from '../tools/tool-registry.js';
+import type { FreyaSkillRegistry } from '../skill/skill-registry.js';
 import { SessionCompactor } from './compactor.js';
 import { FreyaSessionPersistence } from './persistence.js';
 import type { Session, SessionIndex } from './types.js';
@@ -24,7 +26,10 @@ export class FreyaSessionManager {
     private context?: FreyaContext;
     private logger?: FreyaContext['logger'];
 
-    constructor() { }
+    constructor(
+        private toolRegistry?: FreyaToolRegistry,
+        private skillRegistry?: FreyaSkillRegistry
+    ) { }
 
     findLatestIndexById(id: string): SessionIndex | undefined {
         const matched = Array.from(this.sessionIndices.values()).filter(idx => idx.id === id);
@@ -61,6 +66,19 @@ export class FreyaSessionManager {
             this.handleSessionBillingAdd(payload).catch((err) => {
                 this.logger?.error('[SessionManager] Failed to process incremental billing asynchronously:', err);
             });
+        });
+
+        context.eventBus.on('session:reply:completed', (payload: { sessionId: string }) => {
+            this.flushSession(payload.sessionId)
+                .catch((err) => {
+                    this.logger?.error(`[SessionManager] Failed to flush session on completed: ${payload.sessionId}`, err);
+                })
+                .finally(() => {
+                    const cached = this.sessions.get(payload.sessionId);
+                    if (cached?.ephemeral) {
+                        this.sessions.delete(payload.sessionId);
+                    }
+                });
         });
 
         this.logger?.info(`[SessionManager] Initialized, loaded ${this.sessionIndices.size} sessions`);
@@ -100,6 +118,7 @@ export class FreyaSessionManager {
             cachedPromptTokens: extra.cachedPromptTokens,
             totalTokens: extra.totalTokens,
             cost: extra.cost,
+            ephemeral: extra.ephemeral,
         };
         this.sessions.set(id, session);
 
@@ -124,6 +143,7 @@ export class FreyaSessionManager {
             cachedPromptTokens: session.cachedPromptTokens,
             totalTokens: session.totalTokens,
             cost: session.cost,
+            ephemeral: session.ephemeral,
         };
         this.sessionIndices.set(uuid, idx);
 
@@ -165,6 +185,7 @@ export class FreyaSessionManager {
             cachedPromptTokens: idx.cachedPromptTokens,
             totalTokens: idx.totalTokens,
             cost: idx.cost,
+            ephemeral: idx.ephemeral,
         };
         this.sessions.set(id, session);
         this.logger?.info(`[SessionManager] Lazy loaded session: ${id}`);
@@ -201,23 +222,90 @@ export class FreyaSessionManager {
 
     private async persistSession(session: Session): Promise<void> {
         await this.persistence.saveSessionData(session);
-        await this.saveIndex();
+        if (session.ephemeral) {
+            await this.persistence.appendEphemeralIndex(session);
+        } else {
+            await this.saveIndex();
+        }
     }
 
-    async getOrCreate(id: string): Promise<Session> {
+    /**
+     * 过滤并剔除未注册或未启用的工具箱 ID
+     * Filter and remove unregistered or disabled toolbox IDs
+     */
+    private filterValidToolboxIds(ids: string[]): string[] {
+        const cleaned = ids.map((id) => (typeof id === 'string' ? id.trim() : '')).filter(Boolean);
+        if (this.toolRegistry) {
+            const registered = new Set(this.toolRegistry.getRegisteredToolboxIds());
+            return cleaned.filter((id) => registered.has(id));
+        }
+        return cleaned;
+    }
+
+    /**
+     * 校验技能 ID 是否合法且已启用
+     * Verify whether skill ID is valid, registered and enabled
+     */
+    private isValidSkillId(skillId: string): boolean {
+        if (!skillId || typeof skillId !== 'string') return false;
+        const trimmed = skillId.trim();
+        if (!trimmed) return false;
+        if (this.skillRegistry) {
+            return this.skillRegistry.getSkills().has(trimmed);
+        }
+        return true;
+    }
+
+    async getOrCreate(id: string, options?: { ephemeral?: boolean; activeToolboxIds?: string[]; activeSkillId?: string }): Promise<Session> {
         const index = this.findLatestIndexById(id);
         if (index && !index.archived) {
             try {
-                return await this.lazyLoadSession(id);
+                const session = await this.lazyLoadSession(id);
+                if (options?.ephemeral !== undefined) {
+                    session.ephemeral = options.ephemeral;
+                    index.ephemeral = options.ephemeral;
+                }
+                if (options?.activeToolboxIds && options.activeToolboxIds.length > 0) {
+                    const validIds = this.filterValidToolboxIds(options.activeToolboxIds);
+                    if (validIds.length > 0) {
+                        const current = new Set(session.activeToolboxIds || []);
+                        for (const tbId of validIds) {
+                            current.add(tbId);
+                        }
+                        const merged = Array.from(current);
+                        session.activeToolboxIds = merged;
+                        index.activeToolboxIds = merged;
+                    }
+                }
+                if (options?.activeSkillId && this.isValidSkillId(options.activeSkillId)) {
+                    const skillId = options.activeSkillId.trim();
+                    session.activeSkillId = skillId;
+                    index.activeSkillId = skillId;
+                }
+                return session;
             } catch (err) {
             }
         }
 
-        this.logger?.warn(`[SessionManager] No active session found with ID ${id}, creating new session for connection resilience.`);
-        const session = this.newSession(id, crypto.randomUUID(), { archived: false });
-        await this.persistSession(session);
+        const initialToolboxes = (options?.activeToolboxIds && options.activeToolboxIds.length > 0)
+            ? Array.from(new Set(this.filterValidToolboxIds(options.activeToolboxIds)))
+            : [];
+        const initialSkillId = (options?.activeSkillId && this.isValidSkillId(options.activeSkillId))
+            ? options.activeSkillId.trim()
+            : undefined;
+
+        const session = this.newSession(id, crypto.randomUUID(), {
+            archived: false,
+            ephemeral: options?.ephemeral,
+            activeToolboxIds: initialToolboxes,
+            activeSkillId: initialSkillId
+        });
+        if (!session.ephemeral) {
+            await this.persistSession(session);
+        }
         return session;
     }
+
 
     has(id: string): boolean {
         return !!this.findLatestIndexById(id);
@@ -236,8 +324,7 @@ export class FreyaSessionManager {
             session.history.push(...messages);
             session.updatedAt = new Date().toISOString();
             if (modelId !== undefined) session.modelId = modelId;
-            await this.persistence.saveSessionData(session);
-            await this.persistSession(session);
+            session.dirty = true;
 
             const hasUserOrTool = messages.some((m) => m.role === 'user' || m.role === 'tool');
             const hasAssistant = messages.some((m) => m.role === 'assistant');
@@ -248,12 +335,11 @@ export class FreyaSessionManager {
                     if (compResult.snapshot) {
                         await this.persistence.saveSnapshot(session.uuid, compResult.snapshot);
                     }
-                    await this.persistence.saveSessionData(session);
-                    await this.saveIndex();
+                    session.dirty = true;
                 }
             }
 
-            if (hasAssistant) {
+            if (hasAssistant && !session.ephemeral) {
                 this.compactor.compressPostChat(session, session.modelId).then(async (result) => {
                     if (result) {
                         await this.enqueueWrite(sessionId, async (latestSession) => {
@@ -282,14 +368,26 @@ export class FreyaSessionManager {
                             }
 
                             latestSession.updatedAt = new Date().toISOString();
-                            await this.persistence.saveSessionData(latestSession);
                             await this.persistSession(latestSession);
+                            latestSession.dirty = false;
                         });
                     }
                 }).catch((err) => {
                     this.logger?.error('[SessionManager] Error during post-chat session compaction:', err);
                 });
             }
+        });
+    }
+
+    /**
+     * 将指定会话从内存最终刷盘持久化
+     * Flush session data from memory to persistent storage
+     */
+    async flushSession(sessionId: string): Promise<void> {
+        return this.enqueueWrite(sessionId, async (session) => {
+            if (!session.dirty) return;
+            await this.persistSession(session);
+            session.dirty = false;
         });
     }
 
@@ -308,7 +406,7 @@ export class FreyaSessionManager {
                 Object.assign(idx, updates);
                 idx.updatedAt = session.updatedAt;
             }
-            await this.persistSession(session);
+            session.dirty = true;
         });
     }
 
@@ -383,12 +481,20 @@ export class FreyaSessionManager {
             session.history = options.history.map(msg => ({ ...msg }));
         }
 
-        await this.persistSession(session);
+        if (!session.ephemeral) {
+            await this.persistSession(session);
+        }
         return session;
     }
 
-    listSessions(filter?: { parentId?: string; archived?: boolean }): SessionIndex[] {
+    listSessions(filter?: { parentId?: string; archived?: boolean; ephemeral?: boolean }): SessionIndex[] {
         let list = Array.from(this.sessionIndices.values());
+
+        if (filter?.ephemeral !== undefined) {
+            list = list.filter(idx => Boolean(idx.ephemeral) === filter.ephemeral);
+        } else {
+            list = list.filter(idx => !idx.ephemeral);
+        }
 
         if (filter?.parentId !== undefined) {
             list = list.filter(idx => idx.parentId === filter.parentId);
@@ -406,12 +512,14 @@ export class FreyaSessionManager {
     }
 
     async activateToolboxes(sessionId: string, toolboxIds: string[]): Promise<void> {
+        const validIds = this.filterValidToolboxIds(toolboxIds);
+        if (validIds.length === 0) return;
         return this.enqueueWrite(sessionId, async (session) => {
             const current = new Set(session.activeToolboxIds || []);
-            toolboxIds.forEach(id => current.add(id));
+            validIds.forEach(id => current.add(id));
             session.activeToolboxIds = Array.from(current);
             session.updatedAt = new Date().toISOString();
-            await this.persistSession(session);
+            session.dirty = true;
         });
     }
 
@@ -421,7 +529,7 @@ export class FreyaSessionManager {
             toolboxIds.forEach(id => current.delete(id));
             session.activeToolboxIds = Array.from(current);
             session.updatedAt = new Date().toISOString();
-            await this.persistSession(session);
+            session.dirty = true;
         });
     }
 
@@ -445,8 +553,7 @@ export class FreyaSessionManager {
             session.totalTokens = currentTotal + usage.totalTokens;
             session.cost = parseFloat((currentCost + singleCost).toFixed(7));
             session.updatedAt = new Date().toISOString();
-
-            await this.persistSession(session);
+            session.dirty = true;
 
             this.context?.eventBus.emit('session:billing:update', {
                 sessionId,

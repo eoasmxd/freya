@@ -6,7 +6,7 @@ export interface ConfigFieldSchema {
   key: string;
   defaultValue?: any;
   description: LocalizedText;
-  type: 'string' | 'number' | 'boolean' | 'enum' | 'object' | 'array';
+  type: 'string' | 'number' | 'boolean' | 'enum' | 'object' | 'array' | 'sha256';
   enumValues?: ConfigEnumOption[];
   required?: boolean;
   min?: number;

@@ -1,8 +1,9 @@
-import type { ChannelPlugin, FreyaAttachment, FreyaContext } from "@eoasmxd/freya-sdk";
+import type { ChannelPlugin, FreyaAttachment, FreyaContext, FreyaTool, ToolPlugin } from "@eoasmxd/freya-sdk";
 import crypto from "node:crypto";
 import fs from "node:fs/promises";
 import path from "node:path";
 import WebSocket from "ws";
+import { WecomSendWebhookTool } from "./webhook-tool.js";
 
 interface WecomBotConfig {
   botId: string;
@@ -40,13 +41,14 @@ const WECOM_MIME_MAP: Record<string, string> = {
 };
 
 /**
- * Freya 企业微信智能机器人长连接通道插件
- * Freya WeChat Work intelligent bot persistent connection channel plugin
+ * Freya 企业微信长连接通道与群 Webhook 工具插件
+ * Freya WeChat Work persistent channel and group webhook toolbox plugin
  */
-export default class FreyaWecomChannelPlugin implements ChannelPlugin {
-  readonly type = "channel" as const;
+export default class FreyaWecomChannelPlugin implements ChannelPlugin, ToolPlugin {
+  readonly type = ["channel", "tool"] as const;
 
   private context!: FreyaContext;
+  private tools: FreyaTool[] = [];
   private bots: WecomBotConfig[] = [];
   private activeBots = new Map<string, WecomBotState>();
   private contextTokens = new Map<string, string>();
@@ -58,6 +60,7 @@ export default class FreyaWecomChannelPlugin implements ChannelPlugin {
 
   async setup(ctx: FreyaContext): Promise<void> {
     this.context = ctx;
+    this.tools = [new WecomSendWebhookTool(ctx)];
 
     const rawBots = ctx.config.wecom?.bots;
     this.bots = Array.isArray(rawBots) ? rawBots : [];
@@ -103,6 +106,18 @@ export default class FreyaWecomChannelPlugin implements ChannelPlugin {
       this.closeWecomBot(state);
     }
     this.activeBots.clear();
+  }
+
+  getId(): string {
+    return "wecom";
+  }
+
+  getInstructionPrompt(): string {
+    return "plugin.prompt.wecom";
+  }
+
+  getTools(): FreyaTool[] {
+    return this.tools;
   }
 
   private startBot(ctx: FreyaContext, config: WecomBotConfig): void {

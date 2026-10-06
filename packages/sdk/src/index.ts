@@ -7,3 +7,4 @@ export * from './types/channel.js';
 export * from './types/command.js';
 export * from './types/attachment.js';
 export * from './types/common.js';
+export * from './types/http.js';

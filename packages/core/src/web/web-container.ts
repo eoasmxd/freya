@@ -1,62 +1,37 @@
-import type { FreyaContext } from '@eoasmxd/freya-sdk';
-import type { FreyaConfigManager } from '../config/config-manager.js';
-import { FreyaConfigApi } from './config-api.js';
+import type { FreyaContext, FreyaHttpService, HttpRouteHandler, RouteContext, RouteOptions, StaticMountOptions } from '@eoasmxd/freya-sdk';
 import { I18n } from '../i18n/index.js';
 import { zh } from '../i18n/locales/zh.js';
 import { en } from '../i18n/locales/en.js';
-import fsSync from 'node:fs';
-import fs from 'node:fs/promises';
 import http from 'node:http';
-import path from 'node:path';
-import { FREYA_APP } from '../utils/paths.js';
+import type { Duplex } from 'node:stream';
+import { createStaticHandler, getUiDistPath, normalizePrefix } from './static-handler.js';
+import { FreyaAuthService } from './auth-service.js';
 
-const mimeTypes: Record<string, string> = {
-    '.html': 'text/html; charset=utf-8',
-    '.css': 'text/css; charset=utf-8',
-    '.js': 'application/javascript; charset=utf-8',
-    '.json': 'application/json; charset=utf-8',
-    '.png': 'image/png',
-    '.jpg': 'image/jpeg',
-    '.gif': 'image/gif',
-    '.svg': 'image/svg+xml',
-    '.ico': 'image/x-icon'
-};
+export type UpgradeHandler = (req: http.IncomingMessage, socket: Duplex, head: Buffer) => void;
 
-function resolveHtmlLanguage(req: http.IncomingMessage, ctx: FreyaContext): string {
-    const configLang = (ctx.config as any)?.system?.language;
-    if (configLang && configLang !== 'auto') {
-        return configLang;
-    }
-    const acceptLang = String(req.headers['accept-language'] || '').toLowerCase();
-    return acceptLang.includes('zh') ? 'zh' : 'en';
-}
-
-function injectLanguageToHtml(html: string, lang: string): string {
-    const tag = `<script>window.__FREYA_LANGUAGE__ = "${lang}";</script>`;
-    if (html.includes('</head>')) {
-        return html.replace('</head>', `${tag}</head>`);
-    }
-    return tag + html;
+interface RouteEntry<T> {
+    prefix: string;
+    handler: T;
+    auth: boolean;
 }
 
 /**
- * HTTP 服务容器，托管前端 UI 静态资源
- * HTTP service container hosting front-end UI static assets
+ * Standard Web runtime host and route dispatch gateway
  */
-export class FreyaWebContainer {
+export class FreyaWebContainer implements FreyaHttpService {
     private httpServer?: http.Server;
     private port: number = 3000;
-    private configApi?: FreyaConfigApi;
-    private i18n: I18n;
+    private ctx?: FreyaContext;
+    private readonly i18n = new I18n({ zh, en });
+    private readonly authService = new FreyaAuthService();
+    private isNoAuthCli: boolean = false;
 
-    constructor() {
-        this.i18n = new I18n({ zh, en });
-    }
+    private apiRoutes = new Map<string, RouteEntry<HttpRouteHandler>>();
+    private staticRoutes = new Map<string, RouteEntry<HttpRouteHandler>>();
+    private upgradeRoutes = new Map<string, RouteEntry<UpgradeHandler>>();
 
-    /**
-     * 获取当前托管的底层 HTTP 服务实例
-     * Get underlying HTTP server instance currently hosted
-     */
+    constructor() { }
+
     getServer(): http.Server {
         if (!this.httpServer) {
             throw new Error(this.i18n.t('web.error.notInitialized', '[WebContainer] HTTP server has not been initialized.'));
@@ -64,12 +39,74 @@ export class FreyaWebContainer {
         return this.httpServer;
     }
 
-    /**
-     * 启动 Web 静态容器托管服务
-     * Start Web static container hosting service
-     */
-    async start(ctx: FreyaContext, configManager: FreyaConfigManager): Promise<void> {
+    getAuthService(): FreyaAuthService {
+        return this.authService;
+    }
+
+    registerApi(pathPrefix: string, handler: HttpRouteHandler, options: RouteOptions = {}): () => void {
+        const normalized = normalizePrefix(pathPrefix);
+        this.apiRoutes.set(normalized, {
+            prefix: normalized,
+            handler,
+            auth: options.auth ?? false
+        });
+        return () => this.unregisterApi(normalized);
+    }
+
+    unregisterApi(pathPrefix: string): boolean {
+        const normalized = normalizePrefix(pathPrefix);
+        return this.apiRoutes.delete(normalized);
+    }
+
+    registerStatic(pathPrefix: string, localDir: string, options: StaticMountOptions = {}): () => void {
+        const normalized = normalizePrefix(pathPrefix);
+        const handler = createStaticHandler(normalized, localDir, options, () => this.ctx);
+        this.staticRoutes.set(normalized, {
+            prefix: normalized,
+            handler,
+            auth: options.auth ?? false
+        });
+        return () => this.unregisterStatic(normalized);
+    }
+
+    unregisterStatic(pathPrefix: string): boolean {
+        const normalized = normalizePrefix(pathPrefix);
+        return this.staticRoutes.delete(normalized);
+    }
+
+    registerUpgrade(pathPrefix: string, handler: UpgradeHandler, options: RouteOptions = {}): () => void {
+        const normalized = normalizePrefix(pathPrefix);
+        this.upgradeRoutes.set(normalized, {
+            prefix: normalized,
+            handler,
+            auth: options.auth ?? false
+        });
+        return () => this.unregisterUpgrade(normalized);
+    }
+
+    unregisterUpgrade(pathPrefix: string): boolean {
+        const normalized = normalizePrefix(pathPrefix);
+        return this.upgradeRoutes.delete(normalized);
+    }
+
+    private matchPrefix(pathname: string, prefix: string): boolean {
+        if (prefix === '/') return true;
+        return pathname === prefix || pathname.startsWith(`${prefix}/`);
+    }
+
+    private getSortedRoutes<T>(routes: Map<string, RouteEntry<T>>): [string, RouteEntry<T>][] {
+        return Array.from(routes.entries()).sort((a, b) => b[0].length - a[0].length);
+    }
+
+    async start(ctx: FreyaContext): Promise<void> {
+        this.ctx = ctx;
         this.i18n.setContext(ctx);
+
+        this.isNoAuthCli = process.argv.includes('--no-auth');
+        if (this.isNoAuthCli) {
+            ctx.logger.warn('[WebContainer] Warning: Authentication forcefully disabled via CLI flag (--no-auth).');
+        }
+
         const portIdx = process.argv.indexOf('--port');
         if (portIdx !== -1 && portIdx + 1 < process.argv.length) {
             const cliPort = parseInt(process.argv[portIdx + 1], 10);
@@ -81,56 +118,17 @@ export class FreyaWebContainer {
         } else {
             this.port = (ctx.config as any)?.server?.port ?? 3000;
         }
-        this.configApi = new FreyaConfigApi(configManager, ctx);
-        const uiDist = this.getUiDistPath(FREYA_APP);
-        const safePrefix = uiDist.endsWith(path.sep) ? uiDist : uiDist + path.sep;
+
+        this.registerApi('/api/auth', (req, res, context) => {
+            return this.authService.handleAuthApi(req, res, context, this.ctx, this.isNoAuthCli);
+        }, { auth: false });
 
         this.httpServer = http.createServer(async (req, res) => {
-            if (this.configApi) {
-                const handled = await this.configApi.handleRequest(req, res);
-                if (handled) return;
-            }
+            await this.handleHttpRequest(req, res);
+        });
 
-            let reqUrl = req.url === '/' || !req.url ? '/index.html' : req.url;
-            reqUrl = reqUrl.split('?')[0];
-
-            const filePath = path.join(uiDist, reqUrl);
-            if (!filePath.startsWith(safePrefix)) {
-                res.statusCode = 403;
-                res.end('Forbidden');
-                return;
-            }
-
-            try {
-                const content = await fs.readFile(filePath);
-                const ext = path.extname(filePath).toLowerCase();
-                const contentType = mimeTypes[ext] || 'application/octet-stream';
-                if (ext === '.html') {
-                    const lang = resolveHtmlLanguage(req, ctx);
-                    const injected = injectLanguageToHtml(content.toString('utf-8'), lang);
-                    res.writeHead(200, { 'Content-Type': contentType });
-                    res.end(injected);
-                    return;
-                }
-                res.writeHead(200, { 'Content-Type': contentType });
-                res.end(content);
-            } catch (err: any) {
-                if (err.code === 'ENOENT') {
-                    try {
-                        const indexHtml = await fs.readFile(path.join(uiDist, 'index.html'));
-                        const lang = resolveHtmlLanguage(req, ctx);
-                        const injected = injectLanguageToHtml(indexHtml.toString('utf-8'), lang);
-                        res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
-                        res.end(injected);
-                    } catch {
-                        res.statusCode = 404;
-                        res.end('Not Found');
-                    }
-                } else {
-                    res.statusCode = 500;
-                    res.end('Internal Server Error');
-                }
-            }
+        this.httpServer.on('upgrade', (req, socket, head) => {
+            this.handleUpgradeRequest(req, socket as Duplex, head);
         });
 
         this.httpServer.on('error', (err: any) => {
@@ -145,10 +143,85 @@ export class FreyaWebContainer {
         });
     }
 
-    /**
-     * 关停 Web 静态容器服务，并强行阻断释放所有活跃连接
-     * Stop Web static container service and force termination of all active connections
-     */
+    private async handleHttpRequest(req: http.IncomingMessage, res: http.ServerResponse): Promise<void> {
+        const urlObj = new URL(req.url || '/', `http://${req.headers.host || 'localhost'}`);
+        const pathname = urlObj.pathname;
+        const context: RouteContext = {
+            pathname,
+            query: urlObj.searchParams
+        };
+
+        for (const [prefix, entry] of this.getSortedRoutes(this.apiRoutes)) {
+            if (this.matchPrefix(pathname, prefix)) {
+                if (entry.auth && !this.authService.isAuthorized(req, this.ctx, this.isNoAuthCli)) {
+                    res.statusCode = 401;
+                    res.setHeader('Content-Type', 'application/json; charset=utf-8');
+                    res.end(JSON.stringify({ error: 'Unauthorized', requireAuth: true }));
+                    return;
+                }
+
+                try {
+                    const handled = await entry.handler(req, res, context);
+                    if (handled !== false || res.writableEnded) {
+                        return;
+                    }
+                } catch (err: any) {
+                    this.ctx?.logger.error(`[WebContainer] Error handling API route "${prefix}": ${err.message}`);
+                    if (!res.headersSent) {
+                        res.statusCode = 500;
+                        res.setHeader('Content-Type', 'application/json; charset=utf-8');
+                        res.end(JSON.stringify({ error: 'Internal Server Error' }));
+                    }
+                    return;
+                }
+            }
+        }
+
+        for (const [prefix, entry] of this.getSortedRoutes(this.staticRoutes)) {
+            if (this.matchPrefix(pathname, prefix)) {
+                if (entry.auth && !this.authService.isAuthorized(req, this.ctx, this.isNoAuthCli)) {
+                    res.statusCode = 401;
+                    res.setHeader('Content-Type', 'application/json; charset=utf-8');
+                    res.end(JSON.stringify({ error: 'Unauthorized', requireAuth: true }));
+                    return;
+                }
+
+                try {
+                    const handled = await entry.handler(req, res, context);
+                    if (handled !== false || res.writableEnded) {
+                        return;
+                    }
+                } catch (err: any) {
+                    this.ctx?.logger.error(`[WebContainer] Error handling static route "${prefix}": ${err.message}`);
+                }
+            }
+        }
+
+        res.statusCode = 404;
+        res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+        res.end('Not Found');
+    }
+
+    private handleUpgradeRequest(req: http.IncomingMessage, socket: Duplex, head: Buffer): void {
+        const urlObj = new URL(req.url || '/', `http://${req.headers.host || 'localhost'}`);
+        const pathname = urlObj.pathname;
+
+        for (const [prefix, entry] of this.getSortedRoutes(this.upgradeRoutes)) {
+            if (this.matchPrefix(pathname, prefix)) {
+                if (entry.auth && !this.authService.isAuthorized(req, this.ctx, this.isNoAuthCli)) {
+                    socket.write('HTTP/1.1 401 Unauthorized\r\nConnection: close\r\n\r\n');
+                    socket.destroy();
+                    return;
+                }
+
+                entry.handler(req, socket, head);
+                return;
+            }
+        }
+
+        socket.destroy();
+    }
+
     async stop(): Promise<void> {
         return new Promise((resolve) => {
             if (this.httpServer) {
@@ -162,10 +235,7 @@ export class FreyaWebContainer {
         });
     }
 
-    private getUiDistPath(appRoot: string): string {
-        const devPath = path.join(appRoot, 'packages', 'ui', 'dist');
-        const prodPath = path.join(appRoot, 'ui');
-        if (fsSync.existsSync(devPath)) return devPath;
-        return prodPath;
+    getUiDistPath(appRoot: string): string {
+        return getUiDistPath(appRoot);
     }
 }
