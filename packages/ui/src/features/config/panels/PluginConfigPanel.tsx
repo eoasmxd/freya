@@ -460,25 +460,27 @@ export const PluginConfigPanel: React.FC<PluginConfigPanelProps> = ({ getApiUrl 
                   {pluginFields.map(f => renderField(plugin.id, f, plugin.enabled))}
                 </div>
 
-                <div className="plugin-config-footer">
-                  <button
-                    className="btn-primary"
-                    style={{ height: '32px', padding: '0 1rem', fontSize: '0.78rem' }}
-                    disabled={savingPluginId === plugin.id || !isDirty}
-                    onClick={() => savePluginConfig(plugin.id)}
-                  >
-                    {savingPluginId === plugin.id ? '...' : t('plugin.saveConfig', 'Save Settings')}
-                  </button>
-                  {isDirty && (
+                {plugin.enabled && (
+                  <div className="plugin-config-footer">
                     <button
-                      className="btn-secondary"
-                      style={{ height: '32px', padding: '0 0.8rem', fontSize: '0.78rem' }}
-                      onClick={() => resetPluginConfig(plugin.id)}
+                      className="btn-primary"
+                      style={{ height: '32px', padding: '0 1rem', fontSize: '0.78rem' }}
+                      disabled={savingPluginId === plugin.id || !isDirty}
+                      onClick={() => savePluginConfig(plugin.id)}
                     >
-                      {t('common.cancel', 'Cancel')}
+                      {savingPluginId === plugin.id ? '...' : t('plugin.saveConfig', 'Save Settings')}
                     </button>
-                  )}
-                </div>
+                    {isDirty && (
+                      <button
+                        className="btn-secondary"
+                        style={{ height: '32px', padding: '0 0.8rem', fontSize: '0.78rem' }}
+                        onClick={() => resetPluginConfig(plugin.id)}
+                      >
+                        {t('common.cancel', 'Cancel')}
+                      </button>
+                    )}
+                  </div>
+                )}
               </div>
             )}
           </div>

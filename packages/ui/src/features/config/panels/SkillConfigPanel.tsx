@@ -103,37 +103,39 @@ export const SkillConfigPanel: React.FC<SkillConfigPanelProps> = ({ getApiUrl })
 
         return (
           <div key={skill.id} className="plugin-card">
-            <div>
-              <div className="plugin-title">
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', flexWrap: 'wrap' }}>
-                  <span>{displayName}</span>
-                  <span
-                    style={{
-                      fontSize: '0.68rem',
-                      padding: '0.1rem 0.4rem',
-                      borderRadius: '4px',
-                      background: tagMeta.bg,
-                      color: tagMeta.color
-                    }}
-                  >
-                    {tagMeta.label}
+            <div className="plugin-card-main">
+              <div className="plugin-card-info">
+                <div className="plugin-title">
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', flexWrap: 'wrap' }}>
+                    <span>{displayName}</span>
+                    <span
+                      style={{
+                        fontSize: '0.68rem',
+                        padding: '0.1rem 0.4rem',
+                        borderRadius: '4px',
+                        background: tagMeta.bg,
+                        color: tagMeta.color
+                      }}
+                    >
+                      {tagMeta.label}
+                    </span>
+                  </div>
+                  <span className="plugin-id-tag">
+                    ({skill.id})
                   </span>
                 </div>
-                <span className="plugin-id-tag">
-                  ({skill.id})
-                </span>
+                <div className="plugin-desc">{displayDesc}</div>
               </div>
-              <div className="plugin-desc">{displayDesc}</div>
-            </div>
-            <div>
-              <label className="switch">
-                <input
-                  type="checkbox"
-                  checked={skill.enabled}
-                  onChange={(e) => toggleSkill(skill.id, e.target.checked)}
-                />
-                <span className="slider" />
-              </label>
+              <div className="plugin-card-actions">
+                <label className="switch">
+                  <input
+                    type="checkbox"
+                    checked={skill.enabled}
+                    onChange={(e) => toggleSkill(skill.id, e.target.checked)}
+                  />
+                  <span className="slider" />
+                </label>
+              </div>
             </div>
           </div>
         );
