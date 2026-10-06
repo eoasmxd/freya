@@ -69,10 +69,16 @@ export class FreyaSessionManager {
         });
 
         context.eventBus.on('session:reply:completed', (payload: { sessionId: string }) => {
-            const cached = this.sessions.get(payload.sessionId);
-            if (cached?.ephemeral) {
-                this.sessions.delete(payload.sessionId);
-            }
+            this.flushSession(payload.sessionId)
+                .catch((err) => {
+                    this.logger?.error(`[SessionManager] Failed to flush session on completed: ${payload.sessionId}`, err);
+                })
+                .finally(() => {
+                    const cached = this.sessions.get(payload.sessionId);
+                    if (cached?.ephemeral) {
+                        this.sessions.delete(payload.sessionId);
+                    }
+                });
         });
 
         this.logger?.info(`[SessionManager] Initialized, loaded ${this.sessionIndices.size} sessions`);
@@ -294,7 +300,9 @@ export class FreyaSessionManager {
             activeToolboxIds: initialToolboxes,
             activeSkillId: initialSkillId
         });
-        await this.persistSession(session);
+        if (!session.ephemeral) {
+            await this.persistSession(session);
+        }
         return session;
     }
 
@@ -316,8 +324,7 @@ export class FreyaSessionManager {
             session.history.push(...messages);
             session.updatedAt = new Date().toISOString();
             if (modelId !== undefined) session.modelId = modelId;
-            await this.persistence.saveSessionData(session);
-            await this.persistSession(session);
+            session.dirty = true;
 
             const hasUserOrTool = messages.some((m) => m.role === 'user' || m.role === 'tool');
             const hasAssistant = messages.some((m) => m.role === 'assistant');
@@ -328,12 +335,11 @@ export class FreyaSessionManager {
                     if (compResult.snapshot) {
                         await this.persistence.saveSnapshot(session.uuid, compResult.snapshot);
                     }
-                    await this.persistence.saveSessionData(session);
-                    await this.saveIndex();
+                    session.dirty = true;
                 }
             }
 
-            if (hasAssistant) {
+            if (hasAssistant && !session.ephemeral) {
                 this.compactor.compressPostChat(session, session.modelId).then(async (result) => {
                     if (result) {
                         await this.enqueueWrite(sessionId, async (latestSession) => {
@@ -362,14 +368,26 @@ export class FreyaSessionManager {
                             }
 
                             latestSession.updatedAt = new Date().toISOString();
-                            await this.persistence.saveSessionData(latestSession);
                             await this.persistSession(latestSession);
+                            latestSession.dirty = false;
                         });
                     }
                 }).catch((err) => {
                     this.logger?.error('[SessionManager] Error during post-chat session compaction:', err);
                 });
             }
+        });
+    }
+
+    /**
+     * 将指定会话从内存最终刷盘持久化
+     * Flush session data from memory to persistent storage
+     */
+    async flushSession(sessionId: string): Promise<void> {
+        return this.enqueueWrite(sessionId, async (session) => {
+            if (!session.dirty) return;
+            await this.persistSession(session);
+            session.dirty = false;
         });
     }
 
@@ -388,7 +406,7 @@ export class FreyaSessionManager {
                 Object.assign(idx, updates);
                 idx.updatedAt = session.updatedAt;
             }
-            await this.persistSession(session);
+            session.dirty = true;
         });
     }
 
@@ -463,7 +481,9 @@ export class FreyaSessionManager {
             session.history = options.history.map(msg => ({ ...msg }));
         }
 
-        await this.persistSession(session);
+        if (!session.ephemeral) {
+            await this.persistSession(session);
+        }
         return session;
     }
 
@@ -499,7 +519,7 @@ export class FreyaSessionManager {
             validIds.forEach(id => current.add(id));
             session.activeToolboxIds = Array.from(current);
             session.updatedAt = new Date().toISOString();
-            await this.persistSession(session);
+            session.dirty = true;
         });
     }
 
@@ -509,7 +529,7 @@ export class FreyaSessionManager {
             toolboxIds.forEach(id => current.delete(id));
             session.activeToolboxIds = Array.from(current);
             session.updatedAt = new Date().toISOString();
-            await this.persistSession(session);
+            session.dirty = true;
         });
     }
 
@@ -533,8 +553,7 @@ export class FreyaSessionManager {
             session.totalTokens = currentTotal + usage.totalTokens;
             session.cost = parseFloat((currentCost + singleCost).toFixed(7));
             session.updatedAt = new Date().toISOString();
-
-            await this.persistSession(session);
+            session.dirty = true;
 
             this.context?.eventBus.emit('session:billing:update', {
                 sessionId,

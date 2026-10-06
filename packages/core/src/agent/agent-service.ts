@@ -245,46 +245,52 @@ export class FreyaAgentService {
       }
       await this.sessionManager.appendMessage(message.sessionId, userMsg);
 
-      const response = await this.agentExecutor.run(
-        message.sessionId,
-        {
-          signal: controller.signal,
-          onChunk: (deltaText) => {
-            partialResponse += deltaText;
-            this.context.eventBus.emit('session:reply:delta', { sessionId: message.sessionId, text: deltaText });
+      try {
+        const response = await this.agentExecutor.run(
+          message.sessionId,
+          {
+            signal: controller.signal,
+            onChunk: (deltaText) => {
+              partialResponse += deltaText;
+              this.context.eventBus.emit('session:reply:delta', { sessionId: message.sessionId, text: deltaText });
+            }
+          },
+        );
+
+        this.context.eventBus.emit('session:reply:text', { sessionId: message.sessionId, content: response.content });
+      } catch (err: any) {
+        if (err.name === 'AbortError') {
+          this.context.logger.warn(`Session ${message.sessionId} generation aborted by user.`);
+          if (partialResponse.trim()) {
+            await this.sessionManager.appendMessage(message.sessionId, {
+              role: 'assistant',
+              // 中断标记后缀
+              content: `${partialResponse}\n\n*(interrupted)*`
+            });
           }
-        },
-      );
-
-      this.abortControllers.delete(message.sessionId);
-
-      this.context.eventBus.emit('session:reply:text', { sessionId: message.sessionId, content: response.content });
-      this.context.eventBus.emit('session:reply:completed', { sessionId: message.sessionId });
-    } catch (err: any) {
-      this.abortControllers.delete(message.sessionId);
-      if (err.name === 'AbortError') {
-        this.context.logger.warn(`Session ${message.sessionId} generation aborted by user.`);
-        if (partialResponse.trim()) {
-          await this.sessionManager.appendMessage(message.sessionId, {
-            role: 'assistant',
-            // 中断标记后缀
-            content: `${partialResponse}\n\n*(interrupted)*`
+        } else {
+          this.context.logger.error('Error processing chat stream:', err);
+          const errDetail = err.message || 'Unknown error';
+          this.context.eventBus.emit('session:reply:error', {
+            sessionId: message.sessionId,
+            message: this.i18n.t(
+              'agent.error.kernelError',
+              '❌ [Kernel Execution Error] {message}',
+              { message: errDetail }
+            )
           });
         }
-        this.context.eventBus.emit('session:reply:completed', { sessionId: message.sessionId });
-      } else {
-        this.context.logger.error('Error processing chat stream:', err);
-        const errDetail = err.message || 'Unknown error';
-        this.context.eventBus.emit('session:reply:error', {
-          sessionId: message.sessionId,
-          message: this.i18n.t(
-            'agent.error.kernelError',
-            '❌ [Kernel Execution Error] {message}',
-            { message: errDetail }
-          )
-        });
+      } finally {
+        this.abortControllers.delete(message.sessionId);
+        try {
+          await this.sessionManager.flushSession(message.sessionId);
+        } catch (flushErr) {
+          this.context.logger.error(`[AgentService] Failed to flush session ${message.sessionId}:`, flushErr);
+        }
         this.context.eventBus.emit('session:reply:completed', { sessionId: message.sessionId });
       }
+    } catch (err: any) {
+      this.context.logger.error('Unhandled error in handleMessage preprocessing:', err);
     }
   }
 
@@ -322,6 +328,11 @@ export class FreyaAgentService {
       throw err;
     } finally {
       this.abortControllers.delete(key);
+      try {
+        await this.sessionManager.flushSession(childSessionId);
+      } catch (flushErr) {
+        this.context.logger.error(`[AgentService] Failed to flush sub-agent session ${childSessionId}:`, flushErr);
+      }
     }
   }
 
@@ -344,8 +355,9 @@ export class FreyaAgentService {
     if (controller && targetKey) {
       controller.abort();
       this.abortControllers.delete(targetKey);
-      this.sessionManager.updateSession(childSessionId, { status: 'failed', durationMs: 0 }).catch(() => { });
-      // 成功中止子智能体出参
+      this.sessionManager.updateSession(childSessionId, { status: 'failed', durationMs: 0 })
+        .then(() => this.sessionManager.flushSession(childSessionId))
+        .catch(() => { });
       return `ℹ️ Child agent session ${childSessionId} aborted successfully.`;
     } else {
       // 未找到活跃子智能体会话异常
