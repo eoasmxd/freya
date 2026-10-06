@@ -618,14 +618,14 @@ export const GlobalConfigPanel: React.FC<GlobalConfigPanelProps> = ({ getApiUrl 
                                             const isPassword = child.uiHint === 'password' || child.sensitive;
                                             const childVal = editingChildInputs[child.key] ?? '';
 
-                                            return (
-                                              <div key={child.key} style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', width: '100%' }}>
-                                                <label style={{ fontSize: '0.74rem', color: 'rgba(255,255,255,0.7)', fontWeight: 500 }}>
-                                                  {child.description || child.key}
-                                                  {child.required && <span style={{ color: 'var(--color-danger, #ef4444)', marginLeft: '0.2rem' }}>*</span>}
-                                                </label>
-                                                {child.type === 'boolean' ? (
-                                                  <label className="switch" style={{ margin: '0.2rem 0' }}>
+                                            if (child.type === 'boolean') {
+                                              return (
+                                                <div key={child.key} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.2rem 0', width: '100%' }}>
+                                                  <label style={{ fontSize: '0.74rem', color: 'rgba(255,255,255,0.7)', fontWeight: 500, margin: 0, cursor: 'pointer' }}>
+                                                    {child.description || child.key}
+                                                    {child.required && <span style={{ color: 'var(--color-danger, #ef4444)', marginLeft: '0.2rem' }}>*</span>}
+                                                  </label>
+                                                  <label className="switch" style={{ margin: 0, flexShrink: 0 }}>
                                                     <input
                                                       type="checkbox"
                                                       checked={Boolean(childVal)}
@@ -636,6 +636,27 @@ export const GlobalConfigPanel: React.FC<GlobalConfigPanelProps> = ({ getApiUrl 
                                                     />
                                                     <span className="slider" />
                                                   </label>
+                                                </div>
+                                              );
+                                            }
+
+                                            return (
+                                              <div key={child.key} style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', width: '100%' }}>
+                                                <label style={{ fontSize: '0.74rem', color: 'rgba(255,255,255,0.7)', fontWeight: 500 }}>
+                                                  {child.description || child.key}
+                                                  {child.required && <span style={{ color: 'var(--color-danger, #ef4444)', marginLeft: '0.2rem' }}>*</span>}
+                                                </label>
+                                                {child.uiHint === 'textarea' ? (
+                                                  <textarea
+                                                    className="config-input"
+                                                    rows={3}
+                                                    style={{ width: '100%', boxSizing: 'border-box', fontSize: '0.78rem', padding: '0.35rem 0.6rem', resize: 'vertical' }}
+                                                    value={childVal}
+                                                    onChange={(e) => setEditingChildInputs(prev => ({
+                                                      ...prev,
+                                                      [child.key]: e.target.value
+                                                    }))}
+                                                  />
                                                 ) : (
                                                   <input
                                                     type={child.type === 'number' ? 'number' : 'text'}
@@ -655,11 +676,28 @@ export const GlobalConfigPanel: React.FC<GlobalConfigPanelProps> = ({ getApiUrl 
                                       ) : (
                                         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.6rem 1.2rem', padding: '0.2rem 0' }}>
                                           {field.children?.map(child => {
-                                            const valStr = item[child.key] !== undefined && item[child.key] !== '' ? String(item[child.key]) : '-';
+                                            const isBool = child.type === 'boolean';
+                                            const rawVal = item[child.key];
+                                            const valStr = rawVal !== undefined && rawVal !== '' ? String(rawVal) : '-';
                                             return (
                                               <div key={child.key} className="child-item-field" style={{ flex: '1 1 calc(50% - 1.2rem)', minWidth: '240px', maxWidth: '100%', display: 'flex', flexDirection: 'column', gap: '0.2rem', overflow: 'hidden' }}>
                                                 <span style={{ color: 'var(--text-secondary)', fontSize: '0.72rem', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>{child.description || child.key}</span>
-                                                <span style={{ fontFamily: 'monospace', fontWeight: 600, fontSize: '0.8rem', color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={valStr}>{valStr}</span>
+                                                {isBool ? (
+                                                  <div>
+                                                    <span style={{
+                                                      fontSize: '0.7rem',
+                                                      padding: '0.1rem 0.4rem',
+                                                      borderRadius: '4px',
+                                                      background: rawVal ? 'rgba(16, 185, 129, 0.15)' : 'rgba(148, 163, 184, 0.15)',
+                                                      color: rawVal ? '#34d399' : '#94a3b8',
+                                                      fontWeight: 600
+                                                    }}>
+                                                      {rawVal ? 'true' : 'false'}
+                                                    </span>
+                                                  </div>
+                                                ) : (
+                                                  <span style={{ fontFamily: 'monospace', fontWeight: 600, fontSize: '0.8rem', color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={valStr}>{valStr}</span>
+                                                )}
                                               </div>
                                             );
                                           })}
@@ -701,14 +739,14 @@ export const GlobalConfigPanel: React.FC<GlobalConfigPanelProps> = ({ getApiUrl 
                                       const childVal = childInputs[child.key] ?? '';
                                       const placeholderText = child.required ? `${child.description || child.key} (${t('common.required', 'Required')})` : (child.description || child.key);
 
-                                      return (
-                                        <div key={child.key} style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', width: '100%' }}>
-                                          <label style={{ fontSize: '0.74rem', color: 'rgba(255, 255, 255, 0.7)', fontWeight: 500 }}>
-                                            {child.description || child.key}
-                                            {child.required && <span style={{ color: 'var(--color-danger, #ef4444)', marginLeft: '0.2rem' }}>*</span>}
-                                          </label>
-                                          {child.type === 'boolean' ? (
-                                            <label className="switch" style={{ margin: '0.2rem 0' }}>
+                                      if (child.type === 'boolean') {
+                                        return (
+                                          <div key={child.key} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.2rem 0', width: '100%' }}>
+                                            <label style={{ fontSize: '0.74rem', color: 'rgba(255, 255, 255, 0.7)', fontWeight: 500, margin: 0, cursor: 'pointer' }}>
+                                              {child.description || child.key}
+                                              {child.required && <span style={{ color: 'var(--color-danger, #ef4444)', marginLeft: '0.2rem' }}>*</span>}
+                                            </label>
+                                            <label className="switch" style={{ margin: 0, flexShrink: 0 }}>
                                               <input
                                                 type="checkbox"
                                                 checked={Boolean(childVal)}
@@ -722,6 +760,31 @@ export const GlobalConfigPanel: React.FC<GlobalConfigPanelProps> = ({ getApiUrl 
                                               />
                                               <span className="slider" />
                                             </label>
+                                          </div>
+                                        );
+                                      }
+
+                                      return (
+                                        <div key={child.key} style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', width: '100%' }}>
+                                          <label style={{ fontSize: '0.74rem', color: 'rgba(255, 255, 255, 0.7)', fontWeight: 500 }}>
+                                            {child.description || child.key}
+                                            {child.required && <span style={{ color: 'var(--color-danger, #ef4444)', marginLeft: '0.2rem' }}>*</span>}
+                                          </label>
+                                          {child.uiHint === 'textarea' ? (
+                                            <textarea
+                                              placeholder={placeholderText}
+                                              className="config-input"
+                                              rows={3}
+                                              style={{ width: '100%', boxSizing: 'border-box', fontSize: '0.78rem', padding: '0.35rem 0.6rem', resize: 'vertical' }}
+                                              value={childVal}
+                                              onChange={(e) => setTempChildInputs(prev => ({
+                                                ...prev,
+                                                [field.key]: {
+                                                  ...(prev[field.key] || {}),
+                                                  [child.key]: e.target.value
+                                                }
+                                              }))}
+                                            />
                                           ) : (
                                             <input
                                               type={child.type === 'number' ? 'number' : 'text'}
@@ -806,6 +869,15 @@ export const GlobalConfigPanel: React.FC<GlobalConfigPanelProps> = ({ getApiUrl 
                             style={{ opacity: field.readonly ? 0.5 : 1, cursor: field.readonly ? 'not-allowed' : undefined }}
                             value={currentValue ?? ''}
                             onChange={(e) => setDynamicValues(prev => ({ ...prev, [field.key]: Number(e.target.value) }))}
+                          />
+                        ) : field.uiHint === 'textarea' ? (
+                          <textarea
+                            disabled={field.readonly}
+                            className="config-input config-field-input"
+                            rows={3}
+                            style={{ opacity: field.readonly ? 0.5 : 1, cursor: field.readonly ? 'not-allowed' : undefined, padding: '0.4rem 0.6rem', fontSize: '0.8rem', resize: 'vertical' }}
+                            value={currentValue ?? ''}
+                            onChange={(e) => setDynamicValues(prev => ({ ...prev, [field.key]: e.target.value }))}
                           />
                         ) : (
                           <input

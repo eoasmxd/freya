@@ -37,7 +37,7 @@ export const PluginConfigPanel: React.FC<PluginConfigPanelProps> = ({ getApiUrl 
   const [dirtyValues, setDirtyValues] = useState<Record<string, Record<string, any>>>({});
   const [expandedPluginId, setExpandedPluginId] = useState<string | null>(null);
   const [savingPluginId, setSavingPluginId] = useState<string | null>(null);
-  const [addingChildKeys, setAddingChildKeys] = useState<Record<string, boolean>>({});
+  const [addingChildKeys, setAddingChildKeys] = useState<Record<string, boolean | number>>({});
   const [tempChildInputs, setTempChildInputs] = useState<Record<string, Record<string, any>>>({});
   const [toasts, setToasts] = useState<{ id: string; message: string; type: 'success' | 'error' | 'info' }[]>([]);
 
@@ -205,7 +205,9 @@ export const PluginConfigPanel: React.FC<PluginConfigPanelProps> = ({ getApiUrl 
     if (field.type === 'array' && Array.isArray(field.children) && field.children.length > 0) {
       const itemsList = Array.isArray(currentValue) ? currentValue : [];
       const childKeyPrefix = `${pluginId}:::${field.key}`;
-      const isAdding = Boolean(addingChildKeys[childKeyPrefix]);
+      const isAdding = addingChildKeys[childKeyPrefix] === true;
+      const editingIndex = typeof addingChildKeys[childKeyPrefix] === 'number' ? (addingChildKeys[childKeyPrefix] as number) : null;
+      const isFormOpen = isAdding || editingIndex !== null;
       const inputs = tempChildInputs[childKeyPrefix] || {};
 
       return (
@@ -223,58 +225,155 @@ export const PluginConfigPanel: React.FC<PluginConfigPanelProps> = ({ getApiUrl 
 
             <div className="models-list config-children-list">
               {itemsList.map((item: any, idx: number) => (
-                <div key={idx} className="model-item" style={{ padding: '0.5rem 0.8rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <div style={{ display: 'flex', gap: '0.8rem', flexWrap: 'wrap', fontSize: '0.78rem' }}>
+                <div key={idx} className="model-item" style={{ padding: '0.5rem 0.8rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.5rem' }}>
+                  <div style={{ display: 'flex', gap: '0.8rem', flexWrap: 'wrap', fontSize: '0.78rem', alignItems: 'center' }}>
                     {field.children?.map(c => {
                       const v = item[c.key];
+                      const isBool = c.type === 'boolean';
                       return (
-                        <span key={c.key}>
-                          <span style={{ color: 'var(--text-secondary)', marginRight: '0.3rem' }}>{c.description || c.key}:</span>
-                          <span style={{ fontFamily: 'monospace' }}>{String(v ?? '-')}</span>
+                        <span key={c.key} style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}>
+                          <span style={{ color: 'var(--text-secondary)' }}>{c.description || c.key}:</span>
+                          {isBool ? (
+                            <span style={{
+                              fontSize: '0.7rem',
+                              padding: '0.1rem 0.4rem',
+                              borderRadius: '4px',
+                              background: v ? 'rgba(16, 185, 129, 0.15)' : 'rgba(148, 163, 184, 0.15)',
+                              color: v ? '#34d399' : '#94a3b8',
+                              fontWeight: 500
+                            }}>
+                              {v ? 'true' : 'false'}
+                            </span>
+                          ) : (
+                            <span
+                              style={{
+                                fontFamily: 'monospace',
+                                maxWidth: '200px',
+                                overflow: 'hidden',
+                                textOverflow: 'ellipsis',
+                                whiteSpace: 'nowrap',
+                                display: 'inline-block',
+                                verticalAlign: 'bottom'
+                              }}
+                              title={String(v ?? '')}
+                            >
+                              {String(v ?? '-')}
+                            </span>
+                          )}
                         </span>
                       );
                     })}
                   </div>
                   {!isFieldDisabled && (
-                    <button
-                      className="btn-action delete"
-                      style={{ padding: '0.2rem 0.5rem', fontSize: '0.72rem' }}
-                      onClick={() => {
-                        const nextList = itemsList.filter((_: any, i: number) => i !== idx);
-                        handleFieldChange(pluginId, field.key, nextList);
-                      }}
-                    >
-                      {t('common.delete', 'Delete')}
-                    </button>
+                    <div style={{ display: 'flex', gap: '0.35rem', flexShrink: 0 }}>
+                      <button
+                        type="button"
+                        className="btn-action"
+                        style={{ padding: '0.2rem 0.55rem', fontSize: '0.72rem' }}
+                        onClick={() => {
+                          setAddingChildKeys(prev => ({ ...prev, [childKeyPrefix]: idx }));
+                          setTempChildInputs(prev => ({ ...prev, [childKeyPrefix]: { ...item } }));
+                        }}
+                      >
+                        {t('common.edit', 'Edit')}
+                      </button>
+                      <button
+                        type="button"
+                        className="btn-action delete"
+                        style={{ padding: '0.2rem 0.55rem', fontSize: '0.72rem' }}
+                        onClick={() => {
+                          const nextList = itemsList.filter((_: any, i: number) => i !== idx);
+                          handleFieldChange(pluginId, field.key, nextList);
+                          if (editingIndex === idx) {
+                            setAddingChildKeys(prev => ({ ...prev, [childKeyPrefix]: false }));
+                            setTempChildInputs(prev => ({ ...prev, [childKeyPrefix]: {} }));
+                          }
+                        }}
+                      >
+                        {t('common.delete', 'Delete')}
+                      </button>
+                    </div>
                   )}
                 </div>
               ))}
             </div>
 
-            {isAdding && (
+            {isFormOpen && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', background: 'rgba(255,255,255,0.02)', padding: '0.6rem', borderRadius: '6px' }}>
-                {field.children.map(c => (
-                  <div key={c.key} style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
-                    <label style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>{c.description || c.key}</label>
-                    <input
-                      type={c.type === 'number' ? 'number' : 'text'}
-                      className="config-input"
-                      style={{ height: '28px', fontSize: '0.75rem' }}
-                      value={inputs[c.key] ?? ''}
-                      onChange={(e) => setTempChildInputs(prev => ({
-                        ...prev,
-                        [childKeyPrefix]: { ...(prev[childKeyPrefix] || {}), [c.key]: e.target.value }
-                      }))}
-                    />
-                  </div>
-                ))}
+                <div style={{ fontSize: '0.74rem', fontWeight: 600, color: 'var(--text-secondary)' }}>
+                  {editingIndex !== null ? t('global.editItem', 'Edit Item') : t('global.addItem', 'Add Item')}
+                </div>
+                {field.children.map(c => {
+                  const isBool = c.type === 'boolean';
+                  const isTextarea = c.uiHint === 'textarea';
+                  const isNumber = c.type === 'number';
+
+                  if (isBool) {
+                    return (
+                      <div key={c.key} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.25rem 0' }}>
+                        <label style={{ fontSize: '0.74rem', color: 'var(--text-secondary)', margin: 0, cursor: 'pointer' }}>
+                          {c.description || c.key}
+                        </label>
+                        <label className="switch" style={{ margin: 0, flexShrink: 0 }}>
+                          <input
+                            type="checkbox"
+                            checked={Boolean(inputs[c.key] ?? c.defaultValue ?? false)}
+                            onChange={(e) => setTempChildInputs(prev => ({
+                              ...prev,
+                              [childKeyPrefix]: { ...(prev[childKeyPrefix] || {}), [c.key]: e.target.checked }
+                            }))}
+                          />
+                          <span className="slider" />
+                        </label>
+                      </div>
+                    );
+                  }
+
+                  return (
+                    <div key={c.key} style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
+                      <label style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>
+                        {c.description || c.key}
+                      </label>
+                      {isTextarea ? (
+                        <textarea
+                          className="config-input"
+                          rows={3}
+                          style={{ fontSize: '0.75rem', padding: '0.35rem 0.5rem', resize: 'vertical' }}
+                          value={inputs[c.key] ?? ''}
+                          onChange={(e) => setTempChildInputs(prev => ({
+                            ...prev,
+                            [childKeyPrefix]: { ...(prev[childKeyPrefix] || {}), [c.key]: e.target.value }
+                          }))}
+                        />
+                      ) : (
+                        <input
+                          type={isNumber ? 'number' : 'text'}
+                          className="config-input"
+                          style={{ height: '28px', fontSize: '0.75rem' }}
+                          value={inputs[c.key] ?? ''}
+                          onChange={(e) => setTempChildInputs(prev => ({
+                            ...prev,
+                            [childKeyPrefix]: { ...(prev[childKeyPrefix] || {}), [c.key]: isNumber ? Number(e.target.value) : e.target.value }
+                          }))}
+                        />
+                      )}
+                    </div>
+                  );
+                })}
                 <div style={{ display: 'flex', gap: '0.4rem', marginTop: '0.2rem' }}>
                   <button
+                    type="button"
                     className="btn-primary"
                     style={{ height: '28px', padding: '0 0.8rem', fontSize: '0.74rem' }}
                     onClick={() => {
-                      const newItem = { ...inputs };
-                      handleFieldChange(pluginId, field.key, [...itemsList, newItem]);
+                      if (editingIndex !== null) {
+                        const nextList = [...itemsList];
+                        nextList[editingIndex] = { ...inputs };
+                        handleFieldChange(pluginId, field.key, nextList);
+                      } else {
+                        const newItem = { ...inputs };
+                        handleFieldChange(pluginId, field.key, [...itemsList, newItem]);
+                      }
                       setAddingChildKeys(prev => ({ ...prev, [childKeyPrefix]: false }));
                       setTempChildInputs(prev => ({ ...prev, [childKeyPrefix]: {} }));
                     }}
@@ -282,6 +381,7 @@ export const PluginConfigPanel: React.FC<PluginConfigPanelProps> = ({ getApiUrl 
                     {t('common.confirm', 'Confirm')}
                   </button>
                   <button
+                    type="button"
                     className="btn-secondary"
                     style={{ height: '28px', padding: '0 0.8rem', fontSize: '0.74rem' }}
                     onClick={() => {
@@ -295,13 +395,22 @@ export const PluginConfigPanel: React.FC<PluginConfigPanelProps> = ({ getApiUrl 
               </div>
             )}
 
-            {!isFieldDisabled && !isAdding && (
+            {!isFieldDisabled && !isFormOpen && (
               <div>
                 <button
                   type="button"
                   className="btn-action"
                   style={{ fontSize: '0.74rem', padding: '0.3rem 0.6rem' }}
-                  onClick={() => setAddingChildKeys(prev => ({ ...prev, [childKeyPrefix]: true }))}
+                  onClick={() => {
+                    const defaultInputs: Record<string, any> = {};
+                    field.children?.forEach(c => {
+                      if (c.defaultValue !== undefined) {
+                        defaultInputs[c.key] = c.defaultValue;
+                      }
+                    });
+                    setAddingChildKeys(prev => ({ ...prev, [childKeyPrefix]: true }));
+                    setTempChildInputs(prev => ({ ...prev, [childKeyPrefix]: defaultInputs }));
+                  }}
                 >
                   + {t('global.btnAddItem', 'Add Item')}
                 </button>
@@ -356,6 +465,15 @@ export const PluginConfigPanel: React.FC<PluginConfigPanelProps> = ({ getApiUrl 
             style={{ opacity: isFieldDisabled ? 0.5 : 1, cursor: isFieldDisabled ? 'not-allowed' : undefined, height: '32px' }}
             value={currentValue ?? ''}
             onChange={(e) => handleFieldChange(pluginId, field.key, Number(e.target.value))}
+          />
+        ) : field.uiHint === 'textarea' ? (
+          <textarea
+            disabled={isFieldDisabled}
+            className="config-input config-field-input"
+            rows={3}
+            style={{ opacity: isFieldDisabled ? 0.5 : 1, cursor: isFieldDisabled ? 'not-allowed' : undefined, padding: '0.4rem', fontSize: '0.78rem', resize: 'vertical' }}
+            value={currentValue ?? ''}
+            onChange={(e) => handleFieldChange(pluginId, field.key, e.target.value)}
           />
         ) : (
           <input
