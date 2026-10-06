@@ -744,6 +744,22 @@ input:checked+.slider:before {
     word-break: break-all;
   }
 
+  .plugin-card-actions {
+    flex-direction: column-reverse;
+    align-items: flex-end;
+    gap: 0.5rem;
+    margin-left: 0.6rem;
+  }
+
+  .btn-plugin-config {
+    padding: 0.25rem 0.45rem;
+    font-size: 0.72rem;
+  }
+
+  .btn-plugin-config .btn-plugin-config-text {
+    display: none;
+  }
+
   .model-binding-form {
     flex-direction: column;
     align-items: stretch;

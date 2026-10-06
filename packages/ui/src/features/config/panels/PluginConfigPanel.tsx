@@ -433,7 +433,7 @@ export const PluginConfigPanel: React.FC<PluginConfigPanelProps> = ({ getApiUrl 
                     title={isExpanded ? t('chat.fold', 'Fold') : t('plugin.config', 'Configure')}
                   >
                     <span>⚙️</span>
-                    <span>{t('plugin.config', 'Configure')}</span>
+                    <span className="btn-plugin-config-text">{t('plugin.config', 'Configure')}</span>
                     <span className="chevron-icon">{isExpanded ? '▲' : '▼'}</span>
                   </button>
                 )}
