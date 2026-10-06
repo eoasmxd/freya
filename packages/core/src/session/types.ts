@@ -26,6 +26,7 @@ export interface SessionIndex {
     totalTokens?: number;
     cost?: number;
     toolboxIdleRounds?: Record<string, number>;
+    ephemeral?: boolean;
 }
 
 /**

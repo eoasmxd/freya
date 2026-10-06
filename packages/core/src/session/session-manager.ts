@@ -63,6 +63,13 @@ export class FreyaSessionManager {
             });
         });
 
+        context.eventBus.on('session:reply:completed', (payload: { sessionId: string }) => {
+            const cached = this.sessions.get(payload.sessionId);
+            if (cached?.ephemeral) {
+                this.sessions.delete(payload.sessionId);
+            }
+        });
+
         this.logger?.info(`[SessionManager] Initialized, loaded ${this.sessionIndices.size} sessions`);
     }
 
@@ -100,6 +107,7 @@ export class FreyaSessionManager {
             cachedPromptTokens: extra.cachedPromptTokens,
             totalTokens: extra.totalTokens,
             cost: extra.cost,
+            ephemeral: extra.ephemeral,
         };
         this.sessions.set(id, session);
 
@@ -124,6 +132,7 @@ export class FreyaSessionManager {
             cachedPromptTokens: session.cachedPromptTokens,
             totalTokens: session.totalTokens,
             cost: session.cost,
+            ephemeral: session.ephemeral,
         };
         this.sessionIndices.set(uuid, idx);
 
@@ -165,6 +174,7 @@ export class FreyaSessionManager {
             cachedPromptTokens: idx.cachedPromptTokens,
             totalTokens: idx.totalTokens,
             cost: idx.cost,
+            ephemeral: idx.ephemeral,
         };
         this.sessions.set(id, session);
         this.logger?.info(`[SessionManager] Lazy loaded session: ${id}`);
@@ -201,23 +211,32 @@ export class FreyaSessionManager {
 
     private async persistSession(session: Session): Promise<void> {
         await this.persistence.saveSessionData(session);
-        await this.saveIndex();
+        if (session.ephemeral) {
+            await this.persistence.appendEphemeralIndex(session);
+        } else {
+            await this.saveIndex();
+        }
     }
 
-    async getOrCreate(id: string): Promise<Session> {
+    async getOrCreate(id: string, options?: { ephemeral?: boolean }): Promise<Session> {
         const index = this.findLatestIndexById(id);
         if (index && !index.archived) {
             try {
-                return await this.lazyLoadSession(id);
+                const session = await this.lazyLoadSession(id);
+                if (options?.ephemeral !== undefined) {
+                    session.ephemeral = options.ephemeral;
+                    index.ephemeral = options.ephemeral;
+                }
+                return session;
             } catch (err) {
             }
         }
 
-        this.logger?.warn(`[SessionManager] No active session found with ID ${id}, creating new session for connection resilience.`);
-        const session = this.newSession(id, crypto.randomUUID(), { archived: false });
+        const session = this.newSession(id, crypto.randomUUID(), { archived: false, ephemeral: options?.ephemeral });
         await this.persistSession(session);
         return session;
     }
+
 
     has(id: string): boolean {
         return !!this.findLatestIndexById(id);
@@ -387,8 +406,14 @@ export class FreyaSessionManager {
         return session;
     }
 
-    listSessions(filter?: { parentId?: string; archived?: boolean }): SessionIndex[] {
+    listSessions(filter?: { parentId?: string; archived?: boolean; ephemeral?: boolean }): SessionIndex[] {
         let list = Array.from(this.sessionIndices.values());
+
+        if (filter?.ephemeral !== undefined) {
+            list = list.filter(idx => Boolean(idx.ephemeral) === filter.ephemeral);
+        } else {
+            list = list.filter(idx => !idx.ephemeral);
+        }
 
         if (filter?.parentId !== undefined) {
             list = list.filter(idx => idx.parentId === filter.parentId);

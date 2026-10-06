@@ -7,6 +7,7 @@ import type { Session, SessionData, SessionIndex, SnapFile } from './types.js';
 const DATA_DIR = path.resolve(FREYA_HOME, 'data');
 const SESSIONS_DIR = path.resolve(DATA_DIR, 'sessions');
 const INDEX_FILE = path.resolve(DATA_DIR, 'sessions.json');
+const EPHEMERAL_INDEX_FILE = path.resolve(DATA_DIR, 'ephemeral-sessions.jsonl');
 
 const sessionDirByUuid = (uuid: string) => path.resolve(SESSIONS_DIR, uuid);
 const sessionFileByUuid = (uuid: string) => path.resolve(sessionDirByUuid(uuid), 'session.json');
@@ -48,29 +49,55 @@ export class FreyaSessionPersistence {
 
     async saveIndex(indices: SessionIndex[]): Promise<void> {
         try {
-            const list: SessionIndex[] = indices.map((idx) => ({
-                id: idx.id,
-                uuid: idx.uuid,
-                parentId: idx.parentId,
-                archived: idx.archived,
-                archivedAt: idx.archivedAt,
-                summary: idx.summary,
-                updatedAt: idx.updatedAt,
-                modelId: idx.modelId,
-                providerId: idx.providerId,
-                activeSkillId: idx.activeSkillId,
-                activeToolboxIds: idx.activeToolboxIds,
-                prompt: idx.prompt,
-                status: idx.status,
-                startTime: idx.startTime,
-                durationMs: idx.durationMs,
-            }));
+            const list: SessionIndex[] = indices
+                .filter((idx) => !idx.ephemeral)
+                .map((idx) => ({
+                    id: idx.id,
+                    uuid: idx.uuid,
+                    parentId: idx.parentId,
+                    archived: idx.archived,
+                    archivedAt: idx.archivedAt,
+                    summary: idx.summary,
+                    updatedAt: idx.updatedAt,
+                    modelId: idx.modelId,
+                    providerId: idx.providerId,
+                    activeSkillId: idx.activeSkillId,
+                    activeToolboxIds: idx.activeToolboxIds,
+                    prompt: idx.prompt,
+                    status: idx.status,
+                    startTime: idx.startTime,
+                    durationMs: idx.durationMs,
+                }));
             await fs.mkdir(path.dirname(INDEX_FILE), { recursive: true });
             await fs.writeFile(INDEX_FILE, JSON.stringify(list, null, 2), 'utf-8');
         } catch (err) {
             this.logger?.error('Failed to save session index sessions.json:', err);
         }
     }
+
+    async appendEphemeralIndex(entry: SessionIndex): Promise<void> {
+        try {
+            const record = {
+                id: entry.id,
+                uuid: entry.uuid,
+                parentId: entry.parentId,
+                summary: entry.summary,
+                updatedAt: entry.updatedAt,
+                modelId: entry.modelId,
+                providerId: entry.providerId,
+                status: entry.status,
+                startTime: entry.startTime,
+                durationMs: entry.durationMs,
+                totalTokens: entry.totalTokens,
+                cost: entry.cost
+            };
+            await fs.mkdir(path.dirname(EPHEMERAL_INDEX_FILE), { recursive: true });
+            await fs.appendFile(EPHEMERAL_INDEX_FILE, JSON.stringify(record) + '\n', 'utf-8');
+        } catch (err) {
+            this.logger?.error('Failed to append ephemeral session index:', err);
+        }
+    }
+
 
     async saveSessionData(session: { uuid: string; history: Session['history']; lastSnapshotId: string | null }): Promise<void> {
         try {

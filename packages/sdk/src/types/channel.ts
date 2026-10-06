@@ -10,4 +10,5 @@ export interface ChannelMessage {
   connectionId?: string;
   channelType?: string;
   defaultLanguage?: string;
+  ephemeral?: boolean;
 }

@@ -103,7 +103,9 @@ export class FreyaAgentService {
     let partialResponse = '';
 
     try {
-      const session = await this.sessionManager.getOrCreate(message.sessionId);
+      const session = await this.sessionManager.getOrCreate(message.sessionId, {
+        ephemeral: message.ephemeral
+      });
 
       const isCommandIntercepted = await this.commandExecutor.executeLine(
         message.content,

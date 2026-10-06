@@ -45,7 +45,7 @@ function ChatApp() {
   const [confirmModal, setConfirmModal] = useState<{ title: string; message: string; onConfirm: () => void } | null>(null);
 
   const wsRef = useRef<WebSocket | null>(null);
-  const sessionIdRef = useRef<string>(generateId());
+  const sessionIdRef = useRef<string>('web:main');
   const chatPanelRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -75,25 +75,31 @@ function ChatApp() {
     function connect() {
       if (isUnmounted) return;
 
+      let clientId = sessionStorage.getItem('freya_clientId');
+      if (!clientId) {
+        clientId = generateId();
+        sessionStorage.setItem('freya_clientId', clientId);
+      }
+
       const isDev = import.meta.env.DEV;
       const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
       const basePath = window.location.pathname.endsWith('/')
         ? window.location.pathname
         : `${window.location.pathname}/`;
-      const wsUrl = isDev
+      const baseWsUrl = isDev
         ? 'ws://localhost:3000'
         : `${protocol}//${window.location.host}${basePath}`;
-      ws = new WebSocket(wsUrl);
+
+      const wsUrlObj = new URL(baseWsUrl, window.location.href);
+      wsUrlObj.searchParams.set('clientId', clientId);
+      wsUrlObj.searchParams.set('sessionId', 'web:main');
+      wsUrlObj.searchParams.set('channelType', 'web');
+
+      ws = new WebSocket(wsUrlObj.toString());
       wsRef.current = ws;
 
       ws.onopen = () => {
         setIsConnected(true);
-        let clientId = sessionStorage.getItem('freya_clientId');
-        if (!clientId) {
-          clientId = generateId();
-          sessionStorage.setItem('freya_clientId', clientId);
-        }
-        ws!.send(JSON.stringify({ event: 'client:reconnect', data: { clientId } }));
       };
 
       ws.onmessage = (event) => {
@@ -101,18 +107,23 @@ function ChatApp() {
           const payload = JSON.parse(event.data);
           const { event: eventName, data } = payload;
 
-          if (eventName === 'server:connected') {
+          if (eventName === 'server:connected' || eventName === 'server:reconnected') {
             if (data?.language) {
               setLocale(data.language);
             }
-            setMessages((prev) => {
-              if (prev.length > 0) return prev;
-              return [{
-                id: 'sys-init',
-                role: 'assistant',
-                content: data.message
-              }];
-            });
+            if (data?.sessionId) {
+              sessionIdRef.current = data.sessionId;
+            }
+            if (eventName === 'server:connected') {
+              setMessages((prev) => {
+                if (prev.length > 0) return prev;
+                return [{
+                  id: 'sys-init',
+                  role: 'assistant',
+                  content: data.message
+                }];
+              });
+            }
           } else if (eventName === 'server:language_changed') {
             if (data?.language) {
               setLocale(data.language);

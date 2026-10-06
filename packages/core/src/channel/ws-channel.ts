@@ -15,10 +15,12 @@ const RECONNECT_TIMEOUT_MS = 30_000;
 interface WsConnectionMeta {
     ws: WebSocket;
     connId: string;
-    clientId?: string;
+    clientId: string;
     pingTimer?: ReturnType<typeof setInterval>;
     lastPongTime: number;
     defaultLanguage: string;
+    defaultSessionId: string;
+    channelType: string;
 }
 
 /**
@@ -54,11 +56,37 @@ export class FreyaWsChannel {
         this.wss = new WebSocketServer({ server: this.httpServer });
 
         this.wss.on('connection', (ws, req) => {
-            const tempConnId = `${WSS_HANDLER_ID}:temp:${crypto.randomUUID()}`;
-            const acceptLang = String(req.headers['accept-language'] || '').toLowerCase();
-            const defaultLanguage = acceptLang.includes('zh') ? 'zh' : 'en';
+            const reqUrl = new URL(req.url || '/', `http://${req.headers.host || 'localhost'}`);
+            const queryClientId = reqUrl.searchParams.get('clientId')?.trim();
+            const querySessionId = reqUrl.searchParams.get('sessionId')?.trim();
+            const queryChannelType = reqUrl.searchParams.get('channelType')?.trim();
+            const queryLanguage = reqUrl.searchParams.get('language')?.trim();
 
-            ctx.logger.info(`[WsChannel] Connection established, assigned temporary ID: ${tempConnId}`);
+            const clientId = queryClientId || `temp:${crypto.randomUUID()}`;
+            const connId = `${WSS_HANDLER_ID}:${clientId}`;
+
+            const acceptLang = String(req.headers['accept-language'] || '').toLowerCase();
+            const defaultLanguage = queryLanguage || (acceptLang.includes('zh') ? 'zh' : 'en');
+            const defaultSessionId = querySessionId || 'main';
+            const channelType = queryChannelType || 'web';
+
+            const oldMeta = this.wsMetaMap.get(connId);
+            if (oldMeta && oldMeta.ws !== ws) {
+                if (oldMeta.pingTimer) {
+                    clearInterval(oldMeta.pingTimer);
+                }
+                try {
+                    oldMeta.ws.close();
+                } catch { }
+                this.connections.delete(oldMeta.ws);
+            }
+
+            const pendingTimer = this.reconnectTimers.get(connId);
+            if (pendingTimer) {
+                clearTimeout(pendingTimer);
+                this.reconnectTimers.delete(connId);
+            }
+
             this.connections.add(ws);
 
             const pingTimer = setInterval(() => {
@@ -72,27 +100,30 @@ export class FreyaWsChannel {
 
             const meta: WsConnectionMeta = {
                 ws,
-                connId: tempConnId,
-                clientId: undefined,
+                connId,
+                clientId,
                 pingTimer,
                 lastPongTime: Date.now(),
-                defaultLanguage
+                defaultLanguage,
+                defaultSessionId,
+                channelType
             };
-            this.wsMetaMap.set(tempConnId, meta);
+            this.wsMetaMap.set(connId, meta);
             ctx.eventBus.emit('connection:active', {
-                connectionId: tempConnId,
-                defaultSessionId: 'main',
+                connectionId: connId,
+                defaultSessionId: meta.defaultSessionId,
                 staleThresholdMs: 300000,
-                channelType: 'web',
-                defaultLanguage
+                channelType: meta.channelType,
+                defaultLanguage: meta.defaultLanguage
             });
 
             ws.on('pong', () => {
                 meta.lastPongTime = Date.now();
                 ctx.eventBus.emit('connection:active', {
                     connectionId: meta.connId,
+                    defaultSessionId: meta.defaultSessionId,
                     staleThresholdMs: 300000,
-                    channelType: 'web',
+                    channelType: meta.channelType,
                     defaultLanguage: meta.defaultLanguage
                 });
             });
@@ -109,7 +140,8 @@ export class FreyaWsChannel {
                         undefined,
                         effectiveLanguage
                     ),
-                    connectionId: tempConnId,
+                    connectionId: connId,
+                    sessionId: meta.defaultSessionId,
                     language: effectiveLanguage
                 }
             }));
@@ -119,34 +151,42 @@ export class FreyaWsChannel {
                     const payload = JSON.parse(messageData.toString());
                     ctx.eventBus.emit('connection:active', {
                         connectionId: meta.connId,
+                        defaultSessionId: meta.defaultSessionId,
                         staleThresholdMs: 300000,
-                        channelType: 'web',
+                        channelType: meta.channelType,
                         defaultLanguage: meta.defaultLanguage
                     });
                     meta.lastPongTime = Date.now();
 
                     if (payload.event === 'client:reconnect') {
-                        const { clientId } = payload.data || {};
-                        if (clientId && typeof clientId === 'string' && clientId.length > 0) {
-                            this.handleReconnect(ctx, meta, clientId);
-                        }
+                        const { clientId: reClientId, sessionId: reSessionId, channelType: reChannelType, language: reLanguage } = payload.data || {};
+                        this.handleReconnect(ctx, meta, {
+                            clientId: (typeof reClientId === 'string' && reClientId.length > 0) ? reClientId : meta.clientId,
+                            sessionId: reSessionId,
+                            channelType: reChannelType,
+                            language: reLanguage
+                        });
                         return;
                     }
 
                     if (payload.event === 'client:message') {
-                        const { content } = payload.data || {};
+                        const { content, sessionId, ephemeral, language: msgLanguage } = payload.data || {};
 
                         const messagePayload = {
                             connectionId: meta.connId,
                             content: content,
-                            defaultSessionId: 'main',
-                            channelType: 'web',
-                            defaultLanguage: meta.defaultLanguage
+                            sessionId: sessionId || undefined,
+                            defaultSessionId: meta.defaultSessionId,
+                            ephemeral: Boolean(ephemeral),
+                            channelType: meta.channelType,
+                            defaultLanguage: msgLanguage || meta.defaultLanguage
                         };
                         ctx.eventBus.emit('connection:message', messagePayload);
                     } else if (payload.event === 'client:interrupt') {
-                        ctx.logger.info(`[WsChannel] Received interrupt generation signal for session: ${payload.data?.sessionId}`);
-                        ctx.eventBus.emit('session:interrupt', payload.data);
+                        ctx.eventBus.emit('connection:interrupt', {
+                            connectionId: meta.connId,
+                            sessionId: payload.data?.sessionId
+                        });
                     }
                 } catch (err) {
                     ctx.logger.error('[WsChannel] Failed to parse client message:', err);
@@ -164,13 +204,31 @@ export class FreyaWsChannel {
         });
     }
 
-    private handleReconnect(ctx: FreyaContext, meta: WsConnectionMeta, clientId: string): void {
+    private handleReconnect(
+        ctx: FreyaContext,
+        meta: WsConnectionMeta,
+        options: { clientId: string; sessionId?: string; channelType?: string; language?: string }
+    ): void {
+        const { clientId, sessionId, channelType, language } = options;
         const stableConnId = `${WSS_HANDLER_ID}:${clientId}`;
-        if (meta.connId === stableConnId) return;
+
+        if (sessionId) meta.defaultSessionId = sessionId;
+        if (channelType) meta.channelType = channelType;
+        if (language) meta.defaultLanguage = language;
+
+        if (meta.connId === stableConnId) {
+            ctx.eventBus.emit('connection:active', {
+                connectionId: stableConnId,
+                defaultSessionId: meta.defaultSessionId,
+                staleThresholdMs: 300000,
+                channelType: meta.channelType,
+                defaultLanguage: meta.defaultLanguage
+            });
+            return;
+        }
 
         const oldMeta = this.wsMetaMap.get(stableConnId);
         if (oldMeta && oldMeta.ws !== meta.ws) {
-            ctx.logger.info('[WsChannel] Stale connection detected, releasing resources...');
             if (oldMeta.pingTimer) {
                 clearInterval(oldMeta.pingTimer);
             }
@@ -194,18 +252,24 @@ export class FreyaWsChannel {
         this.wsMetaMap.set(stableConnId, meta);
         ctx.eventBus.emit('connection:active', {
             connectionId: stableConnId,
-            defaultSessionId: 'main',
+            defaultSessionId: meta.defaultSessionId,
             staleThresholdMs: 300000,
-            channelType: 'web',
+            channelType: meta.channelType,
             defaultLanguage: meta.defaultLanguage
         });
 
-        ctx.logger.info(`[WsChannel] Client reconnected successfully, clientId: ${clientId}, connectionId: ${stableConnId}`);
+        const configLang = (ctx.config as any)?.system?.language;
+        const effectiveLanguage = (configLang && configLang !== 'auto') ? configLang : meta.defaultLanguage;
 
         if (meta.ws.readyState === WebSocket.OPEN) {
             meta.ws.send(JSON.stringify({
                 event: 'server:reconnected',
-                data: { connectionId: stableConnId, sessionId: `session-${clientId}`, recovered: true }
+                data: {
+                    connectionId: stableConnId,
+                    sessionId: meta.defaultSessionId,
+                    language: effectiveLanguage,
+                    recovered: true
+                }
             }));
         }
     }
@@ -221,15 +285,11 @@ export class FreyaWsChannel {
         if (currentMetaInMap && currentMetaInMap.ws === meta.ws) {
             this.wsMetaMap.delete(meta.connId);
 
-            if (!meta.clientId) {
+            const timer = setTimeout(() => {
                 ctx.eventBus.emit('connection:inactive', { connectionId: meta.connId });
-            } else {
-                const timer = setTimeout(() => {
-                    ctx.eventBus.emit('connection:inactive', { connectionId: meta.connId });
-                    this.reconnectTimers.delete(meta.connId);
-                }, RECONNECT_TIMEOUT_MS);
-                this.reconnectTimers.set(meta.connId, timer);
-            }
+                this.reconnectTimers.delete(meta.connId);
+            }, RECONNECT_TIMEOUT_MS);
+            this.reconnectTimers.set(meta.connId, timer);
         }
     }
 
@@ -264,14 +324,18 @@ export class FreyaWsChannel {
         this.isSetup = false;
     }
 
-    private handleConnectionReply = (payload: { connectionId: string; content: string }) => {
+    private handleConnectionReply = (payload: { connectionId: string; content: string; sessionId?: string }) => {
         if (payload.connectionId.startsWith(WSS_HANDLER_ID)) {
             const meta = this.wsMetaMap.get(payload.connectionId);
             if (meta && meta.ws.readyState === WebSocket.OPEN) {
                 try {
                     meta.ws.send(JSON.stringify({
                         event: 'server:reply',
-                        data: { role: 'assistant', text: payload.content }
+                        data: {
+                            role: 'assistant',
+                            text: payload.content,
+                            sessionId: payload.sessionId
+                        }
                     }));
                 } catch (err: any) {
                     this.ctx?.logger.error(`[WsChannel] Failed to send server:reply: ${err.message}`);
@@ -280,14 +344,18 @@ export class FreyaWsChannel {
         }
     };
 
-    private handleConnectionReplyDelta = (payload: { connectionId: string; text: string }) => {
+    private handleConnectionReplyDelta = (payload: { connectionId: string; text: string; sessionId?: string }) => {
         if (payload.connectionId.startsWith(WSS_HANDLER_ID)) {
             const meta = this.wsMetaMap.get(payload.connectionId);
             if (meta && meta.ws.readyState === WebSocket.OPEN) {
                 try {
                     meta.ws.send(JSON.stringify({
                         event: 'server:delta',
-                        data: { role: 'assistant', text: payload.text }
+                        data: {
+                            role: 'assistant',
+                            text: payload.text,
+                            sessionId: payload.sessionId
+                        }
                     }));
                 } catch (err: any) {
                     this.ctx?.logger.error(`[WsChannel] Failed to send server:delta: ${err.message}`);
@@ -312,14 +380,16 @@ export class FreyaWsChannel {
         }
     };
 
-    private handleConnectionReplyCompleted = (payload: { connectionId: string }) => {
+    private handleConnectionReplyCompleted = (payload: { connectionId: string; sessionId?: string }) => {
         if (payload.connectionId.startsWith(WSS_HANDLER_ID)) {
             const meta = this.wsMetaMap.get(payload.connectionId);
             if (meta && meta.ws.readyState === WebSocket.OPEN) {
                 try {
                     meta.ws.send(JSON.stringify({
                         event: 'server:completed',
-                        data: {}
+                        data: {
+                            sessionId: payload.sessionId
+                        }
                     }));
                 } catch (err: any) {
                     this.ctx?.logger.error(`[WsChannel] Failed to send server:completed: ${err.message}`);
