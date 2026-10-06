@@ -171,7 +171,7 @@ export default class FreyaWeixinChannelPlugin implements ChannelPlugin {
   private buildWeixinBaseInfo(): Record<string, string> {
     return {
       channel_version: "2.4.9",
-      bot_agent: "Freya/0.6.5"
+      bot_agent: "Freya/0.7.1"
     };
   }
 
