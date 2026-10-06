@@ -73,7 +73,7 @@ If you use Home Assistant, you can run Freya directly as an Add-on. **This insta
 2. **Install & Start**: Locate **Freya** in the Add-on Store, click Install and Start. We recommend enabling "Show in sidebar" and "Start on boot".
 3. **Native HA Interaction Support**:
    - **Entity State Awareness**: Fully adheres to entities exposed to Assist in the native HA UI (Settings -> Voice assistants -> Expose). The agent reads device states and sensor data on demand.
-   - **Device Security Control**: The application is in safe read-only mode by default. To allow the LLM to control devices (turn on/off lights, control switches, etc.), set `homeassistant.allowControl` to `true` in the Freya Web UI ("Global Config -> Permissions & Security").
+   - **Device Security Control**: The application is in safe read-only mode by default. To allow the LLM to control devices (turn on/off lights, control switches, etc.), set `homeassistant.allowControl` to `true` in the Freya Web UI ("Settings -> Plugins -> Home Assistant Plugin Configuration").
 
 ---
 

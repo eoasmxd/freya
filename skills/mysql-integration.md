@@ -38,10 +38,10 @@ Guide users through the graphical configuration in the system Web console (**alw
 
 1. Open a browser and navigate to the Freya console (default: `http://localhost:3000`).
 2. Click the **Settings icon (gear)** in the top-right corner to open the configuration center.
-3. **Enable the plugin**:
-   - In the **Plugin Configuration** panel, ensure the **MySQL Toolbox Plugin (`@eoasmxd/freya-plugin-tool-mysql`)** toggle is enabled.
-4. Switch to the **Global Configuration** tab and scroll down to the **Extension Module Configuration** section.
-5. **Configure database connections (`mysql.connections`)**:
+3. **Enable and configure the plugin**:
+   - In the **Plugins** panel, ensure the **MySQL Toolbox Plugin (`@eoasmxd/freya-plugin-tool-mysql`)** toggle is enabled;
+   - Click the **⚙️ Configure** button on the plugin card to expand the settings accordion.
+4. **Configure database connections (`mysql.connections`)**:
    - Click **Add Item**;
    - **Connection Name (`name`)**: Name this connection. Default is `default`; for multiple sources, use names like `analytics` or `order_db`;
    - **Host (`host`)**: Hostname or IP of the MySQL instance (e.g. `127.0.0.1` or `mysql.internal`);
@@ -51,10 +51,10 @@ Guide users through the graphical configuration in the system Web console (**alw
    - **Database (`database`)**: Optional. Default database name for this connection;
    - **Connection Limit (`connectionLimit`)**: Optional. Max connections in the pool (default `5`);
    - **Connect Timeout (`connectTimeout`)**: Optional. Network connection timeout in milliseconds (default `10000`).
-6. **General query policy settings**:
+5. **General query policy settings**:
    - **Default Connection (`mysql.defaultConnection`)**: The connection name used when the model does not explicitly specify one. Default value is `default`;
    - **Max Rows Per Query (`mysql.maxRows`)**: Prevents large result sets from overflowing the model context window. Recommended default is `100` (range: 1–1000).
-7. Click **Save Global Configuration** at the bottom of the page. Changes take effect immediately.
+6. Click **Save Settings** at the bottom of the card. Changes take effect immediately.
 
 ---
 

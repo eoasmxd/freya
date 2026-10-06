@@ -32,13 +32,14 @@ Guide users through the graphical configuration in the system Web console:
 
 1. Open a browser and navigate to the console (default: `http://localhost:3000`).
 2. Click the **Settings icon (gear)** in the top-right corner to open the configuration center.
-3. **Enable the plugin**: In the **Plugin Configuration** panel, ensure the **Telegram Channel Plugin (`@eoasmxd/freya-plugin-telegram-channel`)** toggle is enabled.
-4. Switch to the **Global Configuration** tab and scroll down to the **Extension Module Configuration** section.
-5. Locate **`telegram.bots` (Telegram bot configuration list)**:
+3. **Enable and configure the plugin**:
+   - In the **Plugins** panel, ensure the **Telegram Channel Plugin (`@eoasmxd/freya-plugin-telegram-channel`)** toggle is enabled;
+   - Click the **⚙️ Configure** button on the plugin card to expand the settings accordion.
+4. Locate **`telegram.bots` (Telegram bot configuration list)**:
    - Click **Add Item**;
    - Enter the **Telegram Bot ID (`id`)** — the numeric part before the colon in the Token (e.g. `592039281`);
    - Enter the **Telegram Bot Secret (`token`)** — the key portion after the colon in the Token.
-6. Click **Save Global Configuration** at the bottom of the page. The system's heartbeat mechanism will automatically start long-polling within 5 seconds, no restart required.
+5. Click **Save Settings** at the bottom of the card. The system's heartbeat mechanism will automatically start long-polling within 5 seconds, no restart required.
 
 ---
 
