@@ -63,4 +63,22 @@ description:
 ### 步骤 5: 反馈结果
 成功写入后，告知用户配置已实时落盘，系统底座会在 5 秒内自动建立 WebSocket 连接。
 
+---
+
+## 📢 4. 企业微信群 Webhook 机器人与消息发送工具
+
+除智能机器人长连接外，插件还提供了 `wecom_send_webhook` 工具，可向企微群主动推送文本、Markdown、工作区图片与文件。
+
+### Webhook 配置说明 (`wecom.webhooks`)
+在插件配置面板中，可登记常用群 Webhook 列表：
+- **`name`**：群别名（如 `ops-alert` 或 `dev`），供 AI 工具精准调用；
+- **`key`**：企微群机器人的 Webhook Key 或完整 Webhook URL；
+- **`description`**：备注说明（仅供管理员备忘，防止遗忘对应群用途）。
+
+### Webhook 发送工具调用规范 (`wecom_send_webhook`)
+- **`target`**：配置中预设的 `name`（如 `ops-alert`）或直接传入的 Webhook Key / 完整 URL；
+- **`messageType`**：`text` | `markdown` | `image` | `file`；
+- **`content`**：发送文本或 Markdown 时的内容；
+- **`filePath`**：发送图片（JPG/PNG ≤ 2MB）或文件（≤ 20MB）时的工作区相对路径（沙箱安全隔离）。
+
 

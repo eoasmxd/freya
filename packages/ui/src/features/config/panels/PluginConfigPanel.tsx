@@ -226,12 +226,11 @@ export const PluginConfigPanel: React.FC<PluginConfigPanelProps> = ({ getApiUrl 
                 <div key={idx} className="model-item" style={{ padding: '0.5rem 0.8rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <div style={{ display: 'flex', gap: '0.8rem', flexWrap: 'wrap', fontSize: '0.78rem' }}>
                     {field.children?.map(c => {
-                      const isSensitive = c.sensitive || c.uiHint === 'password';
                       const v = item[c.key];
                       return (
                         <span key={c.key}>
                           <span style={{ color: 'var(--text-secondary)', marginRight: '0.3rem' }}>{c.description || c.key}:</span>
-                          <span style={{ fontFamily: 'monospace' }}>{isSensitive ? '******' : String(v ?? '-')}</span>
+                          <span style={{ fontFamily: 'monospace' }}>{String(v ?? '-')}</span>
                         </span>
                       );
                     })}
@@ -258,7 +257,7 @@ export const PluginConfigPanel: React.FC<PluginConfigPanelProps> = ({ getApiUrl 
                   <div key={c.key} style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
                     <label style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>{c.description || c.key}</label>
                     <input
-                      type={c.sensitive || c.uiHint === 'password' ? 'password' : c.type === 'number' ? 'number' : 'text'}
+                      type={c.type === 'number' ? 'number' : 'text'}
                       className="config-input"
                       style={{ height: '28px', fontSize: '0.75rem' }}
                       value={inputs[c.key] ?? ''}
@@ -360,7 +359,7 @@ export const PluginConfigPanel: React.FC<PluginConfigPanelProps> = ({ getApiUrl 
           />
         ) : (
           <input
-            type={field.type === 'sha256' || field.uiHint === 'password' || field.sensitive ? 'password' : 'text'}
+            type="text"
             disabled={isFieldDisabled}
             className="config-input config-field-input"
             style={{ opacity: isFieldDisabled ? 0.5 : 1, cursor: isFieldDisabled ? 'not-allowed' : undefined, height: '32px' }}

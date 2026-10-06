@@ -638,7 +638,7 @@ export const GlobalConfigPanel: React.FC<GlobalConfigPanelProps> = ({ getApiUrl 
                                                   </label>
                                                 ) : (
                                                   <input
-                                                    type={isPassword ? 'password' : child.type === 'number' ? 'number' : 'text'}
+                                                    type={child.type === 'number' ? 'number' : 'text'}
                                                     className="config-input"
                                                     style={{ height: '32px', width: '100%', boxSizing: 'border-box', fontSize: '0.78rem', padding: '0.25rem 0.6rem' }}
                                                     value={childVal}
@@ -655,12 +655,11 @@ export const GlobalConfigPanel: React.FC<GlobalConfigPanelProps> = ({ getApiUrl 
                                       ) : (
                                         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.6rem 1.2rem', padding: '0.2rem 0' }}>
                                           {field.children?.map(child => {
-                                            const isSensitive = child.sensitive || child.uiHint === 'password';
-                                            const valStr = isSensitive ? '******' : (item[child.key] !== undefined && item[child.key] !== '' ? String(item[child.key]) : '-');
+                                            const valStr = item[child.key] !== undefined && item[child.key] !== '' ? String(item[child.key]) : '-';
                                             return (
                                               <div key={child.key} className="child-item-field" style={{ flex: '1 1 calc(50% - 1.2rem)', minWidth: '240px', maxWidth: '100%', display: 'flex', flexDirection: 'column', gap: '0.2rem', overflow: 'hidden' }}>
                                                 <span style={{ color: 'var(--text-secondary)', fontSize: '0.72rem', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>{child.description || child.key}</span>
-                                                <span style={{ fontFamily: 'monospace', fontWeight: 600, fontSize: '0.8rem', color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={isSensitive ? undefined : valStr}>{valStr}</span>
+                                                <span style={{ fontFamily: 'monospace', fontWeight: 600, fontSize: '0.8rem', color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={valStr}>{valStr}</span>
                                               </div>
                                             );
                                           })}
@@ -725,7 +724,7 @@ export const GlobalConfigPanel: React.FC<GlobalConfigPanelProps> = ({ getApiUrl 
                                             </label>
                                           ) : (
                                             <input
-                                              type={isPassword ? 'password' : child.type === 'number' ? 'number' : 'text'}
+                                              type={child.type === 'number' ? 'number' : 'text'}
                                               placeholder={placeholderText}
                                               className="config-input"
                                               style={{ height: '32px', width: '100%', boxSizing: 'border-box', fontSize: '0.78rem', padding: '0.25rem 0.6rem' }}
@@ -810,7 +809,7 @@ export const GlobalConfigPanel: React.FC<GlobalConfigPanelProps> = ({ getApiUrl 
                           />
                         ) : (
                           <input
-                            type={field.type === 'sha256' || field.uiHint === 'password' || field.sensitive ? 'password' : 'text'}
+                            type="text"
                             disabled={field.readonly}
                             className="config-input config-field-input"
                             style={{ opacity: field.readonly ? 0.5 : 1, cursor: field.readonly ? 'not-allowed' : undefined }}

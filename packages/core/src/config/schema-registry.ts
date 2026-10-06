@@ -45,7 +45,7 @@ export class FreyaConfigSchemaRegistry {
     const keys: string[] = [];
     const traverse = (field: ConfigFieldSchema, currentPrefix: string) => {
       const path = currentPrefix ? `${currentPrefix}.${field.key}` : field.key;
-      if (field.sensitive || field.type === 'sha256') {
+      if (field.sensitive || field.uiHint === 'password' || field.type === 'sha256') {
         keys.push(path);
       }
       if (field.children) {
@@ -68,6 +68,32 @@ export class FreyaConfigSchemaRegistry {
     const traverse = (field: ConfigFieldSchema, currentPrefix: string) => {
       const path = currentPrefix ? `${currentPrefix}.${field.key}` : field.key;
       if (field.manualOnly) {
+        keys.push(path);
+      }
+      if (field.children) {
+        for (const child of field.children) {
+          const separator = field.type === 'array' ? '.*' : '';
+          traverse(child, path + separator);
+        }
+      }
+    };
+    for (const fields of this.schema.values()) {
+      for (const field of fields) {
+        traverse(field, '');
+      }
+    }
+    return keys;
+  }
+
+  /**
+   * 获取所有标记为密码（uiHint: 'password' 或 sha256）的字段路径列表
+   * Get keyPath list of fields marked as password (uiHint: 'password' or sha256)
+   */
+  getPasswordKeys(): string[] {
+    const keys: string[] = [];
+    const traverse = (field: ConfigFieldSchema, currentPrefix: string) => {
+      const path = currentPrefix ? `${currentPrefix}.${field.key}` : field.key;
+      if (field.uiHint === 'password' || field.type === 'sha256') {
         keys.push(path);
       }
       if (field.children) {

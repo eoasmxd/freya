@@ -281,6 +281,13 @@ export class FreyaConfigManager {
     (this.context as any).config = deepFreeze(cloned);
   }
 
+  /**
+   * 读取经过过滤与脱敏的配置对象
+   * Read filtered and masked configuration object
+   *
+   * @param revealSensitive 是否向调用方暴露普通敏感字段（为 true 时仅脱敏密码凭证供管理后台，为 false 时对 AI 等全量脱敏）
+   *                        Whether to reveal ordinary sensitive fields (when true only password credentials are masked for web console, when false fully masked for AI etc.)
+   */
   async readConfig(revealSensitive = false): Promise<any> {
     const jsonObj = await this.fileHandler.readFreyaConfig();
     const filtered = filterConfigBySchema(jsonObj, this.schemaRegistry);
@@ -288,8 +295,10 @@ export class FreyaConfigManager {
       if (!filtered.server) filtered.server = {};
       filtered.server.port = (this.context.config as any).server.port;
     }
-    const sensitiveKeys = this.schemaRegistry.getSensitiveKeys();
-    return revealSensitive ? filtered : maskSensitiveData(filtered, sensitiveKeys);
+    const maskKeys = revealSensitive
+      ? this.schemaRegistry.getPasswordKeys()
+      : this.schemaRegistry.getSensitiveKeys();
+    return maskSensitiveData(filtered, maskKeys);
   }
 
   /**

@@ -68,8 +68,7 @@ export class FreyaConfigApi {
 
     try {
       if (pathname === '/api/config' && req.method === 'GET') {
-        const reveal = urlObj.searchParams.get('reveal') === 'true';
-        const config = await this.configManager.readConfig(reveal);
+        const config = await this.configManager.readConfig(true);
         res.writeHead(200, this.headers);
         res.end(JSON.stringify({ success: true, data: config }));
         return true;
