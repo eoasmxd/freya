@@ -95,7 +95,7 @@ export class FreyaKernel {
     ctx.llm = new FreyaLLMProxy(llmRegistry, ctx);
     this.billingService = new FreyaBillingService(ctx, llmRegistry);
 
-    this.sessionManager = new FreyaSessionManager();
+    this.sessionManager = new FreyaSessionManager(toolRegistry, skillRegistry);
     await this.sessionManager.load(ctx, promptRegistry);
 
     this.connectionManager = new FreyaConnectionManager(ctx.eventBus, ctx.logger);

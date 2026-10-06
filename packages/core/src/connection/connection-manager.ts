@@ -48,6 +48,8 @@ export class FreyaConnectionManager {
       attachments?: any[];
       channelType?: string;
       defaultLanguage?: string;
+      activeToolboxIds?: string[];
+      activeSkillId?: string;
     }) => {
       this.bindSession(payload.connectionId, payload.defaultSessionId, payload, false);
       const record = this.connections.get(payload.connectionId)!;

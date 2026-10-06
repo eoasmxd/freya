@@ -1,0 +1,35 @@
+{
+  "name": "@eoasmxd/freya-plugin-webhook-channel",
+  "version": "0.6.5",
+  "private": false,
+  "license": "MIT",
+  "publishConfig": {
+    "access": "public"
+  },
+  "description": "Freya Webhook channel plugin for external event triggers and ephemeral sessions",
+  "freya": {
+    "displayName": {
+      "zh": "Webhook 事件频道",
+      "en": "Webhook Event Channel"
+    },
+    "description": {
+      "zh": "Freya Webhook 触发频道插件，支持通过 URL Key 匹配端点、定制工具箱与技能并启动临时会话，支持同步与异步返回结果",
+      "en": "Freya Webhook channel plugin supporting URL key matching, customized toolboxes and skill, ephemeral session execution and sync/async response"
+    },
+    "defaultEnabled": false,
+    "schema": "./schema.json"
+  },
+  "type": "module",
+  "main": "./dist/index.js",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "@eoasmxd/freya-sdk": "workspace:^"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "typescript": "^5.5.0"
+  }
+}

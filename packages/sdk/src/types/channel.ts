@@ -11,4 +11,6 @@ export interface ChannelMessage {
   channelType?: string;
   defaultLanguage?: string;
   ephemeral?: boolean;
+  activeToolboxIds?: string[];
+  activeSkillId?: string;
 }

@@ -159,6 +159,19 @@ importers:
         specifier: ^5.5.0
         version: 5.9.3
 
+  plugins/plugin-webhook-channel:
+    dependencies:
+      '@eoasmxd/freya-sdk':
+        specifier: workspace:^
+        version: link:../../packages/sdk
+    devDependencies:
+      '@types/node':
+        specifier: ^22.0.0
+        version: 22.20.0
+      typescript:
+        specifier: ^5.5.0
+        version: 5.9.3
+
   plugins/plugin-wecom-channel:
     dependencies:
       '@eoasmxd/freya-sdk':

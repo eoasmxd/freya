@@ -1,0 +1,79 @@
+[
+  {
+    "key": "webhook.endpoints",
+    "defaultValue": [],
+    "description": {
+      "zh": "Webhook 端点配置列表",
+      "en": "List of Webhook endpoint configurations"
+    },
+    "type": "array",
+    "children": [
+      {
+        "key": "key",
+        "description": {
+          "zh": "端点 Key（用于 URL 路径匹配 /webhook/:key）",
+          "en": "Endpoint Key (used for URL path matching /webhook/:key)"
+        },
+        "type": "string",
+        "required": true,
+        "sensitive": true,
+        "manualOnly": true
+      },
+      {
+        "key": "description",
+        "description": {
+          "zh": "备注",
+          "en": "Remarks"
+        },
+        "type": "string",
+        "defaultValue": ""
+      },
+      {
+        "key": "toolboxes",
+        "description": {
+          "zh": "启用的工具箱列表（可选，多个以逗号分隔，如 fs, web）",
+          "en": "Toolbox ID list (optional, comma-separated, e.g. fs, web)"
+        },
+        "type": "string",
+        "defaultValue": ""
+      },
+      {
+        "key": "skillId",
+        "description": {
+          "zh": "预置技能 ID（可选）",
+          "en": "Preset Skill ID (optional)"
+        },
+        "type": "string",
+        "defaultValue": ""
+      },
+      {
+        "key": "prompt",
+        "description": {
+          "zh": "AI 预置提示词（可选）",
+          "en": "AI preset prompt (optional)"
+        },
+        "type": "string",
+        "uiHint": "textarea",
+        "defaultValue": ""
+      },
+      {
+        "key": "sync",
+        "description": {
+          "zh": "默认是否同步等待返回结果",
+          "en": "Default whether to wait for result synchronously"
+        },
+        "type": "boolean",
+        "defaultValue": true
+      },
+      {
+        "key": "language",
+        "description": {
+          "zh": "默认语言（可选，如 en 或 zh，默认 en）",
+          "en": "Default language (optional, e.g. en or zh, default en)"
+        },
+        "type": "string",
+        "defaultValue": ""
+      }
+    ]
+  }
+]

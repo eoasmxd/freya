@@ -1,6 +1,8 @@
 import type { FreyaContext, LLMMessage, LLMTokenUsage } from '@eoasmxd/freya-sdk';
 import crypto from 'node:crypto';
 import type { FreyaPromptRegistry } from '../prompt/prompt-registry.js';
+import type { FreyaToolRegistry } from '../tools/tool-registry.js';
+import type { FreyaSkillRegistry } from '../skill/skill-registry.js';
 import { SessionCompactor } from './compactor.js';
 import { FreyaSessionPersistence } from './persistence.js';
 import type { Session, SessionIndex } from './types.js';
@@ -24,7 +26,10 @@ export class FreyaSessionManager {
     private context?: FreyaContext;
     private logger?: FreyaContext['logger'];
 
-    constructor() { }
+    constructor(
+        private toolRegistry?: FreyaToolRegistry,
+        private skillRegistry?: FreyaSkillRegistry
+    ) { }
 
     findLatestIndexById(id: string): SessionIndex | undefined {
         const matched = Array.from(this.sessionIndices.values()).filter(idx => idx.id === id);
@@ -218,7 +223,34 @@ export class FreyaSessionManager {
         }
     }
 
-    async getOrCreate(id: string, options?: { ephemeral?: boolean }): Promise<Session> {
+    /**
+     * 过滤并剔除未注册或未启用的工具箱 ID
+     * Filter and remove unregistered or disabled toolbox IDs
+     */
+    private filterValidToolboxIds(ids: string[]): string[] {
+        const cleaned = ids.map((id) => (typeof id === 'string' ? id.trim() : '')).filter(Boolean);
+        if (this.toolRegistry) {
+            const registered = new Set(this.toolRegistry.getRegisteredToolboxIds());
+            return cleaned.filter((id) => registered.has(id));
+        }
+        return cleaned;
+    }
+
+    /**
+     * 校验技能 ID 是否合法且已启用
+     * Verify whether skill ID is valid, registered and enabled
+     */
+    private isValidSkillId(skillId: string): boolean {
+        if (!skillId || typeof skillId !== 'string') return false;
+        const trimmed = skillId.trim();
+        if (!trimmed) return false;
+        if (this.skillRegistry) {
+            return this.skillRegistry.getSkills().has(trimmed);
+        }
+        return true;
+    }
+
+    async getOrCreate(id: string, options?: { ephemeral?: boolean; activeToolboxIds?: string[]; activeSkillId?: string }): Promise<Session> {
         const index = this.findLatestIndexById(id);
         if (index && !index.archived) {
             try {
@@ -227,12 +259,41 @@ export class FreyaSessionManager {
                     session.ephemeral = options.ephemeral;
                     index.ephemeral = options.ephemeral;
                 }
+                if (options?.activeToolboxIds && options.activeToolboxIds.length > 0) {
+                    const validIds = this.filterValidToolboxIds(options.activeToolboxIds);
+                    if (validIds.length > 0) {
+                        const current = new Set(session.activeToolboxIds || []);
+                        for (const tbId of validIds) {
+                            current.add(tbId);
+                        }
+                        const merged = Array.from(current);
+                        session.activeToolboxIds = merged;
+                        index.activeToolboxIds = merged;
+                    }
+                }
+                if (options?.activeSkillId && this.isValidSkillId(options.activeSkillId)) {
+                    const skillId = options.activeSkillId.trim();
+                    session.activeSkillId = skillId;
+                    index.activeSkillId = skillId;
+                }
                 return session;
             } catch (err) {
             }
         }
 
-        const session = this.newSession(id, crypto.randomUUID(), { archived: false, ephemeral: options?.ephemeral });
+        const initialToolboxes = (options?.activeToolboxIds && options.activeToolboxIds.length > 0)
+            ? Array.from(new Set(this.filterValidToolboxIds(options.activeToolboxIds)))
+            : [];
+        const initialSkillId = (options?.activeSkillId && this.isValidSkillId(options.activeSkillId))
+            ? options.activeSkillId.trim()
+            : undefined;
+
+        const session = this.newSession(id, crypto.randomUUID(), {
+            archived: false,
+            ephemeral: options?.ephemeral,
+            activeToolboxIds: initialToolboxes,
+            activeSkillId: initialSkillId
+        });
         await this.persistSession(session);
         return session;
     }
@@ -431,9 +492,11 @@ export class FreyaSessionManager {
     }
 
     async activateToolboxes(sessionId: string, toolboxIds: string[]): Promise<void> {
+        const validIds = this.filterValidToolboxIds(toolboxIds);
+        if (validIds.length === 0) return;
         return this.enqueueWrite(sessionId, async (session) => {
             const current = new Set(session.activeToolboxIds || []);
-            toolboxIds.forEach(id => current.add(id));
+            validIds.forEach(id => current.add(id));
             session.activeToolboxIds = Array.from(current);
             session.updatedAt = new Date().toISOString();
             await this.persistSession(session);
