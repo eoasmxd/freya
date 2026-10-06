@@ -128,6 +128,12 @@ export const zh: Record<string, string> = {
   'plugin.sourceLaunch': '集成封装',
   'plugin.sourceCustom': '自定义',
   'plugin.noDesc': '未提供描述信息',
+  'plugin.config': '配置',
+  'plugin.saveConfig': '保存配置',
+  'plugin.noChanges': '配置未发生改变',
+  'plugin.configSaveSuccess': '插件配置已成功保存',
+  'plugin.configSaveFailed': '保存插件配置失败: {error}',
+  'plugin.disabledTip': '插件当前处于禁用状态，配置将在启用后生效',
 
   'skill.enabled': '启用',
   'skill.disabled': '禁用',

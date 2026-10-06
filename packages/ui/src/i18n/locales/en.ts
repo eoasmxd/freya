@@ -128,6 +128,12 @@ export const en: Record<string, string> = {
   'plugin.sourceLaunch': 'Packaged',
   'plugin.sourceCustom': 'Custom',
   'plugin.noDesc': 'No description provided',
+  'plugin.config': 'Configure',
+  'plugin.saveConfig': 'Save Settings',
+  'plugin.noChanges': 'No configuration changes to save',
+  'plugin.configSaveSuccess': 'Plugin configuration saved successfully',
+  'plugin.configSaveFailed': 'Failed to save plugin configuration: {error}',
+  'plugin.disabledTip': 'Plugin is currently disabled; settings will take effect once enabled',
 
   'skill.enabled': 'enabled',
   'skill.disabled': 'disabled',

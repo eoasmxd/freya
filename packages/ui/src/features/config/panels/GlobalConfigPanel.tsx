@@ -406,11 +406,7 @@ export const GlobalConfigPanel: React.FC<GlobalConfigPanelProps> = ({ getApiUrl 
     showToast(t('global.itemSaved', 'Changes saved'), 'success');
   };
 
-  const sortedNamespaces = Object.keys(schemas).sort((a, b) => {
-    if (a === 'core') return -1;
-    if (b === 'core') return 1;
-    return a.localeCompare(b);
-  });
+  const sortedNamespaces = ['core'].filter(ns => schemas[ns] && schemas[ns].length > 0);
 
   return (
     <div>
