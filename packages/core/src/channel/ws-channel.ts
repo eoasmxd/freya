@@ -178,7 +178,19 @@ export class FreyaWsChannel {
                     }
 
                     if (payload.event === 'client:message') {
-                        const { content, sessionId, ephemeral, language: msgLanguage } = payload.data || {};
+                        const {
+                            content,
+                            sessionId,
+                            ephemeral,
+                            language: msgLanguage,
+                            toolboxes,
+                            skillId
+                        } = payload.data || {};
+
+                        const parsedToolboxes = this.parseToolboxIds(toolboxes);
+                        const resolvedSkillId = typeof skillId === 'string' && skillId.trim()
+                            ? skillId.trim()
+                            : undefined;
 
                         const messagePayload = {
                             connectionId: meta.connId,
@@ -187,7 +199,9 @@ export class FreyaWsChannel {
                             defaultSessionId: meta.defaultSessionId,
                             ephemeral: Boolean(ephemeral),
                             channelType: meta.channelType,
-                            defaultLanguage: msgLanguage || meta.defaultLanguage
+                            defaultLanguage: msgLanguage || meta.defaultLanguage,
+                            toolboxes: parsedToolboxes.length > 0 ? parsedToolboxes : undefined,
+                            skillId: resolvedSkillId
                         };
                         ctx.eventBus.emit('connection:message', messagePayload);
                     } else if (payload.event === 'client:interrupt') {
@@ -330,6 +344,23 @@ export class FreyaWsChannel {
         }
 
         this.isSetup = false;
+    }
+
+    /**
+     * 解析工具箱列表入参（支持数组或逗号分隔字符串）。
+     * Parse toolbox IDs from array or comma-separated string.
+     */
+    private parseToolboxIds(input: unknown): string[] {
+        if (Array.isArray(input)) {
+            return input.map(String).map((s) => s.trim()).filter(Boolean);
+        }
+        if (typeof input === 'string') {
+            return input
+                .split(/[,，\s]+/)
+                .map((s) => s.trim())
+                .filter(Boolean);
+        }
+        return [];
     }
 
     private handleConnectionReply = (payload: { connectionId: string; content: string; sessionId?: string }) => {

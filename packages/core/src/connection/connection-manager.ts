@@ -48,8 +48,8 @@ export class FreyaConnectionManager {
       attachments?: any[];
       channelType?: string;
       defaultLanguage?: string;
-      activeToolboxIds?: string[];
-      activeSkillId?: string;
+      toolboxes?: string[];
+      skillId?: string;
     }) => {
       this.bindSession(payload.connectionId, payload.defaultSessionId, payload, false);
       const record = this.connections.get(payload.connectionId)!;
@@ -71,7 +71,9 @@ export class FreyaConnectionManager {
         sessionId: targetSessionId,
         ephemeral: payload.ephemeral,
         channelType: payload.channelType || record.channelType,
-        defaultLanguage: payload.defaultLanguage || record.language
+        defaultLanguage: payload.defaultLanguage || record.language,
+        toolboxes: payload.toolboxes,
+        skillId: payload.skillId
       });
     });
 

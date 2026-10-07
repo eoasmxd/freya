@@ -105,8 +105,8 @@ export class FreyaAgentService {
     try {
       const session = await this.sessionManager.getOrCreate(message.sessionId, {
         ephemeral: message.ephemeral,
-        activeToolboxIds: message.activeToolboxIds,
-        activeSkillId: message.activeSkillId
+        activeToolboxIds: message.toolboxes,
+        activeSkillId: message.skillId
       });
 
       const isCommandIntercepted = await this.commandExecutor.executeLine(
