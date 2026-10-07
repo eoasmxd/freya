@@ -159,6 +159,10 @@ if (!cliEnabled && !isForeground) {
 
 
 } else {
+  if (!cliEnabled) {
+    console.log(i18n.t('launcher.fgStarted', '✨ Freya core service has been started successfully.\n'));
+  }
+
   const child = fork(coreIndex, process.argv.slice(2), {
     stdio: 'inherit',
     env: {
