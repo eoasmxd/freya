@@ -1,16 +1,13 @@
-name: CI Build Check
+name: Validate
 
 on:
-  push:
-    branches:
-      - main
   pull_request:
     branches:
       - main
   workflow_dispatch:
 
 jobs:
-  build:
+  validate:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
@@ -25,7 +22,7 @@ jobs:
           node-version: 22
           cache: 'pnpm'
 
-      - name: Install Dependencies & Build
+      - name: Install & Validate Build
         run: |
           pnpm install
           pnpm build
