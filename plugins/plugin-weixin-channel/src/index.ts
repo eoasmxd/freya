@@ -275,7 +275,7 @@ export default class FreyaWeixinChannelPlugin implements ChannelPlugin {
       this.startWeixinLoop(ctx, accountId, state);
       ctx.logger.debug(`WeChat account [${accountId}] session restored, long polling started.`);
     } catch (err: any) {
-      ctx.logger.error(`WeChat account [${accountId}] session restore failed. Please run \`/weixin login ${accountId}\` to scan QR code again.`, err.message);
+      ctx.logger.warn(`WeChat account [${accountId}] session restore failed. Please run \`/weixin login ${accountId}\` to scan QR code again.`, err.message);
       state.isLoggedIn = false;
     }
   }

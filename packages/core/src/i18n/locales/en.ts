@@ -263,6 +263,7 @@ export const en: Record<string, string> = {
   'launcher.permWarn': '⚠️ Warning: Freya service is already running (PID: {pid}), but current permissions are insufficient.',
   'launcher.bgStarted': '✨ Freya core service has been started in the background.',
   'launcher.bgStopTip': '👉 You can run "freya stop" to terminate this background service.\n',
+  'launcher.fgStarted': '✨ Freya core service has been started successfully.\n',
 
   // REST API 错误
   // REST API errors

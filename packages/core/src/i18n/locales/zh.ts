@@ -263,6 +263,7 @@ export const zh: Record<string, string> = {
   'launcher.permWarn': '⚠️ 警告: 检测到 Freya 服务已在运行 (PID: {pid})，但当前用户权限不足。',
   'launcher.bgStarted': '✨ Freya 核心服务已成功在后台静默启动运行。',
   'launcher.bgStopTip': '👉 你可以通过运行 "freya stop" 命令来停止此后台服务。\n',
+  'launcher.fgStarted': '✨ Freya 核心服务已成功启动运行。\n',
 
   // REST API 错误
   // REST API errors
