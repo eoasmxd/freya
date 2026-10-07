@@ -140,9 +140,9 @@ export default class WebhookChannelPlugin implements ChannelPlugin {
 
     const endpointToolboxes = this.parseToolboxIds(endpoint.toolboxes);
     const requestToolboxes = this.parseToolboxIds(requestPayload.toolboxes);
-    const activeToolboxIds = Array.from(new Set([...endpointToolboxes, ...requestToolboxes]));
+    const toolboxes = Array.from(new Set([...endpointToolboxes, ...requestToolboxes]));
 
-    const activeSkillId = (typeof requestPayload.skillId === 'string' && requestPayload.skillId.trim())
+    const skillId = (typeof requestPayload.skillId === 'string' && requestPayload.skillId.trim())
       ? requestPayload.skillId.trim()
       : (endpoint.skillId?.trim() || undefined);
 
@@ -180,8 +180,8 @@ export default class WebhookChannelPlugin implements ChannelPlugin {
           sessionId,
           content: finalContent,
           ephemeral: true,
-          activeToolboxIds: activeToolboxIds.length > 0 ? activeToolboxIds : undefined,
-          activeSkillId,
+          toolboxes: toolboxes.length > 0 ? toolboxes : undefined,
+          skillId,
           channelType: 'webhook',
           defaultLanguage
         });
@@ -206,8 +206,8 @@ export default class WebhookChannelPlugin implements ChannelPlugin {
         sessionId,
         content: finalContent,
         ephemeral: true,
-        activeToolboxIds: activeToolboxIds.length > 0 ? activeToolboxIds : undefined,
-        activeSkillId,
+        toolboxes: toolboxes.length > 0 ? toolboxes : undefined,
+        skillId,
         channelType: 'webhook',
         defaultLanguage
       });
