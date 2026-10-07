@@ -10,7 +10,7 @@ import type { FreyaPromptRegistry } from '../prompt/prompt-registry.js';
 export class FreyaToolRegistry {
   private toolboxes: FreyaToolbox[] = [];
 
-  constructor(private context?: FreyaContext) {}
+  constructor(private context?: FreyaContext) { }
 
   setContext(context: FreyaContext): void {
     this.context = context;
@@ -128,7 +128,7 @@ export class FreyaToolRegistry {
 
       const resolved = promptRegistry.get(key);
       if (resolved) {
-        // 工具箱能力说明提示词 (MD 中的中文暂时不需要处理)
+        // 工具箱能力说明提示词
         instructions.push(`### Toolbox Capabilities [ID: "${toolboxId}"]\n${resolved}`);
       }
     }
