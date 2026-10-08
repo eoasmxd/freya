@@ -1,4 +1,5 @@
 import type { FreyaContext, FreyaTool, FreyaToolbox } from '@eoasmxd/freya-sdk';
+import type { Session } from '../session/types.js';
 import type { FreyaPromptRegistry } from '../prompt/prompt-registry.js';
 import type { FreyaSessionManager } from '../session/session-manager.js';
 import type { FreyaConfigManager } from '../config/config-manager.js';
@@ -15,7 +16,7 @@ import { ReadSnapshotTool } from './intrinsic/snapshot-tool.js';
  */
 export interface IntrinsicToolEntry {
   tool: FreyaTool;
-  isVisible?: (session?: any) => boolean;
+  isVisible?: (session?: Session) => boolean;
 }
 
 /**
@@ -56,7 +57,7 @@ export class FreyaToolRegistry {
 
     this.registerIntrinsicTool(
       new ReadSnapshotTool(params.sessionManager),
-      (session) => !session?.lastSnapshotId
+      (session) => !!session?.lastSnapshotId
     );
   }
 
@@ -89,7 +90,11 @@ export class FreyaToolRegistry {
    * 判断指定工具箱当前是否已注册且处于可用启用状态
    * Determine whether specified toolbox is registered and enabled
    */
-  isToolboxEnabled(toolboxId: string): boolean {
+  isToolboxEnabled(toolboxId: string, session?: Session): boolean {
+    if (session?.parentId && toolboxId === 'agent') {
+      return false;
+    }
+
     const isRegistered = this.toolboxes.some((tb) => tb.getId() === toolboxId);
     if (!isRegistered) {
       return false;
@@ -164,7 +169,7 @@ export class FreyaToolRegistry {
    * 根据当前会话与已激活的工具箱列表，过滤获取所需的工具字典
    * Filter and retrieve required tools dictionary based on current session and active toolboxes
    */
-  getFilteredTools(activeToolboxIds: string[], session?: any): Map<string, FreyaTool> {
+  getFilteredTools(activeToolboxIds: string[], session?: Session): Map<string, FreyaTool> {
     const activeSet = new Set(activeToolboxIds || []);
     const tools = new Map<string, FreyaTool>();
 
@@ -176,7 +181,7 @@ export class FreyaToolRegistry {
 
     for (const toolbox of this.toolboxes) {
       const toolboxId = toolbox.getId();
-      if (!this.isToolboxEnabled(toolboxId)) {
+      if (!this.isToolboxEnabled(toolboxId, session)) {
         continue;
       }
       if (activeSet.has(toolboxId)) {
@@ -199,7 +204,7 @@ export class FreyaToolRegistry {
    * 聚合所有已启用的工具提示词引导说明
    * Aggregate instruction prompt guides for all enabled toolboxes
    */
-  getToolInstructions(promptRegistry: FreyaPromptRegistry): string[] {
+  getToolInstructions(promptRegistry: FreyaPromptRegistry, session?: Session): string[] {
     const instructions: string[] = [];
 
     const metaPrompt = promptRegistry.get('tool.prompt.meta');
@@ -209,7 +214,7 @@ export class FreyaToolRegistry {
 
     for (const toolbox of this.toolboxes) {
       const toolboxId = toolbox.getId();
-      if (!this.isToolboxEnabled(toolboxId)) {
+      if (!this.isToolboxEnabled(toolboxId, session)) {
         continue;
       }
       const key = toolbox.getInstructionPrompt?.();
@@ -223,9 +228,9 @@ export class FreyaToolRegistry {
     return instructions;
   }
 
-  getRegisteredToolboxIds(): string[] {
+  getRegisteredToolboxIds(session?: Session): string[] {
     return this.toolboxes
       .map((tb) => tb.getId())
-      .filter((id) => this.isToolboxEnabled(id));
+      .filter((id) => this.isToolboxEnabled(id, session));
   }
 }

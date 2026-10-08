@@ -1,5 +1,4 @@
 import type { ChannelMessage, ILLMService, LLMMessage, FreyaAttachment } from '@eoasmxd/freya-sdk';
-import path from 'node:path';
 import { FreyaCommandExecutor } from '../command/command-executor.js';
 import { currentConnectionStorage, type DefaultFreyaContext } from '../context.js';
 import type { FreyaPromptRegistry } from '../prompt/prompt-registry.js';
@@ -316,7 +315,7 @@ export class FreyaAgentService {
         prompt,
         providerId: options?.providerId,
         modelId: options?.modelId,
-        activeToolboxIds: options?.toolboxes,
+        activeToolboxIds: options?.toolboxes?.filter(id => id !== 'agent'),
         activeSkillId: options?.skillId
       });
 
@@ -371,35 +370,6 @@ export class FreyaAgentService {
       } catch (flushErr) {
         this.context.logger.error(`[AgentService] Failed to flush sub-agent session ${childSessionId}:`, flushErr);
       }
-    }
-  }
-
-  /**
-   * 取消指定的子智能体会话
-   * Cancel specified sub-agent session
-   */
-  cancelSubAgent(childSessionId: string): string {
-    let targetKey: string | null = null;
-    let controller: AbortController | null = null;
-
-    for (const [key, ctrl] of this.abortControllers.entries()) {
-      if (key === childSessionId || key.endsWith(`_sub_${childSessionId}`)) {
-        targetKey = key;
-        controller = ctrl;
-        break;
-      }
-    }
-
-    if (controller && targetKey) {
-      controller.abort();
-      this.abortControllers.delete(targetKey);
-      this.sessionManager.updateSession(childSessionId, { status: 'failed', durationMs: 0 })
-        .then(() => this.sessionManager.flushSession(childSessionId))
-        .catch(() => { });
-      return `ℹ️ Child agent session ${childSessionId} aborted successfully.`;
-    } else {
-      // 未找到活跃子智能体会话异常
-      throw new Error(`Active child agent session not found for ID: ${childSessionId}, or it has already completed.`);
     }
   }
 }

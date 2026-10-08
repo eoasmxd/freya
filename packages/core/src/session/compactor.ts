@@ -180,7 +180,7 @@ export class SessionCompactor {
             const template = this.promptRegistry?.get('core.prompt.context_summary_template') || '{summary}';
             const summaryUserMsg: LLMMessage = {
                 role: 'user',
-                content: template.replace('{summary}', taggedSummary),
+                content: template.replace('{summary}', () => taggedSummary),
             };
             this.truncateHistory(history, safeTruncateIndex, summaryUserMsg);
 

@@ -318,7 +318,7 @@ export class DeleteMemoryTool implements FreyaTool {
       }
       await writeIndex(dataDir, indexData);
 
-      this.ctx?.logger.debug(`[delete_memory] Successfully purged memory from disk: [${args.id}]`);
+      this.ctx?.logger.debug(`[memory_delete] Successfully purged memory from disk: [${args.id}]`);
       return `ℹ️ Long-term memory with ID "${args.id}" was successfully deleted, index synchronized.`;
     } catch (err: any) {
       return handleMemoryError('delete memory', err, this.ctx!);

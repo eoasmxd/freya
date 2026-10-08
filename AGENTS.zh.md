@@ -82,10 +82,11 @@ freya/
 
 2. **命名语法规则**：
    - **固有工具**：snake_case 格式的 `<verb>_<object>`（例如 `activate_toolbox`、`read_snapshot`）。
-   - **工具箱工具**：snake_case 格式的三段式 `<toolboxId>_<verb>_<object>`（例如 `agent_delegate_task`、`fs_read_file`、`config_update`）。
+   - **工具箱工具**：snake_case 格式，通常为三段式 `<toolboxId>_<verb>_<object>`（例如 `agent_delegate_task`、`fs_read_file`、`config_create_model`）；当工具箱本身即为主语对象时，允许两段式 `<toolboxId>_<verb>`（例如 `config_read`、`config_update`）。
    - **名词严格单数**：所有名词必须严格采用单数形式（例如用 `toolbox` 而非 `toolboxes`，用 `directory` 而非 `directories`，用 `model` 而非 `models`，用 `provider` 而非 `providers`），严禁使用复数名词。
    - **杜绝随意缩写**：必须使用完整语义单词（例如用 `directory` 而非 `dir`）。
-   - **统一标准动词**：相同语义必须保持动词一致（`list`、`read`、`write`、`edit`、`create`、`update`、`delete`、`search`、`enable`、`disable`、`activate`、`deactivate`、`delegate`）。
+   - **统一标准动词**：相同语义必须保持动词一致（`list`、`read`、`write`、`edit`、`create`、`update`、`delete`、`search`、`save`、`enable`、`disable`、`activate`、`deactivate`、`delegate`）。
+   - **参数命名规范**：工具入参属性名必须统一采用 camelCase 小驼峰风格（例如 `toolboxIds`、`skillId`、`providerId`、`modelId`）。
 
 ## 开发流程
 

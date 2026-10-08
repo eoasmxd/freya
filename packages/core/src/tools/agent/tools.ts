@@ -3,6 +3,29 @@ import type { FreyaAgentService } from '../../agent/agent-service.js';
 import type { FreyaSessionManager } from '../../session/session-manager.js';
 import path from 'node:path';
 
+const MIME_TYPES: Record<string, string> = {
+  '.jpg': 'image/jpeg',
+  '.jpeg': 'image/jpeg',
+  '.png': 'image/png',
+  '.gif': 'image/gif',
+  '.webp': 'image/webp',
+  '.svg': 'image/svg+xml',
+  '.bmp': 'image/bmp',
+  '.mp3': 'audio/mpeg',
+  '.wav': 'audio/wav',
+  '.m4a': 'audio/mp4',
+  '.ogg': 'audio/ogg',
+  '.aac': 'audio/aac',
+  '.flac': 'audio/flac',
+  '.mp4': 'video/mp4',
+  '.webm': 'video/webm',
+  '.pdf': 'application/pdf',
+  '.txt': 'text/plain',
+  '.md': 'text/markdown',
+  '.json': 'application/json',
+  '.csv': 'text/csv'
+};
+
 /**
  * 委派独立子智能体任务工具
  * Delegate independent subagent task tool
@@ -11,7 +34,7 @@ export class DelegateTaskTool implements FreyaTool {
   private agentService?: FreyaAgentService;
 
   constructor(
-    private sessionManager: FreyaSessionManager,
+    _sessionManager?: FreyaSessionManager,
     private ctx?: FreyaContext
   ) { }
 
@@ -40,7 +63,7 @@ export class DelegateTaskTool implements FreyaTool {
             items: { type: 'string' },
             description: 'List of specific toolbox IDs to pre-activate for this subagent. Replaces default capabilities.'
           },
-          skill_id: {
+          skillId: {
             type: 'string',
             description: 'Name of a specific skill to activate as the subagent\'s primary guideline.'
           },
@@ -71,28 +94,30 @@ export class DelegateTaskTool implements FreyaTool {
 
     const parsedAttachments: FreyaAttachment[] = [];
     if (args.attachments && Array.isArray(args.attachments)) {
-      for (const attachPath of args.attachments) {
-        const isUrl = attachPath.startsWith('http://') || attachPath.startsWith('https://');
-        const ext = isUrl ? path.extname(new URL(attachPath).pathname).toLowerCase() : path.extname(attachPath).toLowerCase();
-        
-        const isImage = ['.jpg', '.jpeg', '.png', '.gif', '.webp'].includes(ext);
-        let mimeType = 'application/octet-stream';
-        if (isImage) {
-          if (ext === '.jpg' || ext === '.jpeg') mimeType = 'image/jpeg';
-          else if (ext === '.png') mimeType = 'image/png';
-          else if (ext === '.gif') mimeType = 'image/gif';
-          else if (ext === '.webp') mimeType = 'image/webp';
-        } else {
-          if (ext === '.pdf') mimeType = 'application/pdf';
-          else if (ext === '.txt') mimeType = 'text/plain';
-          else if (ext === '.md') mimeType = 'text/markdown';
-          else if (ext === '.csv') mimeType = 'text/csv';
-          else if (ext === '.mp3') mimeType = 'audio/mpeg';
-          else if (ext === '.wav') mimeType = 'audio/wav';
-          else if (ext === '.ogg') mimeType = 'audio/ogg';
-          else if (ext === '.mp4') mimeType = 'video/mp4';
+      for (const rawPath of args.attachments) {
+        if (!rawPath || typeof rawPath !== 'string') {
+          continue;
         }
-        
+        const attachPath = rawPath.trim();
+        if (!attachPath) {
+          continue;
+        }
+
+        const isUrl = attachPath.startsWith('http://') || attachPath.startsWith('https://');
+        let ext = '';
+        if (isUrl) {
+          try {
+            ext = path.extname(new URL(attachPath).pathname).toLowerCase();
+          } catch {
+            ext = path.extname(attachPath).toLowerCase();
+          }
+        } else {
+          ext = path.extname(attachPath).toLowerCase();
+        }
+
+        const mimeType = MIME_TYPES[ext] || 'application/octet-stream';
+        const isImage = mimeType.startsWith('image/');
+
         parsedAttachments.push({
           type: isImage ? 'image' : 'file',
           mimeType,
@@ -107,7 +132,7 @@ export class DelegateTaskTool implements FreyaTool {
       modelId: args.modelId,
       attachments: parsedAttachments.length > 0 ? parsedAttachments : undefined,
       toolboxes: args.toolboxes,
-      skillId: args.skill_id
+      skillId: args.skillId
     });
   }
 }

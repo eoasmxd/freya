@@ -80,10 +80,11 @@ Tools exposed to LLM function calling follow strict structural tiers and naming 
 
 2. **Naming Syntax**:
    - **Intrinsic Tools**: `<verb>_<object>` in snake_case (e.g., `activate_toolbox`, `read_snapshot`).
-   - **Toolbox Tools**: `<toolboxId>_<verb>_<object>` in snake_case (e.g., `agent_delegate_task`, `fs_read_file`, `config_update`).
+   - **Toolbox Tools**: snake_case format, typically `<toolboxId>_<verb>_<object>` (e.g., `agent_delegate_task`, `fs_read_file`, `config_create_model`), or `<toolboxId>_<verb>` when the toolbox itself serves as the object (e.g., `config_read`, `config_update`).
    - **Singular Nouns**: All nouns must strictly use singular form (e.g., `toolbox` instead of `toolboxes`, `directory` instead of `directories`, `model` instead of `models`, `provider` instead of `providers`). Plural nouns are prohibited.
    - **No Abbreviations**: Full descriptive words must be used (e.g., `directory` instead of `dir`).
-   - **Standard Verbs**: Use consistent verbs for identical semantics (`list`, `read`, `write`, `edit`, `create`, `update`, `delete`, `search`, `enable`, `disable`, `activate`, `deactivate`, `delegate`).
+   - **Standard Verbs**: Use consistent verbs for identical semantics (`list`, `read`, `write`, `edit`, `create`, `update`, `delete`, `search`, `save`, `enable`, `disable`, `activate`, `deactivate`, `delegate`).
+   - **Parameter Naming**: Tool input parameters must consistently follow camelCase naming style (e.g., `toolboxIds`, `skillId`, `providerId`, `modelId`).
 
 ## Development Workflow
 

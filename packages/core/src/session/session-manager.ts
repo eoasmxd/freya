@@ -359,7 +359,7 @@ export class FreyaSessionManager {
                                 const template = this.promptRegistry?.get('core.prompt.context_summary_template') || '{summary}';
                                 const summaryUserMsg: LLMMessage = {
                                     role: 'user',
-                                    content: template.replace('{summary}', taggedSummary),
+                                    content: template.replace('{summary}', () => taggedSummary),
                                 };
                                 const keepMessages = latestSession.history.slice(result.safeTruncateIndex);
                                 latestSession.summary = taggedSummary;
@@ -474,7 +474,7 @@ export class FreyaSessionManager {
             providerId: options?.providerId,
             modelId: options?.modelId,
             activeSkillId: (options?.activeSkillId && this.isValidSkillId(options.activeSkillId)) ? options.activeSkillId.trim() : undefined,
-            activeToolboxIds: options?.activeToolboxIds ? this.filterValidToolboxIds(options.activeToolboxIds) : [],
+            activeToolboxIds: options?.activeToolboxIds ? this.filterValidToolboxIds(options.activeToolboxIds).filter(id => !options.parentId || id !== 'agent') : [],
             status: options?.parentId ? 'running' : undefined,
             startTime: options?.parentId ? Date.now() : undefined,
             durationMs: options?.parentId ? 0 : undefined

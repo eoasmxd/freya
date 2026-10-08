@@ -16,20 +16,17 @@ export class ActivateToolboxTool implements FreyaTool {
   getDefinition(): ToolDefinition {
     return {
       name: 'activate_toolbox',
-      description: 'Load specific business toolboxes required for the current session. Supports passing a toolbox ID or list of IDs for concurrent loading. Loaded toolboxes remain active until explicitly deactivated.',
+      description: 'Load specific business toolboxes required for the current session. Supports passing a list of IDs for concurrent loading. Loaded toolboxes remain active until explicitly deactivated.',
       parameters: {
         type: 'object',
         properties: {
-          toolboxId: {
-            type: 'string',
-            description: 'Business toolbox ID to load and activate (e.g. "fs", "web", "agent", "config")'
-          },
           toolboxIds: {
             type: 'array',
             items: { type: 'string' },
-            description: 'List of business toolbox IDs to load and activate simultaneously'
+            description: 'List of business toolbox IDs to load and activate simultaneously (e.g. ["fs", "web"])'
           }
-        }
+        },
+        required: ['toolboxIds']
       }
     };
   }
@@ -37,11 +34,11 @@ export class ActivateToolboxTool implements FreyaTool {
   async execute(args: Record<string, any>): Promise<string> {
     const rawIds = Array.isArray(args.toolboxIds)
       ? args.toolboxIds
-      : (args.toolboxId ? [args.toolboxId] : []);
+      : (typeof args.toolboxId === 'string' ? [args.toolboxId] : []);
     const ids = rawIds.filter((id: any) => typeof id === 'string' && id.trim() !== '');
 
     if (ids.length === 0) {
-      return '❌ Parameter error: Please provide toolboxId or toolboxIds.';
+      return '❌ Parameter error: Please provide toolboxIds.';
     }
 
     const sessionId = args.__sessionId;
@@ -50,7 +47,8 @@ export class ActivateToolboxTool implements FreyaTool {
     }
 
     if (this.toolRegistry) {
-      const registeredIds = new Set(this.toolRegistry.getRegisteredToolboxIds());
+      const session = await this.sessionManager.getOrCreate(sessionId);
+      const registeredIds = new Set(this.toolRegistry.getRegisteredToolboxIds(session));
       const invalidIds = ids.filter((id: string) => !registeredIds.has(id));
       if (invalidIds.length > 0) {
         return `❌ Error: Toolbox [${invalidIds.join(', ')}] is not installed or has been disabled. Available business toolboxes: [${Array.from(registeredIds).join(', ')}]`;
@@ -76,16 +74,13 @@ export class DeactivateToolboxTool implements FreyaTool {
       parameters: {
         type: 'object',
         properties: {
-          toolboxId: {
-            type: 'string',
-            description: 'Business toolbox ID to deactivate (e.g. "fs")'
-          },
           toolboxIds: {
             type: 'array',
             items: { type: 'string' },
             description: 'List of business toolbox IDs to deactivate'
           }
-        }
+        },
+        required: ['toolboxIds']
       }
     };
   }
@@ -93,11 +88,11 @@ export class DeactivateToolboxTool implements FreyaTool {
   async execute(args: Record<string, any>): Promise<string> {
     const rawIds = Array.isArray(args.toolboxIds)
       ? args.toolboxIds
-      : (args.toolboxId ? [args.toolboxId] : []);
+      : (typeof args.toolboxId === 'string' ? [args.toolboxId] : []);
     const ids = rawIds.filter((id: any) => typeof id === 'string' && id.trim() !== '');
 
     if (ids.length === 0) {
-      return '❌ Parameter error: Please provide toolboxId or toolboxIds.';
+      return '❌ Parameter error: Please provide toolboxIds.';
     }
 
     const sessionId = args.__sessionId;

@@ -117,7 +117,7 @@ async function executeRequest(
         }
 
         lines.push('');
-        lines.push('Use read_file tool to inspect this file in chunks.');
+        lines.push('Use fs_read_file tool to inspect this file in chunks.');
         return lines.join('\n');
     }
 
