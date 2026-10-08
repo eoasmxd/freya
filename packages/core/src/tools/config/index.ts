@@ -7,8 +7,9 @@ import {
   RemoveModelTool
 } from './model-tools.js';
 import {
-  ListPluginsTool,
-  TogglePluginTool
+  DisablePluginTool,
+  EnablePluginTool,
+  ListPluginsTool
 } from './plugin-tools.js';
 import {
   EditPromptTool,
@@ -49,7 +50,8 @@ export class ConfigToolbox implements FreyaToolbox {
       new WritePromptTool(configService),
       new EditPromptTool(configService),
       new ListPluginsTool(configService, ctx),
-      new TogglePluginTool(configService, ctx),
+      new EnablePluginTool(configService, ctx),
+      new DisablePluginTool(configService, ctx),
       new ListProvidersTool(configService),
       new AddProviderTool(configService),
       new EditProviderTool(configService),

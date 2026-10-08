@@ -162,7 +162,7 @@ export const zh: Record<string, string> = {
   'schema.core.context.toolboxIdleTimeoutRounds.desc': '已激活工具箱的最大闲置交互轮数，达到后将被自动卸载',
 
   'schema.core.tools.config.enabled.desc': '是否启用系统核心配置工具箱（允许大模型查看与修改系统配置）',
-  'schema.core.tools.session.enabled.desc': '是否启用会话与子任务管理工具箱（允许大模型查阅会话历史与派生子任务）',
+  'schema.core.tools.agent.enabled.desc': '是否启用智能体委派工具箱（允许大模型将复杂子任务委派给独立子智能体）',
   'schema.core.commands.auth.enabled.desc': '是否启用敏感操作授权审批指令（/approve 与 /reject）',
   'schema.core.commands.session.enabled.desc': '是否启用会话管理与路由指令（/session 及其子命令）',
   'schema.core.commands.model.enabled.desc': '是否启用模型查看与切换指令（/model 及其子命令）',

@@ -50,7 +50,7 @@ export class FreyaAgentExecutor {
 
     while (loop) {
       const session = await this.sessionManager.getOrCreate(sessionId);
-      const tools = this.toolRegistry.getFilteredTools(session.activeToolboxIds || []);
+      const tools = this.toolRegistry.getFilteredTools(session.activeToolboxIds || [], session);
       const history = await this.sessionManager.getHistory(sessionId);
 
       if (signal?.aborted) {

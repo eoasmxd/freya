@@ -47,10 +47,10 @@ description:
 若用户在对话中直接提供了凭证并要求“帮我接入这个企业微信机器人”，按以下 SOP 流程发起 Tool Call 自动配置：
 
 ### 步骤 1: 查验并确保企业微信插件已启用
-发起 Tool Call 调用 `list_plugin` 查验 `@eoasmxd/freya-plugin-wecom-channel` 插件状态。若 `enabled` 为 `false`，先自动调用 `toggle_plugin(pluginId: "@eoasmxd/freya-plugin-wecom-channel", enabled: true)` 将其热加载启用。
+发起 Tool Call 调用 `config_list_plugin` 查验 `@eoasmxd/freya-plugin-wecom-channel` 插件状态。若 `enabled` 为 `false`，先自动调用 `config_enable_plugin(pluginId: "@eoasmxd/freya-plugin-wecom-channel")` 将其热加载启用。
 
 ### 步骤 2: 读取当前全量配置
-发起 Tool Call 调用 `read_config(revealSensitive: false)` 获取当前系统的配置全貌。
+发起 Tool Call 调用 `config_read(revealSensitive: false)` 获取当前系统的配置全貌。
 
 ### 步骤 3: 提取或初始化 `wecom.bots` 列表
 - 从配置对象中定位 `wecom.bots` 数组。若未配置过，则默认为 `[]`；
@@ -58,7 +58,7 @@ description:
 - 将新对象追加到数组中，得到完整的更新后列表数组 `newBotsList`。
 
 ### 步骤 4: 写入配置热应用
-发起 Tool Call 调用 `update_config(keyPath: "wecom.bots", value: newBotsList)` 提交覆盖更新。
+发起 Tool Call 调用 `config_update(keyPath: "wecom.bots", value: newBotsList)` 提交覆盖更新。
 
 ### 步骤 5: 反馈结果
 成功写入后，告知用户配置已实时落盘，系统底座会在 5 秒内自动建立 WebSocket 连接。

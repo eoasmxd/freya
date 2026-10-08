@@ -70,6 +70,21 @@ freya/
 - All class names, file names, variables, log outputs, and configuration prefixes in the project consistently use the `freya` naming scheme.
 - Examples: `FreyaPlugin`, `FreyaContext`, `freya.json`.
 
+### Tool Architecture and Naming Standards
+
+Tools exposed to LLM function calling follow strict structural tiers and naming conventions:
+
+1. **Classification Tiers**:
+   - **Core Intrinsic Tools**: Tools built directly into the kernel without a toolbox ID. They are unconditionally or conditionally persistent (e.g., `activate_toolbox`, `deactivate_toolbox`, `activate_skill`, `deactivate_skill`, and conditionally `read_snapshot` when snapshots exist).
+   - **On-Demand Toolbox Tools**: Tools organized within a named toolbox (`FreyaToolbox.getId()`, lowercase single word without underscores, e.g., `agent`, `config`, `fs`, `web`, `memory`, `mysql`). They must be dynamically activated/deactivated.
+
+2. **Naming Syntax**:
+   - **Intrinsic Tools**: `<verb>_<object>` in snake_case (e.g., `activate_toolbox`, `read_snapshot`).
+   - **Toolbox Tools**: `<toolboxId>_<verb>_<object>` in snake_case (e.g., `agent_delegate_task`, `fs_read_file`, `config_update`).
+   - **Singular Nouns**: All nouns must strictly use singular form (e.g., `toolbox` instead of `toolboxes`, `directory` instead of `directories`, `model` instead of `models`, `provider` instead of `providers`). Plural nouns are prohibited.
+   - **No Abbreviations**: Full descriptive words must be used (e.g., `directory` instead of `dir`).
+   - **Standard Verbs**: Use consistent verbs for identical semantics (`list`, `read`, `write`, `edit`, `create`, `update`, `delete`, `search`, `enable`, `disable`, `activate`, `deactivate`, `delegate`).
+
 ## Development Workflow
 
 ### Environment Requirements

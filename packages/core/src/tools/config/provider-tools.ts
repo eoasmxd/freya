@@ -6,7 +6,7 @@ export class ListProvidersTool implements FreyaTool {
 
   getDefinition(): ToolDefinition {
     return {
-      name: 'list_provider',
+      name: 'config_list_provider',
       // 查询模型提供商列表
       description: 'Query all configured model providers, returning provider ID, name, protocol type, baseURL, and bound model counts. apiKey is automatically masked.',
       parameters: { type: 'object', properties: {} }
@@ -38,7 +38,7 @@ export class AddProviderTool implements FreyaTool {
 
   getDefinition(): ToolDefinition {
     return {
-      name: 'add_provider',
+      name: 'config_create_provider',
       // 新增模型提供商
       description: 'Add a new model provider. Requires unique ID, name, protocol type, and baseURL. apiKey is optional.',
       parameters: {
@@ -97,7 +97,7 @@ export class EditProviderTool implements FreyaTool {
 
   getDefinition(): ToolDefinition {
     return {
-      name: 'edit_provider',
+      name: 'config_update_provider',
       // 修改模型提供商属性
       description: 'Modify properties of an existing model provider (name, type, baseURL, apiKey).',
       parameters: {
@@ -156,7 +156,7 @@ export class RemoveProviderTool implements FreyaTool {
 
   getDefinition(): ToolDefinition {
     return {
-      name: 'remove_provider',
+      name: 'config_delete_provider',
       // 删除模型提供商
       description: 'Delete a specified model provider and all associated model configurations.',
       parameters: {

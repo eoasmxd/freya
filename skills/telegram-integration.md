@@ -48,13 +48,13 @@ Guide users through the graphical configuration in the system Web console:
 If the user provides a Token directly in the conversation and requests "help me integrate this Telegram bot", follow this SOP to perform automated configuration via Tool Calls:
 
 ### Step 1: Verify and ensure the Telegram plugin is enabled
-Call `list_plugin` to check the status of `@eoasmxd/freya-plugin-telegram-channel`. If `enabled` is `false`, automatically call `toggle_plugin(pluginId: "@eoasmxd/freya-plugin-telegram-channel", enabled: true)` to hot-load and enable it.
+Call `config_list_plugin` to check the status of `@eoasmxd/freya-plugin-telegram-channel`. If `enabled` is `false`, automatically call `config_enable_plugin(pluginId: "@eoasmxd/freya-plugin-telegram-channel")` to hot-load and enable it.
 
 ### Step 2: Parse and extract the Bot ID and secret key
 Split the user-provided Token: the numeric portion before the colon becomes the Bot ID (`id`), and the portion after the colon becomes the secret key (`token`).
 
 ### Step 3: Read the current full configuration
-Call `read_config(revealSensitive: false)` to retrieve the current system configuration snapshot.
+Call `config_read(revealSensitive: false)` to retrieve the current system configuration snapshot.
 
 ### Step 4: Extract or initialize the `telegram.bots` list
 - Locate the `telegram.bots` array in the configuration object. If not yet configured, default to `[]`;
@@ -62,7 +62,7 @@ Call `read_config(revealSensitive: false)` to retrieve the current system config
 - Append the new object to the array to produce the complete updated list `newBotsList`.
 
 ### Step 5: Write the configuration and apply hot reload
-Call `update_config(keyPath: "telegram.bots", value: newBotsList)` to submit the full overwrite update.
+Call `config_update(keyPath: "telegram.bots", value: newBotsList)` to submit the full overwrite update.
 
 ### Step 6: Report the result
 After successful write, inform the user that the configuration has been persisted in real time, and the system will automatically initiate long-polling to establish a live connection within 5 seconds.

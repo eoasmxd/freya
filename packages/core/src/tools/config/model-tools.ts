@@ -6,7 +6,7 @@ export class ListModelsTool implements FreyaTool {
 
   getDefinition(): ToolDefinition {
     return {
-      name: 'list_model',
+      name: 'config_list_model',
       // 查询所有模型列表
       description: 'Query all models configured across providers, returning model ID, name, provider, pricing, context window, and capabilities.',
       parameters: {
@@ -55,7 +55,7 @@ export class AddModelTool implements FreyaTool {
 
   getDefinition(): ToolDefinition {
     return {
-      name: 'add_model',
+      name: 'config_create_model',
       // 新增模型配置
       description: 'Add a new model configuration under a specified provider. Provider ID, model ID, and name are required; pricing and capabilities are optional.',
       parameters: {
@@ -147,7 +147,7 @@ export class EditModelTool implements FreyaTool {
 
   getDefinition(): ToolDefinition {
     return {
-      name: 'edit_model',
+      name: 'config_update_model',
       // 修改模型配置
       description: 'Modify properties of an existing model under a specified provider (name, pricing, context window, output limit, capabilities).',
       parameters: {
@@ -240,7 +240,7 @@ export class RemoveModelTool implements FreyaTool {
 
   getDefinition(): ToolDefinition {
     return {
-      name: 'remove_model',
+      name: 'config_delete_model',
       // 删除模型配置
       description: 'Delete a model configuration from a specified provider.',
       parameters: {

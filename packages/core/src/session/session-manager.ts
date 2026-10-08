@@ -25,6 +25,7 @@ export class FreyaSessionManager {
 
     private context?: FreyaContext;
     private logger?: FreyaContext['logger'];
+    private promptRegistry?: FreyaPromptRegistry;
 
     constructor(
         private toolRegistry?: FreyaToolRegistry,
@@ -46,6 +47,7 @@ export class FreyaSessionManager {
     async load(context: FreyaContext, promptRegistry: FreyaPromptRegistry): Promise<void> {
         this.context = context;
         this.logger = context.logger;
+        this.promptRegistry = promptRegistry;
 
         this.persistence.setLogger(context.logger);
         this.compactor.setup(context, promptRegistry);
@@ -354,10 +356,10 @@ export class FreyaSessionManager {
                                 const snap = result.snapshot!;
                                 // 压缩快照标识标签
                                 const taggedSummary = `[Snapshot ${snap.id}] ${result.newSummary!}`;
+                                const template = this.promptRegistry?.get('core.prompt.context_summary_template') || '{summary}';
                                 const summaryUserMsg: LLMMessage = {
                                     role: 'user',
-                                    // 上下文压缩摘要回顾引导词
-                                    content: `[Context Summary] Below is a recap of previous conversation for reference:\n${taggedSummary}`,
+                                    content: template.replace('{summary}', taggedSummary),
                                 };
                                 const keepMessages = latestSession.history.slice(result.safeTruncateIndex);
                                 latestSession.summary = taggedSummary;

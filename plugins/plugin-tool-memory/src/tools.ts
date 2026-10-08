@@ -121,7 +121,7 @@ export class AddMemoryTool implements FreyaTool {
 
   getDefinition(): ToolDefinition {
     return {
-      name: 'add_memory',
+      name: 'memory_save',
       // 添加长期记忆
       description: 'Add an important long-term memory entry into the memory store. Parameter content is the fact or preference to record; keywords must be 1-3 self-extracted core terms (no spaces) for future fuzzy retrieval.',
       parameters: {
@@ -188,7 +188,7 @@ export class QueryMemoryTool implements FreyaTool {
 
   getDefinition(): ToolDefinition {
     return {
-      name: 'query_memory',
+      name: 'memory_search',
       // 查询关联长期记忆
       description: 'Query associated memories by keyword. System performs fuzzy retrieval and returns historical entries with IDs and timestamps.',
       parameters: {
@@ -260,7 +260,7 @@ export class DeleteMemoryTool implements FreyaTool {
 
   getDefinition(): ToolDefinition {
     return {
-      name: 'delete_memory',
+      name: 'memory_delete',
       // 删除指定记忆
       description: 'Purge outdated or incorrect memory permanently from the memory store by unique ID (e.g. "mem_1234567"). Query memory first to confirm ID.',
       parameters: {

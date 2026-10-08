@@ -120,7 +120,7 @@ export class ListDirTool implements FreyaTool {
   getDefinition(): ToolDefinition {
     const { scopes, description } = getActiveScopesInfo();
     return {
-      name: 'list_dir',
+      name: 'fs_list_directory',
       // 列出指定目录内容
       description: 'List files and subdirectories under specified directory path. Note: only relative paths allowed, no absolute or parent escape paths.',
       parameters: {
@@ -190,7 +190,7 @@ export class ReadFileTool implements FreyaTool {
   getDefinition(): ToolDefinition {
     const { scopes, description } = getActiveScopesInfo();
     return {
-      name: 'read_file',
+      name: 'fs_read_file',
       // 读取指定文件文本
       description: 'Read text content of specified file. Supports line slicing to prevent context overflow on large files.',
       parameters: {
@@ -276,9 +276,9 @@ export class WriteFileTool implements FreyaTool {
 
   getDefinition(): ToolDefinition {
     return {
-      name: 'write_file',
+      name: 'fs_write_file',
       // 创建或覆写完整文件
-      description: 'Create or overwrite a complete file at target path within workspace. Automatically creates parent directories recursively. Warning: prefer edit_file for large code files to avoid truncation.',
+      description: 'Create or overwrite a complete file at target path within workspace. Automatically creates parent directories recursively. Warning: prefer fs_edit_file for large code files to avoid truncation.',
       parameters: {
         type: 'object',
         properties: {
@@ -327,7 +327,7 @@ export class EditFileTool implements FreyaTool {
 
   getDefinition(): ToolDefinition {
     return {
-      name: 'edit_file',
+      name: 'fs_edit_file',
       // 局部查找替换文件内容
       description: 'Find and replace a unique local text block in a workspace file. Target indentation and line breaks must match original text exactly; replacement is new text block. Preferred method for editing code files safely.',
       parameters: {

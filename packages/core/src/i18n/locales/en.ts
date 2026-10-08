@@ -162,7 +162,7 @@ export const en: Record<string, string> = {
   'schema.core.context.toolboxIdleTimeoutRounds.desc': 'Max idle turns before automatically unloading an active toolbox',
 
   'schema.core.tools.config.enabled.desc': 'Enable core config toolbox (allows model to view/modify config)',
-  'schema.core.tools.session.enabled.desc': 'Enable session toolbox (allows model to view history/spawn subtasks)',
+  'schema.core.tools.agent.enabled.desc': 'Enable core agent delegation toolbox (allows model to delegate subtasks to independent subagents)',
   'schema.core.commands.auth.enabled.desc': 'Enable sensitive operation approval commands (/approve and /reject)',
   'schema.core.commands.session.enabled.desc': 'Enable session management commands (/session and subcommands)',
   'schema.core.commands.model.enabled.desc': 'Enable model switching commands (/model and subcommands)',

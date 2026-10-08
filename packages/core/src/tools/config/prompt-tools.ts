@@ -6,7 +6,7 @@ export class ReadPromptTool implements FreyaTool {
 
   getDefinition(): ToolDefinition {
     return {
-      name: 'read_prompt',
+      name: 'config_read_prompt',
       // 读取核心主提示词内容
       description: 'Read content of one of the 6 core system prompt templates. Supported names: IDENTITY, SOUL, TOOLS, AGENTS, USER, MEMORY.',
       parameters: {
@@ -39,7 +39,7 @@ export class WritePromptTool implements FreyaTool {
 
   getDefinition(): ToolDefinition {
     return {
-      name: 'write_prompt',
+      name: 'config_write_prompt',
       // 全量写入覆写核心主提示词
       description: 'Overwrite one of the core system prompt templates and apply hot-reloading to current runtime memory. Supported names: IDENTITY, SOUL, TOOLS, AGENTS, USER, MEMORY.',
       parameters: {
@@ -80,7 +80,7 @@ export class EditPromptTool implements FreyaTool {
 
   getDefinition(): ToolDefinition {
     return {
-      name: 'edit_prompt',
+      name: 'config_edit_prompt',
       // 局部精准修改核心主提示词
       description: 'Perform precision targeted string replacement within a core system prompt template (e.g. SOUL) to prevent formatting drift or token waste. Supported values: IDENTITY, SOUL, TOOLS, AGENTS, USER, MEMORY.',
       parameters: {

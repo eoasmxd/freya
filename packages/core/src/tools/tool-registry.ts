@@ -1,14 +1,33 @@
 import type { FreyaContext, FreyaTool, FreyaToolbox } from '@eoasmxd/freya-sdk';
 import type { FreyaPromptRegistry } from '../prompt/prompt-registry.js';
+import type { FreyaSessionManager } from '../session/session-manager.js';
+import type { FreyaConfigManager } from '../config/config-manager.js';
+import type { FreyaSkillRegistry } from '../skill/skill-registry.js';
+import type { FreyaAgentService } from '../agent/agent-service.js';
+import { ConfigToolbox } from './config/index.js';
+import { AgentToolbox } from './agent/index.js';
+import { createMetaTools } from './intrinsic/meta-tools.js';
+import { ReadSnapshotTool } from './intrinsic/snapshot-tool.js';
 
 /**
- * 内核工具注册表。
- * Kernel tool registry.
- * 统一聚合内置工具箱与来自插件体系的外部工具箱。
- * Aggregates built-in toolboxes and external toolboxes from plugins.
+ * 内核固有工具注册条目
+ * Core intrinsic tool registration entry
+ */
+export interface IntrinsicToolEntry {
+  tool: FreyaTool;
+  isVisible?: (session?: any) => boolean;
+}
+
+/**
+ * 内核工具注册表
+ * Kernel tool registry
+ * 统一聚合内核固有工具、内置工具箱与来自插件体系的外部工具箱
+ * Aggregates core intrinsic tools, built-in toolboxes, and external plugin toolboxes
  */
 export class FreyaToolRegistry {
   private toolboxes: FreyaToolbox[] = [];
+  private intrinsicTools: IntrinsicToolEntry[] = [];
+  private agentToolbox?: AgentToolbox;
 
   constructor(private context?: FreyaContext) { }
 
@@ -17,14 +36,60 @@ export class FreyaToolRegistry {
   }
 
   /**
+   * 初始化并装配所有内核内置工具（业务工具箱、固有常驻工具及快照工具）
+   * Initialize and register all kernel built-in tools
+   */
+  registerBuiltinTools(params: {
+    sessionManager: FreyaSessionManager;
+    configManager: FreyaConfigManager;
+    skillRegistry: FreyaSkillRegistry;
+  }): void {
+    if (this.context) {
+      this.registerToolbox(new ConfigToolbox(params.configManager, this.context));
+    }
+    this.agentToolbox = new AgentToolbox(params.sessionManager, this.context);
+    this.registerToolbox(this.agentToolbox);
+
+    for (const tool of createMetaTools(params.sessionManager, this, params.skillRegistry)) {
+      this.registerIntrinsicTool(tool);
+    }
+
+    this.registerIntrinsicTool(
+      new ReadSnapshotTool(params.sessionManager),
+      (session) => !session?.lastSnapshotId
+    );
+  }
+
+  /**
+   * 为子智能体工具箱绑定 Agent 调度核心服务
+   * Bind AgentService instance to AgentToolbox
+   */
+  setAgentService(agentService: FreyaAgentService): void {
+    this.agentToolbox?.setAgentService(agentService);
+  }
+
+  /**
+   * 注册内核固有工具（常驻或条件常驻）
+   * Register core intrinsic tool (persistent or conditionally persistent)
+   */
+  registerIntrinsicTool(tool: FreyaTool, isVisible?: (session?: any) => boolean): void {
+    const name = tool.getDefinition().name;
+    const existingIndex = this.intrinsicTools.findIndex(
+      (entry) => entry.tool.getDefinition().name === name
+    );
+
+    if (existingIndex > -1) {
+      this.intrinsicTools[existingIndex] = { tool, isVisible };
+    } else {
+      this.intrinsicTools.push({ tool, isVisible });
+    }
+  }
+
+  /**
    * 判断指定工具箱当前是否已注册且处于可用启用状态
    * Determine whether specified toolbox is registered and enabled
    */
   isToolboxEnabled(toolboxId: string): boolean {
-    if (toolboxId === 'meta') {
-      return true;
-    }
-
     const isRegistered = this.toolboxes.some((tb) => tb.getId() === toolboxId);
     if (!isRegistered) {
       return false;
@@ -79,6 +144,11 @@ export class FreyaToolRegistry {
    */
   getAllTools(): Map<string, FreyaTool> {
     const tools = new Map<string, FreyaTool>();
+
+    for (const entry of this.intrinsicTools) {
+      tools.set(entry.tool.getDefinition().name, entry.tool);
+    }
+
     for (const toolbox of this.toolboxes) {
       if (!this.isToolboxEnabled(toolbox.getId())) {
         continue;
@@ -91,21 +161,34 @@ export class FreyaToolRegistry {
   }
 
   /**
-   * 根据当前会话已激活的工具箱列表，过滤获取所需的工具字典
-   * Filter and retrieve required tools dictionary based on active toolboxes in current session
+   * 根据当前会话与已激活的工具箱列表，过滤获取所需的工具字典
+   * Filter and retrieve required tools dictionary based on current session and active toolboxes
    */
-  getFilteredTools(activeToolboxIds: string[]): Map<string, FreyaTool> {
+  getFilteredTools(activeToolboxIds: string[], session?: any): Map<string, FreyaTool> {
     const activeSet = new Set(activeToolboxIds || []);
     const tools = new Map<string, FreyaTool>();
+
+    for (const entry of this.intrinsicTools) {
+      if (!entry.isVisible || entry.isVisible(session)) {
+        tools.set(entry.tool.getDefinition().name, entry.tool);
+      }
+    }
 
     for (const toolbox of this.toolboxes) {
       const toolboxId = toolbox.getId();
       if (!this.isToolboxEnabled(toolboxId)) {
         continue;
       }
-      if (toolboxId === 'meta' || activeSet.has(toolboxId)) {
+      if (activeSet.has(toolboxId)) {
         for (const tool of toolbox.getTools()) {
-          tools.set(tool.getDefinition().name, tool);
+          const toolName = tool.getDefinition().name;
+          if (tools.has(toolName)) {
+            this.context?.logger.warn(
+              `[ToolRegistry] Tool name collision detected for "${toolName}" in toolbox "${toolboxId}". Overwrite prevented.`
+            );
+            continue;
+          }
+          tools.set(toolName, tool);
         }
       }
     }
@@ -113,11 +196,17 @@ export class FreyaToolRegistry {
   }
 
   /**
-   * 聚合所有已启用的工具箱提示词引导说明
+   * 聚合所有已启用的工具提示词引导说明
    * Aggregate instruction prompt guides for all enabled toolboxes
    */
   getToolInstructions(promptRegistry: FreyaPromptRegistry): string[] {
     const instructions: string[] = [];
+
+    const metaPrompt = promptRegistry.get('tool.prompt.meta');
+    if (metaPrompt) {
+      instructions.push(`### Core Meta Capabilities\n${metaPrompt}`);
+    }
+
     for (const toolbox of this.toolboxes) {
       const toolboxId = toolbox.getId();
       if (!this.isToolboxEnabled(toolboxId)) {
@@ -128,7 +217,6 @@ export class FreyaToolRegistry {
 
       const resolved = promptRegistry.get(key);
       if (resolved) {
-        // 工具箱能力说明提示词
         instructions.push(`### Toolbox Capabilities [ID: "${toolboxId}"]\n${resolved}`);
       }
     }
@@ -141,4 +229,3 @@ export class FreyaToolRegistry {
       .filter((id) => this.isToolboxEnabled(id));
   }
 }
-

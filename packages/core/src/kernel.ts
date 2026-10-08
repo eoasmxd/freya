@@ -21,9 +21,6 @@ import { FreyaPromptManager } from './prompt/prompt-manager.js';
 import { FreyaPromptRegistry } from './prompt/prompt-registry.js';
 import { FreyaSessionManager } from './session/session-manager.js';
 import { FreyaSkillRegistry } from './skill/skill-registry.js';
-import { ConfigToolbox } from './tools/config/index.js';
-import { SessionToolbox } from './tools/session/index.js';
-import { FreyaMetaToolbox } from './tools/meta/index.js';
 import { FreyaToolRegistry } from './tools/tool-registry.js';
 import { FreyaWebContainer } from './web/web-container.js';
 import { FreyaConfigApi } from './config/config-api.js';
@@ -100,12 +97,11 @@ export class FreyaKernel {
 
     this.connectionManager = new FreyaConnectionManager(ctx.eventBus, ctx.logger);
 
-    const configToolbox = new ConfigToolbox(configManager, ctx);
-    const sessionToolbox = new SessionToolbox(this.sessionManager, ctx);
-    const metaToolbox = new FreyaMetaToolbox(this.sessionManager, toolRegistry, skillRegistry);
-    toolRegistry.registerToolbox(configToolbox);
-    toolRegistry.registerToolbox(sessionToolbox);
-    toolRegistry.registerToolbox(metaToolbox);
+    toolRegistry.registerBuiltinTools({
+      sessionManager: this.sessionManager,
+      configManager,
+      skillRegistry
+    });
 
     CommandBootstrapper.registerBuiltinCommands({
       registry: commandRegistry,
@@ -126,7 +122,7 @@ export class FreyaKernel {
 
     this.agentService = new FreyaAgentService(ctx, agentExecutor, commandExecutor, this.sessionManager, promptRegistry);
 
-    sessionToolbox.setAgentService(this.agentService);
+    toolRegistry.setAgentService(this.agentService);
 
     const webEnabled = (ctx.config as any)?.server?.enabled !== false;
     const cliEnabled = !process.argv.includes('--no-cli') && (ctx.config as any)?.cli?.enabled !== false;
