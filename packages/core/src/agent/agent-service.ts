@@ -296,10 +296,10 @@ export class FreyaAgentService {
   }
 
   /**
-   * 运行子智能体会话并等待执行结果
-   * Run sub-agent session and await execution result
+   * 委派独立子智能体执行任务并等待结果
+   * Delegate task to subagent and await execution result
    */
-  async runSubAgent(
+  async delegateTask(
     parentSessionId: string,
     childSessionId: string,
     prompt: string,

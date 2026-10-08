@@ -4,7 +4,7 @@ import { I18n } from '../../i18n/index.js';
 import { zh } from '../../i18n/locales/zh.js';
 import { en } from '../../i18n/locales/en.js';
 
-export class ListPluginsTool implements FreyaTool {
+export class ListPluginTool implements FreyaTool {
   private i18n: I18n;
 
   constructor(

@@ -7,7 +7,7 @@ import path from 'node:path';
  * 委派独立子智能体任务工具
  * Delegate independent subagent task tool
  */
-export class AgentDelegateTaskTool implements FreyaTool {
+export class DelegateTaskTool implements FreyaTool {
   private agentService?: FreyaAgentService;
 
   constructor(
@@ -102,7 +102,7 @@ export class AgentDelegateTaskTool implements FreyaTool {
     }
 
     this.ctx?.logger.info(`[AgentTool] Delegating task to subagent: parent "${parentSessionId}" -> child "${childSessionId}"`);
-    return await this.agentService.runSubAgent(parentSessionId, childSessionId, args.prompt, {
+    return await this.agentService.delegateTask(parentSessionId, childSessionId, args.prompt, {
       providerId: args.providerId,
       modelId: args.modelId,
       attachments: parsedAttachments.length > 0 ? parsedAttachments : undefined,

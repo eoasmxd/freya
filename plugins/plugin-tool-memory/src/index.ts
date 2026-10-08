@@ -1,5 +1,5 @@
 import type { FreyaContext, ToolPlugin, FreyaTool } from '@eoasmxd/freya-sdk';
-import { AddMemoryTool, DeleteMemoryTool, ensureIndexFile, ensureSubdirExists, QueryMemoryTool } from './tools.js';
+import { DeleteMemoryTool, ensureIndexFile, ensureSubdirExists, SaveMemoryTool, SearchMemoryTool } from './tools.js';
 
 export default class MemoryToolsPlugin implements ToolPlugin {
   type = 'tool' as const;
@@ -8,8 +8,8 @@ export default class MemoryToolsPlugin implements ToolPlugin {
 
   async setup(ctx: FreyaContext): Promise<void> {
     this.tools = [
-      new AddMemoryTool(ctx),
-      new QueryMemoryTool(ctx),
+      new SaveMemoryTool(ctx),
+      new SearchMemoryTool(ctx),
       new DeleteMemoryTool(ctx)
     ];
 

@@ -114,7 +114,7 @@ function formatBytes(bytes: number): string {
   return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
 }
 
-export class ListDirTool implements FreyaTool {
+export class ListDirectoryTool implements FreyaTool {
   constructor(private ctx?: FreyaContext) { }
 
   getDefinition(): ToolDefinition {

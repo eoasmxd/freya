@@ -92,5 +92,5 @@ weight: 1
 * **第 12 章：从单体走向多智能体协作 (Multi-Agent Systems)**
   * [12.1 独木难支：单 Agent 的能力与认知限界](part6_advanced/12.1_single_agent_limits.md) —— *单体工具爆炸与角色污染、社会化分工及分布式状态死锁防范*
   * [12.2 多智能体协作经典范式](part6_advanced/12.2_multi_agent_patterns.md) —— *集中式 Hub-and-Spoke 星形控制 vs 分布式 P2P 网状对等协作及 Hop Counter*
-  * [12.3 【白盒剖析】基于事件总线的多体路由](part6_advanced/12.3_freya_multi_agent_routing.md) —— *AgentDelegateTaskTool 工具定义、路由指纹与子代生命周期 runSubAgent 接管*
+  * [12.3 【白盒剖析】基于事件总线的多体路由](part6_advanced/12.3_freya_multi_agent_routing.md) —— *DelegateTaskTool 工具定义、路由指纹与子代生命周期 delegateTask 接管*
   * [12.4 动手实验与三体协同工作流](part6_advanced/12.4_multi_agent_hands_on.md) —— *三体协同软件交付流水线、Swarms集群展望与全局链路费用熔断闸防范*
