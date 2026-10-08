@@ -1,4 +1,5 @@
-import type { ChannelMessage, ILLMService, LLMMessage } from '@eoasmxd/freya-sdk';
+import type { ChannelMessage, ILLMService, LLMMessage, FreyaAttachment } from '@eoasmxd/freya-sdk';
+import path from 'node:path';
 import { FreyaCommandExecutor } from '../command/command-executor.js';
 import { currentConnectionStorage, type DefaultFreyaContext } from '../context.js';
 import type { FreyaPromptRegistry } from '../prompt/prompt-registry.js';
@@ -302,7 +303,7 @@ export class FreyaAgentService {
     parentSessionId: string,
     childSessionId: string,
     prompt: string,
-    options?: { providerId?: string; modelId?: string }
+    options?: { providerId?: string; modelId?: string; attachments?: FreyaAttachment[]; toolboxes?: string[]; skillId?: string; }
   ): Promise<string> {
     const ctrl = new AbortController();
     const key = `${parentSessionId}_sub_${childSessionId}`;
@@ -310,8 +311,45 @@ export class FreyaAgentService {
 
     const startTime = Date.now();
     try {
-      await this.sessionManager.createSession(childSessionId, { parentId: parentSessionId, prompt });
-      await this.sessionManager.appendMessage(childSessionId, { role: 'user', content: prompt });
+      const session = await this.sessionManager.createSession(childSessionId, { 
+        parentId: parentSessionId, 
+        prompt,
+        providerId: options?.providerId,
+        modelId: options?.modelId,
+        activeToolboxIds: options?.toolboxes,
+        activeSkillId: options?.skillId
+      });
+
+      const attachments = options?.attachments || [];
+      if (attachments.length > 0) {
+        const targetModelId = options?.modelId || session.modelId;
+        const targetProviderId = options?.providerId || session.providerId;
+        const capabilities = typeof this.llm.getModelCapabilities === 'function'
+          ? this.llm.getModelCapabilities(targetModelId, targetProviderId)
+          : [];
+        const hasImageCapability = capabilities.includes('image');
+        const hasAudioCapability = capabilities.includes('audio');
+
+        const imageAttachments = attachments.filter((a) => a.mimeType.startsWith('image/') || a.type === 'image');
+        const audioAttachments = attachments.filter((a) => a.mimeType.startsWith('audio/') || (a.type === 'file' && (a.mimeType.includes('wav') || a.mimeType.includes('mp3') || a.mimeType.includes('m4a'))));
+
+        const preprocessors: Promise<any>[] = [];
+        const preprocessContext = { prevUserText: '', currentUserText: prompt };
+        
+        if (!hasAudioCapability && audioAttachments.length > 0) {
+          preprocessors.push(preprocessAudio(attachments, '', this.context, this.promptRegistry, preprocessContext));
+        }
+        if (!hasImageCapability && imageAttachments.length > 0) {
+          preprocessors.push(preprocessImages(attachments, '', this.context, this.promptRegistry, preprocessContext));
+        }
+        await Promise.all(preprocessors);
+      }
+
+      const userMsg: LLMMessage = { role: 'user', content: prompt, timestamp: Date.now() };
+      if (attachments.length > 0) {
+        userMsg.attachments = attachments;
+      }
+      await this.sessionManager.appendMessage(childSessionId, userMsg);
 
       const replyMessage = await this.agentExecutor.run(childSessionId, {
         signal: ctrl.signal,

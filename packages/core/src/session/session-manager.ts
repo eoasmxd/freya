@@ -467,13 +467,14 @@ export class FreyaSessionManager {
         return this.persistence.loadSnapshot(session.uuid, snapId);
     }
 
-    async createSession(id: string, options?: { parentId?: string; prompt?: string; providerId?: string; modelId?: string; activeSkillId?: string; history?: LLMMessage[] }): Promise<Session> {
+    async createSession(id: string, options?: { parentId?: string; prompt?: string; providerId?: string; modelId?: string; activeSkillId?: string; history?: LLMMessage[]; activeToolboxIds?: string[] }): Promise<Session> {
         const session = this.newSession(id, crypto.randomUUID(), {
             parentId: options?.parentId,
             prompt: options?.prompt,
             providerId: options?.providerId,
             modelId: options?.modelId,
-            activeSkillId: options?.activeSkillId,
+            activeSkillId: (options?.activeSkillId && this.isValidSkillId(options.activeSkillId)) ? options.activeSkillId.trim() : undefined,
+            activeToolboxIds: options?.activeToolboxIds ? this.filterValidToolboxIds(options.activeToolboxIds) : [],
             status: options?.parentId ? 'running' : undefined,
             startTime: options?.parentId ? Date.now() : undefined,
             durationMs: options?.parentId ? 0 : undefined
