@@ -262,7 +262,7 @@ export function getWorkspaceDir(ctx?: FreyaContext): string {
     return ctx?.paths?.workspaceDir ?? process.cwd();
 }
 
-function isBinaryContentType(contentType: string): boolean {
+export function isBinaryContentType(contentType: string): boolean {
     const lower = contentType.toLowerCase();
     return BINARY_CONTENT_TYPES.some((prefix) => lower.startsWith(prefix));
 }
@@ -311,7 +311,7 @@ function inferExtension(contentType: string): string {
 export async function saveToWorkspace(
     workspaceDir: string,
     url: string,
-    body: string,
+    body: Buffer | string,
     contentType: string,
 ): Promise<string> {
     const parsed = new URL(url);
@@ -332,7 +332,11 @@ export async function saveToWorkspace(
     await fs.mkdir(saveDir, { recursive: true });
 
     const filePath = path.join(saveDir, fileName);
-    await fs.writeFile(filePath, body, 'utf-8');
+    if (Buffer.isBuffer(body)) {
+        await fs.writeFile(filePath, body);
+    } else {
+        await fs.writeFile(filePath, body, 'utf-8');
+    }
 
     const relativePath = path.relative(workspaceDir, filePath);
     return relativePath;

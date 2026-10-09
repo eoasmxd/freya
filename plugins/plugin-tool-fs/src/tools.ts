@@ -398,7 +398,7 @@ export class ReadAttachmentTool implements FreyaTool {
           {
             type: mediaInfo.type,
             mimeType: mediaInfo.mimeType,
-            path: targetAbs
+            path: args.path
           }
         ]
       };

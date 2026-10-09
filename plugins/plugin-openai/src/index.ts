@@ -1,4 +1,4 @@
-import type { FreyaContext, LLMMessage, LLMPlugin, LLMPluginOptions, LLMTokenUsage, ToolDefinition } from '@eoasmxd/freya-sdk';
+import type { FreyaAttachment, FreyaContext, LLMMessage, LLMPlugin, LLMPluginOptions, LLMTokenUsage, ToolDefinition } from '@eoasmxd/freya-sdk';
 import path from 'node:path';
 import fs from 'node:fs/promises';
 import { I18n } from './i18n/index.js';
@@ -19,6 +19,39 @@ export default class OpenAICompatiblePlugin implements LLMPlugin {
     this.context = ctx;
     this.i18n.setContext(ctx);
     ctx.logger.info('OpenAI-compatible model plugin initialized.');
+  }
+
+  /**
+   * 解析图片附件为合法的 image_url (data URL 或公网 URL)
+   * Resolve image attachment to valid image_url (data URL or public URL)
+   */
+  private async resolveImageUrl(img: FreyaAttachment): Promise<string | null> {
+    if (img.url) {
+      return img.url;
+    }
+    if (img.base64) {
+      return `data:${img.mimeType};base64,${img.base64}`;
+    }
+    if (img.path) {
+      try {
+        if (path.isAbsolute(img.path)) {
+          throw new Error('Security rejection: Only relative paths within workspace are allowed.');
+        }
+        const workspaceAbs = this.context.paths.workspaceDir;
+        const targetAbs = path.resolve(workspaceAbs, img.path);
+        const workspacePrefix = workspaceAbs.endsWith(path.sep) ? workspaceAbs : workspaceAbs + path.sep;
+
+        if (targetAbs !== workspaceAbs && !targetAbs.startsWith(workspacePrefix)) {
+          throw new Error(`Security rejection: Out of workspace bounds path "${img.path}".`);
+        }
+
+        const buffer = await fs.readFile(targetAbs);
+        return `data:${img.mimeType};base64,${buffer.toString('base64')}`;
+      } catch (err: any) {
+        this.context.logger.error(`Failed to read local image attachment [${img.path}]:`, err.message);
+      }
+    }
+    return null;
   }
 
   async chat(
@@ -70,6 +103,31 @@ export default class OpenAICompatiblePlugin implements LLMPlugin {
             }
           }
         }
+
+        const imageAttachments = msg.attachments ? msg.attachments.filter((a) => a.mimeType.startsWith('image/')) : [];
+        if (imageAttachments.length > 0) {
+          const contentArray: any[] = [{ type: 'text', text: msg.content || '' }];
+          for (const img of imageAttachments) {
+            const url = await this.resolveImageUrl(img);
+            if (url) {
+              contentArray.push({
+                type: 'image_url',
+                image_url: { url }
+              });
+            } else {
+              contentArray.push({
+                type: 'text',
+                text: `[Failed to load image attachment: ${img.url || img.path || 'unknown'}]`
+              });
+            }
+          }
+          return {
+            role: 'tool',
+            content: contentArray,
+            tool_call_id: matchedId || 'call_default'
+          };
+        }
+
         return {
           role: 'tool',
           content: msg.content,
@@ -81,37 +139,13 @@ export default class OpenAICompatiblePlugin implements LLMPlugin {
       if (msg.role === 'user' && imageAttachments.length > 0) {
         const contentArray: any[] = [{ type: 'text', text: msg.content || '' }];
         for (const img of imageAttachments) {
-          let url = img.url;
-          if (!url && img.base64) {
-            url = `data:${img.mimeType};base64,${img.base64}`;
-          } else if (!url && img.path) {
-            try {
-              if (path.isAbsolute(img.path)) {
-                // 安全拒绝访问工作区外路径
-                throw new Error('Security rejection: Only relative paths within workspace are allowed.');
-              }
-              const workspaceAbs = this.context.paths.workspaceDir;
-              const targetAbs = path.resolve(workspaceAbs, img.path);
-              const workspacePrefix = workspaceAbs.endsWith(path.sep) ? workspaceAbs : workspaceAbs + path.sep;
-
-              if (targetAbs !== workspaceAbs && !targetAbs.startsWith(workspacePrefix)) {
-                // 安全越界拒绝
-                throw new Error(`Security rejection: Out of workspace bounds path "${img.path}".`);
-              }
-
-              const buffer = await fs.readFile(targetAbs);
-              url = `data:${img.mimeType};base64,${buffer.toString('base64')}`;
-            } catch (err: any) {
-              this.context.logger.error(`Failed to read local image attachment [${img.path}]:`, err.message);
-            }
-          }
+          const url = await this.resolveImageUrl(img);
           if (url) {
             contentArray.push({
               type: 'image_url',
               image_url: { url }
             });
           } else {
-            // 图像附件加载失败兜底提示
             contentArray.push({
               type: 'text',
               text: `[Failed to load image attachment: ${img.url || img.path || 'unknown'}]`

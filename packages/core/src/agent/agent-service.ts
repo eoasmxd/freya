@@ -259,7 +259,7 @@ export class FreyaAgentService {
     parentSessionId: string,
     childSessionId: string,
     prompt: string,
-    options?: { providerId?: string; modelId?: string; attachments?: FreyaAttachment[]; toolboxes?: string[]; skillId?: string; }
+    options?: { providerId?: string; modelId?: string; attachments?: FreyaAttachment[]; toolboxes?: string[]; skillId?: string; ephemeral?: boolean; }
   ): Promise<string> {
     const ctrl = new AbortController();
     const key = `${parentSessionId}_sub_${childSessionId}`;
@@ -267,13 +267,17 @@ export class FreyaAgentService {
 
     const startTime = Date.now();
     try {
+      const parentSession = await this.sessionManager.getOrCreate(parentSessionId);
+      const isEphemeral = options?.ephemeral !== undefined ? options.ephemeral : !!parentSession.ephemeral;
+
       const session = await this.sessionManager.createSession(childSessionId, { 
         parentId: parentSessionId, 
         prompt,
         providerId: options?.providerId,
         modelId: options?.modelId,
         activeToolboxIds: options?.toolboxes?.filter(id => id !== 'agent'),
-        activeSkillId: options?.skillId
+        activeSkillId: options?.skillId,
+        ephemeral: isEphemeral
       });
 
       const attachments = options?.attachments || [];
@@ -309,6 +313,7 @@ export class FreyaAgentService {
       } catch (flushErr) {
         this.context.logger.error(`[AgentService] Failed to flush sub-agent session ${childSessionId}:`, flushErr);
       }
+      this.context.eventBus.emit('session:reply:completed', { sessionId: childSessionId });
     }
   }
 }
