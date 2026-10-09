@@ -1,3 +1,3 @@
-Subagent delegation toolbox.
+Agent collaboration and inference toolbox.
 
-Provides capabilities to delegate complex, heavy, or isolated tasks to an independent subagent and receive summarized results.
+Provides capabilities for subagent task delegation as well as lightweight direct model inference and multimodal analysis.

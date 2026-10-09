@@ -1,14 +1,15 @@
 import type { FreyaContext, FreyaTool, FreyaToolbox } from '@eoasmxd/freya-sdk';
 import type { FreyaSessionManager } from '../../session/session-manager.js';
 import type { FreyaAgentService } from '../../agent/agent-service.js';
-import { DelegateTaskTool } from './tools.js';
+import { DelegateTaskTool, AgentChatTool } from './tools.js';
 
 /**
- * 智能体委派工具箱
- * Agent delegation toolbox
+ * 智能体委派与推理工具箱
+ * Agent delegation and direct chat toolbox
  */
 export class AgentToolbox implements FreyaToolbox {
   private delegateTool: DelegateTaskTool;
+  private chatTool: AgentChatTool;
   private tools: FreyaTool[] = [];
 
   constructor(
@@ -16,7 +17,8 @@ export class AgentToolbox implements FreyaToolbox {
     ctx?: FreyaContext
   ) {
     this.delegateTool = new DelegateTaskTool(this.sessionManager, ctx);
-    this.tools = [this.delegateTool];
+    this.chatTool = new AgentChatTool(this.sessionManager, ctx);
+    this.tools = [this.delegateTool, this.chatTool];
   }
 
   setAgentService(agentService: FreyaAgentService): void {
