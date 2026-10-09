@@ -193,6 +193,9 @@ export class FreyaAgentService {
         }
       }
 
+      await this.sessionManager.compressSessionIfNeeded(message.sessionId);
+      const baselineHistoryLength = session.history.length;
+
       const controller = new AbortController();
       this.abortControllers.set(message.sessionId, controller);
 
@@ -215,6 +218,7 @@ export class FreyaAgentService {
         );
 
         this.context.eventBus.emit('session:reply:text', { sessionId: message.sessionId, content: response.content });
+        this.sessionManager.triggerPostChatCompaction(message.sessionId);
       } catch (err: any) {
         if (err.name === 'AbortError') {
           this.context.logger.warn(`Session ${message.sessionId} generation aborted by user.`);
@@ -227,6 +231,7 @@ export class FreyaAgentService {
           }
         } else {
           this.context.logger.error('Error processing chat stream:', err);
+          await this.sessionManager.rollbackIfHasAttachments(message.sessionId, baselineHistoryLength);
           const errDetail = err.message || 'Unknown error';
           this.context.eventBus.emit('session:reply:error', {
             sessionId: message.sessionId,
