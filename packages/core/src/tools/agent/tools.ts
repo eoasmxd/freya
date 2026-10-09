@@ -78,12 +78,16 @@ export class DelegateTaskTool implements FreyaTool {
   private agentService?: FreyaAgentService;
 
   constructor(
-    _sessionManager?: FreyaSessionManager,
+    private sessionManager?: FreyaSessionManager,
     private ctx?: FreyaContext
   ) { }
 
   setAgentService(agentService: FreyaAgentService): void {
     this.agentService = agentService;
+  }
+
+  isVisible(session?: any): boolean {
+    return !session?.parentId;
   }
 
   getDefinition(): ToolDefinition {
@@ -134,6 +138,11 @@ export class DelegateTaskTool implements FreyaTool {
     }
 
     const parentSessionId = args.__sessionId || 'unknown_parent';
+    const parentSessionIndex = this.sessionManager?.findLatestIndexById(parentSessionId);
+    if (parentSessionIndex?.parentId) {
+      return '❌ Subagents cannot delegate tasks to another subagent.';
+    }
+
     const childSessionId = `${parentSessionId}_sub_${Date.now()}`;
     const parsedAttachments = parseAttachments(args.attachments);
 

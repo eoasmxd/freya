@@ -15,6 +15,7 @@ export interface FreyaToolResult {
 export interface FreyaTool {
   getDefinition(): ToolDefinition;
   execute(args: Record<string, any>): Promise<string | FreyaToolResult>;
+  isVisible?(session?: any): boolean;
 }
 
 export interface FreyaToolbox {

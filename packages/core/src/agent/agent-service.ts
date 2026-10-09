@@ -280,7 +280,7 @@ export class FreyaAgentService {
         prompt,
         providerId: options?.providerId,
         modelId: options?.modelId,
-        activeToolboxIds: options?.toolboxes?.filter(id => id !== 'agent'),
+        activeToolboxIds: options?.toolboxes,
         activeSkillId: options?.skillId,
         ephemeral: isEphemeral
       });

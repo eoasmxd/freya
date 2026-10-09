@@ -499,7 +499,7 @@ export class FreyaSessionManager {
             providerId: options?.providerId,
             modelId: options?.modelId,
             activeSkillId: (options?.activeSkillId && this.isValidSkillId(options.activeSkillId)) ? options.activeSkillId.trim() : undefined,
-            activeToolboxIds: options?.activeToolboxIds ? this.filterValidToolboxIds(options.activeToolboxIds).filter(id => !options.parentId || id !== 'agent') : [],
+            activeToolboxIds: options?.activeToolboxIds ? this.filterValidToolboxIds(options.activeToolboxIds) : [],
             status: options?.parentId ? 'running' : undefined,
             startTime: options?.parentId ? Date.now() : undefined,
             durationMs: options?.parentId ? 0 : undefined,

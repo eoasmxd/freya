@@ -91,10 +91,6 @@ export class FreyaToolRegistry {
    * Determine whether specified toolbox is registered and enabled
    */
   isToolboxEnabled(toolboxId: string, session?: Session): boolean {
-    if (session?.parentId && toolboxId === 'agent') {
-      return false;
-    }
-
     const isRegistered = this.toolboxes.some((tb) => tb.getId() === toolboxId);
     if (!isRegistered) {
       return false;
@@ -174,7 +170,7 @@ export class FreyaToolRegistry {
     const tools = new Map<string, FreyaTool>();
 
     for (const entry of this.intrinsicTools) {
-      if (!entry.isVisible || entry.isVisible(session)) {
+      if ((!entry.isVisible || entry.isVisible(session)) && (!entry.tool.isVisible || entry.tool.isVisible(session))) {
         tools.set(entry.tool.getDefinition().name, entry.tool);
       }
     }
@@ -186,6 +182,9 @@ export class FreyaToolRegistry {
       }
       if (activeSet.has(toolboxId)) {
         for (const tool of toolbox.getTools()) {
+          if (tool.isVisible && !tool.isVisible(session)) {
+            continue;
+          }
           const toolName = tool.getDefinition().name;
           if (tools.has(toolName)) {
             this.context?.logger.warn(
