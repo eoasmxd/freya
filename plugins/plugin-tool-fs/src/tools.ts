@@ -1,6 +1,59 @@
-import type { FreyaContext, ToolDefinition, FreyaTool } from '@eoasmxd/freya-sdk';
+import type { FreyaAttachment, FreyaContext, FreyaTool, FreyaToolResult, ToolDefinition } from '@eoasmxd/freya-sdk';
 import fs from 'node:fs/promises';
 import path from 'node:path';
+
+const MEDIA_EXTENSIONS = new Map<string, { type: 'image' | 'file'; mimeType: string }>([
+  ['.png', { type: 'image', mimeType: 'image/png' }],
+  ['.jpg', { type: 'image', mimeType: 'image/jpeg' }],
+  ['.jpeg', { type: 'image', mimeType: 'image/jpeg' }],
+  ['.webp', { type: 'image', mimeType: 'image/webp' }],
+  ['.gif', { type: 'image', mimeType: 'image/gif' }],
+  ['.svg', { type: 'image', mimeType: 'image/svg+xml' }],
+  ['.bmp', { type: 'image', mimeType: 'image/bmp' }],
+  ['.ico', { type: 'image', mimeType: 'image/x-icon' }],
+  ['.mp3', { type: 'file', mimeType: 'audio/mpeg' }],
+  ['.wav', { type: 'file', mimeType: 'audio/wav' }],
+  ['.m4a', { type: 'file', mimeType: 'audio/mp4' }],
+  ['.ogg', { type: 'file', mimeType: 'audio/ogg' }],
+  ['.aac', { type: 'file', mimeType: 'audio/aac' }],
+  ['.flac', { type: 'file', mimeType: 'audio/flac' }],
+  ['.mp4', { type: 'file', mimeType: 'video/mp4' }],
+  ['.webm', { type: 'file', mimeType: 'video/webm' }]
+]);
+
+/**
+ * 识别媒体文件类型信息
+ * Identify media file type information
+ */
+function getMediaFileInfo(filePath: string): { type: 'image' | 'file'; mimeType: string } | null {
+  const ext = path.extname(filePath).toLowerCase();
+  return MEDIA_EXTENSIONS.get(ext) || null;
+}
+
+/**
+ * 快速嗅探文件是否为二进制格式（检查前 512 字节是否存在 NULL 空字节）
+ * Fast sniff if file is binary by checking for NULL bytes in first 512 bytes
+ */
+async function isBinaryFile(filePath: string): Promise<boolean> {
+  let fileHandle;
+  try {
+    fileHandle = await fs.open(filePath, 'r');
+    const buffer = Buffer.alloc(512);
+    const { bytesRead } = await fileHandle.read(buffer, 0, 512, 0);
+    for (let i = 0; i < bytesRead; i++) {
+      if (buffer[i] === 0x00) {
+        return true;
+      }
+    }
+    return false;
+  } catch {
+    return false;
+  } finally {
+    if (fileHandle) {
+      await fileHandle.close();
+    }
+  }
+}
 
 /**
  * 解析作用域实际物理路径，返回 null 表示显式禁用
@@ -191,8 +244,8 @@ export class ReadFileTool implements FreyaTool {
     const { scopes, description } = getActiveScopesInfo();
     return {
       name: 'fs_read_file',
-      // 读取指定文件文本
-      description: 'Read text content of specified file. Supports line slicing to prevent context overflow on large files.',
+      // 读取指定文本文件
+      description: 'Read text content of specified file. ONLY for plain text and code files. Do NOT use for media files (images, audio). Supports line slicing to prevent context overflow on large files.',
       parameters: {
         type: 'object',
         properties: {
@@ -239,6 +292,17 @@ export class ReadFileTool implements FreyaTool {
         return `❌ Path "${args.path}" is not a valid file.`;
       }
 
+      const mediaInfo = getMediaFileInfo(targetAbs);
+      if (mediaInfo) {
+        // 媒体文件误读提示
+        return `❌ Error: Cannot read media file "${args.path}" as text. Please use fs_read_attachment instead.`;
+      }
+
+      if (await isBinaryFile(targetAbs)) {
+        // 二进制文件误读提示
+        return `❌ Error: Cannot read binary file "${args.path}" as text. Binary formats (e.g. zip, pdf, exe, db) are not supported for text operations.`;
+      }
+
       const rawContent = await fs.readFile(targetAbs, 'utf-8');
 
       if (args.startLine === undefined && args.endLine === undefined) {
@@ -267,6 +331,79 @@ export class ReadFileTool implements FreyaTool {
       return `ℹ️ File "${args.path}"${scopeInfo} lines ${start} to ${end} (total ${totalLines} lines):\n${slicedLines.join('\n')}`;
     } catch (err: any) {
       return handleFsError(this.ctx!, 'read file', err, baseAbs);
+    }
+  }
+}
+
+export class ReadAttachmentTool implements FreyaTool {
+  constructor(private ctx?: FreyaContext) { }
+
+  getDefinition(): ToolDefinition {
+    const { scopes, description } = getActiveScopesInfo();
+    return {
+      name: 'fs_read_attachment',
+      // 读取媒体文件为附件
+      description: 'Read a media file (image, audio) as a multimodal attachment. ONLY for media files. Do NOT use for text/code files.',
+      parameters: {
+        type: 'object',
+        properties: {
+          path: {
+            type: 'string',
+            // 目标文件相对路径
+            description: 'Relative path of target media file (e.g. "image.png", "audio.mp3")'
+          },
+          scope: {
+            type: 'string',
+            enum: scopes,
+            description
+          }
+        },
+        required: ['path']
+      }
+    };
+  }
+
+  async execute(args: Record<string, any>): Promise<string | FreyaToolResult> {
+    if (!args.path) {
+      // 缺少相对路径错误
+      return '❌ Parameter error: Must specify target file relative path.';
+    }
+    let baseAbs = this.ctx?.paths.workspaceDir || '';
+    try {
+      const pathInfo = getSafePath(this.ctx!, args.path, args.scope);
+      const targetAbs = pathInfo.targetAbs;
+      baseAbs = pathInfo.baseAbs;
+
+      const stats = await fs.stat(targetAbs);
+      if (!stats.isFile()) {
+        // 非有效文件提示
+        return `❌ Path "${args.path}" is not a valid file.`;
+      }
+
+      const mediaInfo = getMediaFileInfo(targetAbs);
+      if (!mediaInfo) {
+        if (await isBinaryFile(targetAbs)) {
+          // 不支持的非媒体二进制文件提示
+          return `❌ Error: File "${args.path}" is an unsupported binary format. fs_read_attachment only supports media files (images, audio).`;
+        }
+        // 非媒体文本文件误读提示
+        return `❌ Error: File "${args.path}" is a text file. Please use fs_read_file to read text/code files directly.`;
+      }
+
+      const scopeInfo = args.scope ? ` (${args.scope})` : '';
+      return {
+        // 媒体附件读取成功出参
+        content: `ℹ️ Media file "${args.path}"${scopeInfo} loaded successfully as attachment.`,
+        attachments: [
+          {
+            type: mediaInfo.type,
+            mimeType: mediaInfo.mimeType,
+            path: targetAbs
+          }
+        ]
+      };
+    } catch (err: any) {
+      return handleFsError(this.ctx!, 'read attachment', err, baseAbs);
     }
   }
 }
@@ -329,7 +466,7 @@ export class EditFileTool implements FreyaTool {
     return {
       name: 'fs_edit_file',
       // 局部查找替换文件内容
-      description: 'Find and replace a unique local text block in a workspace file. Target indentation and line breaks must match original text exactly; replacement is new text block. Preferred method for editing code files safely.',
+      description: 'Find and replace a unique local text block in a workspace file. ONLY for plain text and code files. Do NOT use for media files. Target indentation and line breaks must match original text exactly; replacement is new text block. Preferred method for editing code files safely.',
       parameters: {
         type: 'object',
         properties: {
@@ -369,6 +506,17 @@ export class EditFileTool implements FreyaTool {
       if (!stats.isFile()) {
         // 非有效文件提示
         return `❌ Path "${args.path}" is not a valid file.`;
+      }
+
+      const mediaInfo = getMediaFileInfo(targetAbs);
+      if (mediaInfo) {
+        // 媒体文件拒绝修改提示
+        return `❌ Error: Cannot edit media file "${args.path}". fs_edit_file is only supported for plain text and code files.`;
+      }
+
+      if (await isBinaryFile(targetAbs)) {
+        // 二进制文件拒绝修改提示
+        return `❌ Error: Cannot edit binary file "${args.path}". Binary files cannot be modified as text.`;
       }
 
       const content = await fs.readFile(targetAbs, 'utf-8');
