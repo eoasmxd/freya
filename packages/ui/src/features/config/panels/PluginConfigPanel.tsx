@@ -580,12 +580,16 @@ export const PluginConfigPanel: React.FC<PluginConfigPanelProps> = ({ getApiUrl 
                 {plugin.enabled && (
                   <div className="plugin-config-footer">
                     <button
-                      className="btn-primary"
+                      className={`btn-plugin-save ${isDirty ? 'dirty' : 'clean'}`}
                       style={{ height: '32px', padding: '0 1rem', fontSize: '0.78rem' }}
                       disabled={savingPluginId === plugin.id || !isDirty}
                       onClick={() => savePluginConfig(plugin.id)}
+                      title={isDirty ? t('global.dirtyHint', 'Unsaved changes, click to save') : t('global.cleanHint', 'No changes')}
                     >
-                      {savingPluginId === plugin.id ? '...' : t('plugin.saveConfig', 'Save Settings')}
+                      <span>{isDirty ? '💾' : '✓'}</span>
+                      {savingPluginId === plugin.id
+                        ? '...'
+                        : (isDirty ? t('plugin.saveConfig', 'Save Settings') : t('global.btnCleanConfig', 'No Changes'))}
                     </button>
                     {isDirty && (
                       <button
