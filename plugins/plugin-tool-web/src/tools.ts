@@ -1,6 +1,6 @@
 import type { FreyaContext, ToolDefinition, FreyaTool } from '@eoasmxd/freya-sdk';
 import { CookieStore } from './cookie-store.js';
-import { cleanHtmlContent, DEFAULT_TIMEOUT_MS, formatBytes, getWorkspaceDir, parseHeaders, saveToWorkspace, shouldAutoSave, truncateContent, validateUrl } from './utils.js';
+import { cleanHtmlContent, DEFAULT_TIMEOUT_MS, formatBytes, getWorkspaceDir, isBinaryContentType, parseHeaders, saveToWorkspace, shouldAutoSave, truncateContent, validateUrl } from './utils.js';
 
 function extractHostname(urlString: string): string {
     return new URL(urlString).hostname;
@@ -19,6 +19,11 @@ async function executeRequest(
     let customHeaders: Record<string, string> = {};
     if (args.headers) {
         customHeaders = parseHeaders(args.headers);
+    }
+
+    const hasUserAgent = Object.keys(customHeaders).some((k) => k.toLowerCase() === 'user-agent');
+    if (!hasUserAgent) {
+        customHeaders['User-Agent'] = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36';
     }
 
     const contentType = args.contentType || 'application/json';
@@ -72,9 +77,10 @@ async function executeRequest(
     const setCookieHeaders = response.headers.getSetCookie?.() || [];
     cookieStore.recordFromResponse(url, setCookieHeaders);
 
-    let responseText: string;
+    let responseBuffer: Buffer;
     try {
-        responseText = await response.text();
+        const arrayBuffer = await response.arrayBuffer();
+        responseBuffer = Buffer.from(arrayBuffer);
     } catch (err: any) {
         // 读取响应内容失败报错
         return `❌ Failed to read response content: ${err?.message || String(err)}`;
@@ -90,18 +96,17 @@ async function executeRequest(
     const responseContentType = response.headers.get('content-type') || '';
 
     const needSave = cleanMode === undefined
-        ? shouldAutoSave(args, responseText.length, responseContentType, configAutoSaveThreshold)
+        ? shouldAutoSave(args, responseBuffer.length, responseContentType, configAutoSaveThreshold)
         : false;
 
     if (needSave) {
         const workspaceDir = getWorkspaceDir(ctx);
-        const savedPath = await saveToWorkspace(workspaceDir, url, responseText, responseContentType);
-        const byteLength = Buffer.byteLength(responseText, 'utf-8');
+        const savedPath = await saveToWorkspace(workspaceDir, url, responseBuffer, responseContentType);
 
         const lines: string[] = [];
         lines.push(`HTTP ${response.status} ${response.statusText} — ${url}`);
         lines.push(`Content-Type: ${responseContentType || 'unknown'}`);
-        lines.push(`Original response (${formatBytes(byteLength)}) saved to workspace relative path: "${savedPath}"`);
+        lines.push(`Original response (${formatBytes(responseBuffer.length)}) saved to workspace relative path: "${savedPath}"`);
 
         if (setCookieHeaders.length > 0) {
             const domain = extractHostname(url);
@@ -117,17 +122,23 @@ async function executeRequest(
         }
 
         lines.push('');
-        lines.push('Use read_file tool to inspect this file in chunks.');
+        const isMedia = responseContentType.toLowerCase().startsWith('image/') || responseContentType.toLowerCase().startsWith('audio/');
+        if (isMedia) {
+            lines.push('Use fs_read_attachment tool to read this media file as a multimodal attachment.');
+        } else {
+            lines.push('Use fs_read_file tool to inspect this file in chunks.');
+        }
         return lines.join('\n');
     }
 
+    let responseText = responseBuffer.toString('utf-8');
     let processedText = responseText;
     if (cleanMode) {
         const lowerContentType = responseContentType.toLowerCase();
-        const isHtmlContent = lowerContentType.includes("text/html") || 
-                              lowerContentType.includes("application/xhtml") ||
-                              /^\s*<!DOCTYPE\s+html/i.test(responseText) ||
-                              /^\s*<html\b/i.test(responseText);
+        const isHtmlContent = lowerContentType.includes("text/html") ||
+            lowerContentType.includes("application/xhtml") ||
+            /^\s*<!DOCTYPE\s+html/i.test(responseText) ||
+            /^\s*<html\b/i.test(responseText);
         if (isHtmlContent) {
             processedText = cleanHtmlContent(responseText, cleanMode, url);
         }
@@ -172,7 +183,7 @@ export class WebFetchTool implements FreyaTool {
         return {
             name: 'web_fetch',
             // 发起 HTTP GET 请求并清洗网页
-            description: 'Send HTTP GET request to external URL. Security: only http/https allowed, internal and local access strictly forbidden. Cleans HTML (strips script/style/comments) and extracts structured body text to save tokens, suitable for article reading. Large responses (>50KB) auto-saved to workspace.',
+            description: 'Fetch and extract cleaned text from web pages (articles, news, blogs). Automatically strips scripts, styles, and HTML tags to save tokens, returning structured plain text. Large responses (>50KB) auto-saved to workspace. Best for reading text content. If a request is blocked (403/anti-scraping) or you need to download raw media/binary files, use web_request instead.',
             parameters: {
                 type: 'object',
                 properties: {
@@ -241,7 +252,7 @@ export class WebRequestTool implements FreyaTool {
         return {
             name: 'web_request',
             // 发起通用 HTTP 请求
-            description: 'Send generic HTTP request (POST, PUT, DELETE, GET, etc.) to external URL. Security same as GET. Does not clean HTML by default (raw response, suitable for API JSON or raw HTML). Large responses (>50KB) or binary streams auto-saved to workspace, or forced via saveAs parameter.',
+            description: 'Send fully-customizable HTTP requests (GET, POST, PUT, etc.) with advanced control. Supports injecting custom headers (e.g. Referer, User-Agent to bypass hotlinking or 403 blocks), custom bodies, REST APIs (JSON), or downloading binary media (images, audio, PDF) into workspace with saveAs: "file". Large responses (>50KB) or binary streams auto-saved to workspace. Use when web_fetch fails or when fine-grained HTTP control is needed.',
             parameters: {
                 type: 'object',
                 properties: {

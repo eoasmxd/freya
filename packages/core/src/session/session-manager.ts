@@ -25,6 +25,7 @@ export class FreyaSessionManager {
 
     private context?: FreyaContext;
     private logger?: FreyaContext['logger'];
+    private promptRegistry?: FreyaPromptRegistry;
 
     constructor(
         private toolRegistry?: FreyaToolRegistry,
@@ -46,6 +47,7 @@ export class FreyaSessionManager {
     async load(context: FreyaContext, promptRegistry: FreyaPromptRegistry): Promise<void> {
         this.context = context;
         this.logger = context.logger;
+        this.promptRegistry = promptRegistry;
 
         this.persistence.setLogger(context.logger);
         this.compactor.setup(context, promptRegistry);
@@ -69,16 +71,10 @@ export class FreyaSessionManager {
         });
 
         context.eventBus.on('session:reply:completed', (payload: { sessionId: string }) => {
-            this.flushSession(payload.sessionId)
-                .catch((err) => {
-                    this.logger?.error(`[SessionManager] Failed to flush session on completed: ${payload.sessionId}`, err);
-                })
-                .finally(() => {
-                    const cached = this.sessions.get(payload.sessionId);
-                    if (cached?.ephemeral) {
-                        this.sessions.delete(payload.sessionId);
-                    }
-                });
+            const cached = this.sessions.get(payload.sessionId);
+            if (cached?.ephemeral) {
+                this.sessions.delete(payload.sessionId);
+            }
         });
 
         this.logger?.info(`[SessionManager] Initialized, loaded ${this.sessionIndices.size} sessions`);
@@ -325,57 +321,51 @@ export class FreyaSessionManager {
             session.updatedAt = new Date().toISOString();
             if (modelId !== undefined) session.modelId = modelId;
             session.dirty = true;
+        });
+    }
 
-            const hasUserOrTool = messages.some((m) => m.role === 'user' || m.role === 'tool');
-            const hasAssistant = messages.some((m) => m.role === 'assistant');
+    /**
+     * 在整轮对话成功闭环后，在后台异步触发静默整理压缩（65% 软水位线）
+     * Asynchronously trigger post-chat compaction in the background after turn completion
+     */
+    triggerPostChatCompaction(sessionId: string): void {
+        const session = this.sessions.get(sessionId);
+        if (!session || session.ephemeral) return;
 
-            if (hasUserOrTool) {
-                const compResult = await this.compactor.compressIfNeeded(session, session.history, session.modelId);
-                if (compResult.type !== 'none') {
-                    if (compResult.snapshot) {
-                        await this.persistence.saveSnapshot(session.uuid, compResult.snapshot);
+        this.compactor.compressPostChat(session, session.modelId).then(async (result) => {
+            if (result) {
+                await this.enqueueWrite(sessionId, async (latestSession) => {
+                    if (!latestSession || latestSession.history.length < result.safeTruncateIndex) {
+                        return;
                     }
-                    session.dirty = true;
-                }
-            }
 
-            if (hasAssistant && !session.ephemeral) {
-                this.compactor.compressPostChat(session, session.modelId).then(async (result) => {
-                    if (result) {
-                        await this.enqueueWrite(sessionId, async (latestSession) => {
-                            if (!latestSession || latestSession.history.length < result.safeTruncateIndex) {
-                                return;
-                            }
+                    if (result.type === 'truncated') {
+                        const keepMessages = latestSession.history.slice(result.safeTruncateIndex);
+                        latestSession.history = keepMessages;
+                    } else if (result.type === 'summarized') {
+                        const snap = result.snapshot!;
+                        // 压缩快照标识标签
+                        const taggedSummary = `[Snapshot ${snap.id}] ${result.newSummary!}`;
+                        const template = this.promptRegistry?.get('core.prompt.context_summary_template') || '{summary}';
+                        const summaryUserMsg: LLMMessage = {
+                            role: 'user',
+                            content: template.replace('{summary}', () => taggedSummary),
+                        };
+                        const keepMessages = latestSession.history.slice(result.safeTruncateIndex);
+                        latestSession.summary = taggedSummary;
+                        latestSession.lastSnapshotId = snap.id;
+                        latestSession.history = [summaryUserMsg, ...keepMessages];
 
-                            if (result.type === 'truncated') {
-                                const keepMessages = latestSession.history.slice(result.safeTruncateIndex);
-                                latestSession.history = keepMessages;
-                            } else if (result.type === 'summarized') {
-                                const snap = result.snapshot!;
-                                // 压缩快照标识标签
-                                const taggedSummary = `[Snapshot ${snap.id}] ${result.newSummary!}`;
-                                const summaryUserMsg: LLMMessage = {
-                                    role: 'user',
-                                    // 上下文压缩摘要回顾引导词
-                                    content: `[Context Summary] Below is a recap of previous conversation for reference:\n${taggedSummary}`,
-                                };
-                                const keepMessages = latestSession.history.slice(result.safeTruncateIndex);
-                                latestSession.summary = taggedSummary;
-                                latestSession.lastSnapshotId = snap.id;
-                                latestSession.history = [summaryUserMsg, ...keepMessages];
-
-                                await this.persistence.saveSnapshot(latestSession.uuid, snap);
-                            }
-
-                            latestSession.updatedAt = new Date().toISOString();
-                            await this.persistSession(latestSession);
-                            latestSession.dirty = false;
-                        });
+                        await this.persistence.saveSnapshot(latestSession.uuid, snap);
                     }
-                }).catch((err) => {
-                    this.logger?.error('[SessionManager] Error during post-chat session compaction:', err);
+
+                    latestSession.updatedAt = new Date().toISOString();
+                    await this.persistSession(latestSession);
+                    latestSession.dirty = false;
                 });
             }
+        }).catch((err) => {
+            this.logger?.error('[SessionManager] Error during post-chat session compaction:', err);
         });
     }
 
@@ -388,6 +378,43 @@ export class FreyaSessionManager {
             if (!session.dirty) return;
             await this.persistSession(session);
             session.dirty = false;
+        });
+    }
+
+    /**
+     * 若指定位点之后的新增消息中包含多模态附件，则回滚会话历史至基准位点
+     * Roll back session history to baseline if newly added messages contain attachments
+     */
+    async rollbackIfHasAttachments(sessionId: string, baselineLength: number): Promise<boolean> {
+        return this.enqueueWrite(sessionId, async (session) => {
+            if (session.history.length <= baselineLength) {
+                return false;
+            }
+            const runMessages = session.history.slice(baselineLength);
+            const hasAttachments = runMessages.some((m) => m.attachments && m.attachments.length > 0);
+            if (hasAttachments) {
+                session.history = session.history.slice(0, baselineLength);
+                session.dirty = true;
+                this.logger?.warn(`[SessionManager] Rolled back ${runMessages.length} message(s) from session "${sessionId}" due to error with attachments.`);
+                return true;
+            }
+            return false;
+        });
+    }
+
+    /**
+     * 在进入新轮次前对当前已持久化的历史做前置超限检查与压缩整理
+     * Perform pre-compaction check on current history before starting a new turn
+     */
+    async compressSessionIfNeeded(sessionId: string): Promise<void> {
+        return this.enqueueWrite(sessionId, async (session) => {
+            const compResult = await this.compactor.compressIfNeeded(session, session.history, session.modelId);
+            if (compResult.type !== 'none') {
+                if (compResult.snapshot) {
+                    await this.persistence.saveSnapshot(session.uuid, compResult.snapshot);
+                }
+                session.dirty = true;
+            }
         });
     }
 
@@ -465,16 +492,18 @@ export class FreyaSessionManager {
         return this.persistence.loadSnapshot(session.uuid, snapId);
     }
 
-    async createSession(id: string, options?: { parentId?: string; prompt?: string; providerId?: string; modelId?: string; activeSkillId?: string; history?: LLMMessage[] }): Promise<Session> {
+    async createSession(id: string, options?: { parentId?: string; prompt?: string; providerId?: string; modelId?: string; activeSkillId?: string; history?: LLMMessage[]; activeToolboxIds?: string[]; ephemeral?: boolean }): Promise<Session> {
         const session = this.newSession(id, crypto.randomUUID(), {
             parentId: options?.parentId,
             prompt: options?.prompt,
             providerId: options?.providerId,
             modelId: options?.modelId,
-            activeSkillId: options?.activeSkillId,
+            activeSkillId: (options?.activeSkillId && this.isValidSkillId(options.activeSkillId)) ? options.activeSkillId.trim() : undefined,
+            activeToolboxIds: options?.activeToolboxIds ? this.filterValidToolboxIds(options.activeToolboxIds) : [],
             status: options?.parentId ? 'running' : undefined,
             startTime: options?.parentId ? Date.now() : undefined,
-            durationMs: options?.parentId ? 0 : undefined
+            durationMs: options?.parentId ? 0 : undefined,
+            ephemeral: options?.ephemeral
         });
 
         if (options?.history) {

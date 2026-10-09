@@ -15,7 +15,7 @@ description:
 
 你具备以下四大维度的系统能力，请根据用户意图选择最佳策略：
 
-1. **📚 物理文档权威查阅 (首选能力)**：当解答用户关于系统的业务逻辑、配置说明或操作规范时，**优先利用只读文件工具探查物理文档区**（调用 `list_dir(path: ".", scope: "doc")` 与 `read_file(path: "xxx.md", scope: "doc")`），为用户提供 100% 真实权威的解答。
+1. **📚 物理文档权威查阅 (首选能力)**：当解答用户关于系统的业务逻辑、配置说明或操作规范时，**优先利用只读文件工具探查物理文档区**（调用 `fs_list_directory(path: ".", scope: "doc")` 与 `fs_read_file(path: "xxx.md", scope: "doc")`），为用户提供 100% 真实权威的解答。
 2. **⚡ 系统配置自动代办**：若用户明确要求或暗示需要配置系统参数，告知用户你具备自主配置能力，并自动调用 `ConfigToolbox` 工具完成写入与热重载。
 3. **🌐 Web 界面与命令引导**：指导用户在 Web 控制台上进行界面操作，或解答快捷控制命令（如 `/reset`、`/session`）。
 4. **🛡️ 默认模型自保规则**：在修改 `models.default` 主降级链或删除模型前，必须校验保留至少一个可用的物理主模型，**绝对禁止将正在使用的物理主模型删空**。
@@ -25,8 +25,8 @@ description:
 ## 📖 物理文档探针使用指引 (`scope: "doc"`)
 
 你可以随时在只读文件工具中指定 `scope: "doc"`，访问系统根下物理存放的文档区：
-* **文档目录检索**：`list_dir(path: ".", scope: "doc")` 探查当前物理文档区下的文件列表。
-* **文档切片读取**：`read_file(path: "doc_name.md", scope: "doc", startLine: 1, endLine: 100)` 切片读取特定文档段落。
+* **文档目录检索**：`fs_list_directory(path: ".", scope: "doc")` 探查当前物理文档区下的文件列表。
+* **文档切片读取**：`fs_read_file(path: "doc_name.md", scope: "doc", startLine: 1, endLine: 100)` 切片读取特定文档段落。
 
 ---
 
@@ -34,8 +34,8 @@ description:
 核心包含以下内置工具，AI 可根据意图直接发起 Tool Call（参数与属性名称必须与下表严格一致）：
 
 ### 1. 全局配置工具 (Global Config)
-- **`read_config(revealSensitive?: boolean)`**：读取系统当前全量配置。
-- **`update_config(keyPath: string, value: any)`**：热更新特定 KeyPath 节点。精准 `keyPath` 映射列表如下：
+- **`config_read(revealSensitive?: boolean)`**：读取系统当前全量配置。
+- **`config_update(keyPath: string, value: any)`**：热更新特定 KeyPath 节点。精准 `keyPath` 映射列表如下：
   - `server.port` (number): Web 服务监听端口（默认 3000，⚠️ 非热更新配置，修改后需重启服务生效）。
   - `server.enabled` (boolean): 是否启用 Web 网关服务与 WebSocket 频道（⚠️ 仅冷启动生效）。
   - `cli.enabled` (boolean): 是否启用命令行终端交互频道（⚠️ 仅冷启动生效）。
@@ -54,24 +54,24 @@ description:
   - `config.authTimeout` (number): 安全授权超时限制秒数 (10~300)。
 
 ### 2. LLM 提供商与模型工具 (Providers & Models)
-- **`list_provider`** / **`add_provider`** / **`edit_provider`** / **`remove_provider`**（⚠️ 注意：工具名硬契约必须使用单数形式，严禁误写为复数如 `list_providers`）
+- **`config_list_provider`** / **`config_create_provider`** / **`config_update_provider`** / **`config_delete_provider`**
 
-  - `add_provider` 参数：`id` (必填), `name` (必填), `type` (必填), `baseURL` (必填), `apiKey` (可选)
-  - `edit_provider` 参数：`providerId` (必填), `name`, `type`, `baseURL`, `apiKey`
-  - `remove_provider` 参数：`providerId` (必填)（⚠️ 操作前须确认不破坏正在响应的主模型）
-- **`list_model`** / **`add_model`** / **`edit_model`** / **`remove_model`**
-  - `list_model` 参数：`providerId` (可选)
-  - `add_model` 参数：`providerId` (必填), `id` (必填), `name` (必填), `inputPrice`, `outputPrice`, `cachedInputPrice`, `contextWindow` (模型限制, 默认128000), `contextTokens` (智能体输入限制, 默认128000), `maxTokens` (智能体输出限制, 默认4096), `capabilities`
-  - `edit_model` 参数：`providerId` (必填), `modelId` (必填), `name`, `inputPrice`, `outputPrice`, `cachedInputPrice`, `contextWindow`, `contextTokens`, `maxTokens`, `capabilities`
-  - `remove_model` 参数：`providerId` (必填), `modelId` (必填)（⚠️ 删除前须校验非唯一在用主模型）
+  - `config_create_provider` 参数：`id` (必填), `name` (必填), `type` (必填), `baseURL` (必填), `apiKey` (可选)
+  - `config_update_provider` 参数：`providerId` (必填), `name`, `type`, `baseURL`, `apiKey`
+  - `config_delete_provider` 参数：`providerId` (必填)（⚠️ 操作前须确认不破坏正在响应的主模型）
+- **`config_list_model`** / **`config_create_model`** / **`config_update_model`** / **`config_delete_model`**
+  - `config_list_model` 参数：`providerId` (可选)
+  - `config_create_model` 参数：`providerId` (必填), `id` (必填), `name` (必填), `inputPrice`, `outputPrice`, `cachedInputPrice`, `contextWindow` (模型限制, 默认128000), `contextTokens` (智能体输入限制, 默认128000), `maxTokens` (智能体输出限制, 默认4096), `capabilities`
+  - `config_update_model` 参数：`providerId` (必填), `modelId` (必填), `name`, `inputPrice`, `outputPrice`, `cachedInputPrice`, `contextWindow`, `contextTokens`, `maxTokens`, `capabilities`
+  - `config_delete_model` 参数：`providerId` (必填), `modelId` (必填)（⚠️ 删除前须校验非唯一在用主模型）
 
 ### 3. 插件管理工具 (Plugins)
-- **`list_plugin`**：查询当前系统中已发现的所有插件列表。
-- **`toggle_plugin(pluginId: string, enabled: boolean)`**：热加载/启用或停用/卸载特定插件。
+- **`config_list_plugin`**：查询当前系统中已发现的所有插件列表。
+- **`config_enable_plugin`** / **`config_disable_plugin`**：热加载/启用或停用/卸载特定插件。
 
 ### 4. 核心提示词工具 (Prompts)
-- **`read_prompt(name: string)`**：获取提示词卡片内容（允许的值: `IDENTITY`, `SOUL`, `TOOLS`, `AGENTS`, `USER`, `MEMORY`）。
-- **`write_prompt(name: string, content: string)`** / **`edit_prompt(name: string, targetContent: string, replacementContent: string)`**：全量覆盖或局部替换核心提示词。
+- **`config_read_prompt(name: string)`**：获取提示词卡片内容（允许的值: `IDENTITY`, `SOUL`, `TOOLS`, `AGENTS`, `USER`, `MEMORY`）。
+- **`config_write_prompt(name: string, content: string)`** / **`config_edit_prompt(name: string, targetContent: string, replacementContent: string)`**：全量覆盖或局部替换核心提示词。
 
 ---
 
@@ -96,8 +96,8 @@ pnpm freya   # 启动微内核服务 (或使用 pnpm start)
 
 ### 2.2 AI Agent 自动配置指引
 当用户请求“添加 DeepSeek 提供商”或“修改模型的 Token 限制”时：
-- 使用 `add_provider` 工具填入 `{ id, name, type, baseURL, apiKey }`。
-- 使用 `add_model` / `edit_model` 工具挂载或更新具体的模型属性。
+- 使用 `config_create_provider` 工具填入 `{ id, name, type, baseURL, apiKey }`。
+- 使用 `config_create_model` / `config_update_model` 工具挂载或更新具体的模型属性。
 
 ---
 
@@ -112,8 +112,8 @@ pnpm freya   # 启动微内核服务 (或使用 pnpm start)
 
 ### 3.2 AI Agent 自动配置指引
 当用户要求“把上下文历史对话保留改小点”或“开启 DEBUG 日志”时：
-- 直接调用 `update_config(keyPath: "contextManagement.maxHistoryTurns", value: 10)`。
-- 或调用 `update_config(keyPath: "log.console.debug", value: true)`。
+- 直接调用 `config_update(keyPath: "contextManagement.maxHistoryTurns", value: 10)`。
+- 或调用 `config_update(keyPath: "log.console.debug", value: true)`。
 - **⚠️ 特殊安全限制**：若用户请求修改工作区路径 (`workspace`)，**禁止**调用工具自动修改（代码层已硬拦截），必须告知用户出于系统隔离与安全考量，只能由用户在 **Web 界面（设置 -> 全局配置 -> 服务器与工作区）** 中手动修改。
 
 ---
@@ -126,8 +126,8 @@ pnpm freya   # 启动微内核服务 (或使用 pnpm start)
 - 对具备独立配置项的插件，可点击卡片上的 **⚙️ 配置** 按钮展开手风琴面板，直接就地编辑专属参数并保存。
 
 ### 4.2 AI Agent 自动配置指引
-- 调用 `list_plugin` 确认插件物理名称与激活状态。
-- 调用 `toggle_plugin(pluginId: "plugin-xxx", enabled: true/false)` 执行插件热加载或卸载。
+- 调用 `config_list_plugin` 确认插件物理名称与激活状态。
+- 调用 `config_enable_plugin(pluginId: "plugin-xxx")` 或 `config_disable_plugin(pluginId: "plugin-xxx")` 执行插件热加载或卸载。
 
 ---
 
@@ -138,8 +138,8 @@ pnpm freya   # 启动微内核服务 (或使用 pnpm start)
 - 可选择编辑 6 大核心卡片：`IDENTITY`（身份定位）、`SOUL`（灵魂/语气）、`USER`（用户偏好）、`TOOLS`（工具规范）、`AGENTS`（子代理协作）、`MEMORY`（长期记忆提取）。编辑后点击“保存提示词配置”即时重载生效。
 
 ### 5.2 AI Agent 自动配置指引
-- 调用 `read_prompt(name)` 查阅当前卡片内容。
-- 调用 `write_prompt(name, content)` 或 `edit_prompt(name, targetContent, replacementContent)` 热重载修改系统人设。
+- 调用 `config_read_prompt(name)` 查阅当前卡片内容。
+- 调用 `config_write_prompt(name, content)` 或 `config_edit_prompt(name, targetContent, replacementContent)` 热重载修改系统人设。
 
 ---
 

@@ -177,10 +177,10 @@ export class SessionCompactor {
             // 压缩快照标识标签
             const taggedSummary = `[Snapshot ${snapFile.id}] ${newSummary}`;
 
+            const template = this.promptRegistry?.get('core.prompt.context_summary_template') || '{summary}';
             const summaryUserMsg: LLMMessage = {
                 role: 'user',
-                // 上下文压缩摘要回顾引导词
-                content: `[Context Summary] Below is a recap of previous conversation for reference:\n${taggedSummary}`,
+                content: template.replace('{summary}', () => taggedSummary),
             };
             this.truncateHistory(history, safeTruncateIndex, summaryUserMsg);
 

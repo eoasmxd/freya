@@ -1,6 +1,6 @@
 import type { FreyaContext, ToolPlugin, FreyaTool } from '@eoasmxd/freya-sdk';
 import fs from 'node:fs/promises';
-import { EditFileTool, ListDirTool, ReadFileTool, WriteFileTool } from './tools.js';
+import { EditFileTool, ListDirectoryTool, ReadAttachmentTool, ReadFileTool, WriteFileTool } from './tools.js';
 
 export default class FsToolsPlugin implements ToolPlugin {
   type = 'tool' as const;
@@ -9,8 +9,9 @@ export default class FsToolsPlugin implements ToolPlugin {
 
   async setup(ctx: FreyaContext): Promise<void> {
     this.tools = [
-      new ListDirTool(ctx),
+      new ListDirectoryTool(ctx),
       new ReadFileTool(ctx),
+      new ReadAttachmentTool(ctx),
       new WriteFileTool(ctx),
       new EditFileTool(ctx)
     ];

@@ -1,4 +1,4 @@
-import type { FreyaContext, LLMMessage, LLMPlugin, LLMPluginOptions, LLMTokenUsage, ToolDefinition } from '@eoasmxd/freya-sdk';
+import type { FreyaAttachment, FreyaContext, LLMMessage, LLMPlugin, LLMPluginOptions, LLMTokenUsage, ToolDefinition } from '@eoasmxd/freya-sdk';
 import crypto from 'node:crypto';
 import fs from 'node:fs/promises';
 import path from 'node:path';
@@ -16,6 +16,69 @@ export default class GeminiPlugin implements LLMPlugin {
     this.context = ctx;
     this.i18n.setContext(ctx);
     this.context.logger.info('Gemini model plugin initialized.');
+  }
+
+  /**
+   * 解析附件数据为 Base64 编码
+   * Resolve attachment data to Base64 encoding
+   */
+  private async resolveAttachmentBase64(att: FreyaAttachment): Promise<string | null> {
+    let base64Data = att.base64;
+
+    if (!base64Data && !att.path && att.url) {
+      try {
+        const hash = crypto.createHash('md5').update(att.url).digest('hex');
+        const cleanMimeType = att.mimeType.split(';')[0].trim();
+        const ext = cleanMimeType.split('/')[1] || 'bin';
+        const cacheRelPath = `cache/gemini/${hash}.${ext}`;
+        const cacheAbsPath = path.resolve(this.context.paths.workspaceDir, cacheRelPath);
+
+        let fileExists = false;
+        try {
+          await fs.access(cacheAbsPath);
+          fileExists = true;
+        } catch { }
+
+        if (!fileExists) {
+          this.context.logger.info(`Downloading remote attachment to physical cache [${att.url}]...`);
+          const response = await fetch(att.url);
+          if (!response.ok) {
+            throw new Error(`HTTP error ${response.status}`);
+          }
+          const arrayBuffer = await response.arrayBuffer();
+          const buffer = Buffer.from(arrayBuffer);
+
+          await fs.mkdir(path.dirname(cacheAbsPath), { recursive: true });
+          await fs.writeFile(cacheAbsPath, buffer);
+        }
+
+        att.path = cacheRelPath;
+      } catch (err: any) {
+        this.context.logger.error(`Failed to cache remote attachment locally [${att.url}]:`, err.message);
+      }
+    }
+
+    if (!base64Data && att.path) {
+      try {
+        if (path.isAbsolute(att.path)) {
+          throw new Error('Security rejection: Only relative paths within workspace are allowed.');
+        }
+        const workspaceAbs = this.context.paths.workspaceDir;
+        const targetAbs = path.resolve(workspaceAbs, att.path);
+        const workspacePrefix = workspaceAbs.endsWith(path.sep) ? workspaceAbs : workspaceAbs + path.sep;
+
+        if (targetAbs !== workspaceAbs && !targetAbs.startsWith(workspacePrefix)) {
+          throw new Error(`Security rejection: Out of workspace bounds path "${att.path}".`);
+        }
+
+        const buffer = await fs.readFile(targetAbs);
+        base64Data = buffer.toString('base64');
+      } catch (err: any) {
+        this.context.logger.error(`Failed to read local attachment [${att.path}]:`, err.message);
+      }
+    }
+
+    return base64Data || null;
   }
 
   async chat(
@@ -88,79 +151,42 @@ export default class GeminiPlugin implements LLMPlugin {
                 }
               }
             }
+            const parts: any[] = [
+              {
+                functionResponse: {
+                  name: toolName || 'default_tool',
+                  response: { result: msg.content }
+                }
+              }
+            ];
+
+            const validAttachments = msg.attachments ? msg.attachments.filter((a) => a.mimeType) : [];
+            for (const att of validAttachments) {
+              const base64Data = await this.resolveAttachmentBase64(att);
+              if (base64Data) {
+                parts.push({
+                  inlineData: {
+                    mimeType: att.mimeType,
+                    data: base64Data
+                  }
+                });
+              } else {
+                parts.push({
+                  text: `[Failed to load attachment: ${att.url || att.path || 'unknown'}]`
+                });
+              }
+            }
+
             return {
               role: 'user',
-              parts: [
-                {
-                  functionResponse: {
-                    name: toolName || 'default_tool',
-                    response: { result: msg.content }
-                  }
-                }
-              ]
+              parts
             };
           }
 
           const parts: any[] = [{ text: msg.content || '' }];
           const validAttachments = msg.attachments ? msg.attachments.filter((a) => a.mimeType) : [];
           for (const att of validAttachments) {
-            let base64Data = att.base64;
-
-            if (!base64Data && !att.path && att.url) {
-              try {
-                const hash = crypto.createHash('md5').update(att.url).digest('hex');
-                const cleanMimeType = att.mimeType.split(';')[0].trim();
-                const ext = cleanMimeType.split('/')[1] || 'bin';
-                const cacheRelPath = `cache/gemini/${hash}.${ext}`;
-                const cacheAbsPath = path.resolve(this.context.paths.workspaceDir, cacheRelPath);
-
-                let fileExists = false;
-                try {
-                  await fs.access(cacheAbsPath);
-                  fileExists = true;
-                } catch { }
-
-                if (!fileExists) {
-                  this.context.logger.info(`Downloading remote attachment to physical cache [${att.url}]...`);
-                  const response = await fetch(att.url);
-                  if (!response.ok) {
-                    // 下载远程附件 HTTP 错误
-                    throw new Error(`HTTP error ${response.status}`);
-                  }
-                  const arrayBuffer = await response.arrayBuffer();
-                  const buffer = Buffer.from(arrayBuffer);
-
-                  await fs.mkdir(path.dirname(cacheAbsPath), { recursive: true });
-                  await fs.writeFile(cacheAbsPath, buffer);
-                }
-
-                att.path = cacheRelPath;
-              } catch (err: any) {
-                this.context.logger.error(`Failed to cache remote attachment locally [${att.url}]:`, err.message);
-              }
-            }
-
-            if (!base64Data && att.path) {
-              try {
-                if (path.isAbsolute(att.path)) {
-                  // 安全拒绝访问工作区外路径
-                  throw new Error('Security rejection: Only relative paths within workspace are allowed.');
-                }
-                const workspaceAbs = this.context.paths.workspaceDir;
-                const targetAbs = path.resolve(workspaceAbs, att.path);
-                const workspacePrefix = workspaceAbs.endsWith(path.sep) ? workspaceAbs : workspaceAbs + path.sep;
-
-                if (targetAbs !== workspaceAbs && !targetAbs.startsWith(workspacePrefix)) {
-                  // 安全越界拒绝
-                  throw new Error(`Security rejection: Out of workspace bounds path "${att.path}".`);
-                }
-
-                const buffer = await fs.readFile(targetAbs);
-                base64Data = buffer.toString('base64');
-              } catch (err: any) {
-                this.context.logger.error(`Failed to read local attachment [${att.path}]:`, err.message);
-              }
-            }
+            const base64Data = await this.resolveAttachmentBase64(att);
             if (base64Data) {
               parts.push({
                 inlineData: {
@@ -169,7 +195,6 @@ export default class GeminiPlugin implements LLMPlugin {
                 }
               });
             } else {
-              // 附件加载失败兜底提示
               parts.push({
                 text: `[Failed to load attachment: ${att.url || att.path || 'unknown'}]`
               });

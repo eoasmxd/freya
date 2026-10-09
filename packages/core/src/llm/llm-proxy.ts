@@ -345,7 +345,7 @@ export class FreyaLLMProxy implements ILLMService {
     const hasAudioCapability = capabilities.includes('audio');
 
     return messages.map((msg) => {
-      if (msg.role !== 'user' || !msg.attachments || msg.attachments.length === 0) {
+      if (!msg.attachments || msg.attachments.length === 0) {
         return msg;
       }
 
@@ -367,6 +367,9 @@ export class FreyaLLMProxy implements ILLMService {
         if (needConvert) {
           if (attach.description) {
             newContent = `${newContent}\n${attach.description}`.trim();
+          } else {
+            const fallbackInfo = attach.path || attach.url || 'attachment';
+            newContent = `${newContent}\n[Media attachment: ${fallbackInfo} (Model does not support ${isImage ? 'vision' : 'audio'})]`.trim();
           }
         } else {
           keptAttachments.push(attach);

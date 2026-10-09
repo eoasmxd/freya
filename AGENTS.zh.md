@@ -72,6 +72,22 @@ freya/
 - 项目中所有的类名、文件名、变量、日志输出和配置前缀，统一使用 `freya` 命名。
 - 示例：`FreyaPlugin`、`FreyaContext`、`freya.json`。
 
+### 工具架构与命名规范
+
+暴露给大模型 Function Calling 的工具遵循严格的分层结构与命名规范：
+
+1. **工具分类层级**：
+   - **内核固有工具 (Core Intrinsic Tools)**：直接内置于内核、无工具箱 ID 的核心工具。它们无条件或条件常驻（例如 `activate_toolbox`、`deactivate_toolbox`、`activate_skill`、`deactivate_skill`，以及仅在存在快照指纹时条件常驻的 `read_snapshot`）。
+   - **按需工具箱工具 (On-Demand Toolbox Tools)**：归属于特定命名工具箱（`FreyaToolbox.getId()`，全小写无下划线单单词，例如 `agent`、`config`、`fs`、`web`、`memory`、`mysql`）的工具。必须按需动态激活与停用。
+
+2. **命名语法规则**：
+   - **固有工具**：snake_case 格式的 `<verb>_<object>`（例如 `activate_toolbox`、`read_snapshot`）。
+   - **工具箱工具**：snake_case 格式，通常为三段式 `<toolboxId>_<verb>_<object>`（例如 `agent_delegate_task`、`fs_read_file`、`config_create_model`）；当工具箱本身即为主语对象时，允许两段式 `<toolboxId>_<verb>`（例如 `config_read`、`config_update`）。
+   - **名词严格单数**：所有名词必须严格采用单数形式（例如用 `toolbox` 而非 `toolboxes`，用 `directory` 而非 `directories`，用 `model` 而非 `models`，用 `provider` 而非 `providers`），严禁使用复数名词。
+   - **杜绝随意缩写**：必须使用完整语义单词（例如用 `directory` 而非 `dir`）。
+   - **统一标准动词**：相同语义必须保持动词一致（`list`、`read`、`write`、`edit`、`create`、`update`、`delete`、`search`、`save`、`enable`、`disable`、`activate`、`deactivate`、`delegate`）。
+   - **参数命名规范**：工具入参属性名必须统一采用 camelCase 小驼峰风格（例如 `toolboxIds`、`skillId`、`providerId`、`modelId`）。
+
 ## 开发流程
 
 ### 环境要求

@@ -1,14 +1,15 @@
 import type { FreyaContext, FreyaTool, FreyaToolbox } from '@eoasmxd/freya-sdk';
 import { FreyaConfigManager } from '../../config/config-manager.js';
 import {
-  AddModelTool,
-  EditModelTool,
-  ListModelsTool,
-  RemoveModelTool
+  CreateModelTool,
+  DeleteModelTool,
+  ListModelTool,
+  UpdateModelTool
 } from './model-tools.js';
 import {
-  ListPluginsTool,
-  TogglePluginTool
+  DisablePluginTool,
+  EnablePluginTool,
+  ListPluginTool
 } from './plugin-tools.js';
 import {
   EditPromptTool,
@@ -16,10 +17,10 @@ import {
   WritePromptTool
 } from './prompt-tools.js';
 import {
-  AddProviderTool,
-  EditProviderTool,
-  ListProvidersTool,
-  RemoveProviderTool
+  CreateProviderTool,
+  DeleteProviderTool,
+  ListProviderTool,
+  UpdateProviderTool
 } from './provider-tools.js';
 import {
   ReadConfigTool,
@@ -48,16 +49,17 @@ export class ConfigToolbox implements FreyaToolbox {
       new ReadPromptTool(configService),
       new WritePromptTool(configService),
       new EditPromptTool(configService),
-      new ListPluginsTool(configService, ctx),
-      new TogglePluginTool(configService, ctx),
-      new ListProvidersTool(configService),
-      new AddProviderTool(configService),
-      new EditProviderTool(configService),
-      new RemoveProviderTool(configService),
-      new ListModelsTool(configService),
-      new AddModelTool(configService),
-      new EditModelTool(configService),
-      new RemoveModelTool(configService)
+      new ListPluginTool(configService, ctx),
+      new EnablePluginTool(configService, ctx),
+      new DisablePluginTool(configService, ctx),
+      new ListProviderTool(configService),
+      new CreateProviderTool(configService),
+      new UpdateProviderTool(configService),
+      new DeleteProviderTool(configService),
+      new ListModelTool(configService),
+      new CreateModelTool(configService),
+      new UpdateModelTool(configService),
+      new DeleteModelTool(configService)
     ];
   }
 

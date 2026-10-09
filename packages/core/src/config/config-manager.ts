@@ -941,9 +941,9 @@ export class FreyaConfigManager {
         manualOnly: true
       },
       {
-        key: 'tools.builtin.session.enabled',
+        key: 'tools.builtin.agent.enabled',
         defaultValue: true,
-        description: this.i18n.all('schema.core.tools.session.enabled.desc', 'Enable session toolbox (allows model to view history/spawn subtasks)'),
+        description: this.i18n.all('schema.core.tools.agent.enabled.desc', 'Enable core agent delegation toolbox (allows model to delegate subtasks)'),
         type: 'boolean',
         category: this.i18n.all('schema.core.category.tools', 'Builtin Tools'),
         manualOnly: true

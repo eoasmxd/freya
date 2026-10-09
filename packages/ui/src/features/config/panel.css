@@ -514,6 +514,41 @@
   border-top: 1px dashed rgba(255, 255, 255, 0.05);
 }
 
+.btn-plugin-save {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  border-radius: 6px;
+  font-family: inherit;
+  font-weight: 600;
+  cursor: pointer;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.btn-plugin-save:disabled {
+  cursor: not-allowed;
+  transform: none !important;
+}
+
+.btn-plugin-save.dirty {
+  background: linear-gradient(135deg, #f59e0b 0%, #ea580c 100%);
+  color: #ffffff;
+  border-color: rgba(255, 255, 255, 0.15);
+  box-shadow: 0 4px 12px rgba(234, 88, 12, 0.35);
+}
+
+.btn-plugin-save.dirty:hover:not(:disabled) {
+  box-shadow: 0 6px 16px rgba(234, 88, 12, 0.5), 0 0 10px rgba(245, 158, 11, 0.3);
+  transform: translateY(-1px);
+}
+
+.btn-plugin-save.clean {
+  background: rgba(255, 255, 255, 0.04);
+  color: rgba(255, 255, 255, 0.45);
+  border-color: rgba(255, 255, 255, 0.06);
+}
+
 .model-item-title-box {
   display: flex;
   align-items: center;

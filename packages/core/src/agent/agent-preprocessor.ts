@@ -1,17 +1,11 @@
 import type { FreyaAttachment, FreyaContext } from '@eoasmxd/freya-sdk';
 import type { FreyaPromptRegistry } from '../prompt/prompt-registry.js';
-
-export interface PreprocessContext {
-  prevUserText?: string;
-  currentUserText?: string;
-}
-
-export async function preprocessAudio(
+async function preprocessAudio(
   attachments: FreyaAttachment[],
   userText: string,
   context: FreyaContext,
   promptRegistry: FreyaPromptRegistry,
-  preprocessContext?: PreprocessContext
+  preprocessContext?: { prevUserText?: string; currentUserText?: string }
 ): Promise<string> {
   let finalUserText = userText;
   const audioAttachments = attachments.filter(
@@ -97,12 +91,12 @@ export async function preprocessAudio(
   return finalUserText;
 }
 
-export async function preprocessImages(
+async function preprocessImages(
   attachments: FreyaAttachment[],
   userText: string,
   context: FreyaContext,
   promptRegistry: FreyaPromptRegistry,
-  preprocessContext?: PreprocessContext
+  preprocessContext?: { prevUserText?: string; currentUserText?: string }
 ): Promise<{ text: string; multimodalAttachments: FreyaAttachment[] }> {
   let finalUserText = userText;
   const imageAttachments = attachments.filter(
@@ -185,3 +179,79 @@ export async function preprocessImages(
     multimodalAttachments: anyFailed ? imageAttachments : []
   };
 }
+
+interface MediaProcessorRule {
+  capability: string;
+  isMatch: (attachment: FreyaAttachment) => boolean;
+  process: (
+    attachments: FreyaAttachment[],
+    context: FreyaContext,
+    promptRegistry: FreyaPromptRegistry,
+    preprocessContext?: { prevUserText?: string; currentUserText?: string }
+  ) => Promise<any>;
+}
+
+const MEDIA_RULES: MediaProcessorRule[] = [
+  {
+    capability: 'audio',
+    isMatch: (a) =>
+      a.mimeType.startsWith('audio/') ||
+      (a.type === 'file' &&
+        (a.mimeType.includes('wav') ||
+          a.mimeType.includes('mp3') ||
+          a.mimeType.includes('m4a'))),
+    process: (att, ctx, reg, pCtx) => preprocessAudio(att, '', ctx, reg, pCtx)
+  },
+  {
+    capability: 'image',
+    isMatch: (a) => a.mimeType.startsWith('image/') || a.type === 'image',
+    process: (att, ctx, reg, pCtx) => preprocessImages(att, '', ctx, reg, pCtx)
+  }
+];
+
+/**
+ * 判断是否为多模态媒体附件
+ * Check if an attachment is a multimodal media file
+ */
+export function isMediaAttachment(attachment: FreyaAttachment): boolean {
+  return MEDIA_RULES.some((rule) => rule.isMatch(attachment));
+}
+
+/**
+ * 统一多模态附件预处理
+ * Unified preprocessing for multimodal attachments
+ */
+export async function preprocessAttachments(
+  attachments: FreyaAttachment[] | undefined,
+  context: FreyaContext,
+  promptRegistry: FreyaPromptRegistry,
+  options?: {
+    modelId?: string;
+    providerId?: string;
+    preprocessContext?: {
+      prevUserText?: string;
+      currentUserText?: string;
+    };
+    force?: boolean;
+  }
+): Promise<void> {
+  if (!attachments || attachments.length === 0) {
+    return;
+  }
+
+  const capabilities = (!options?.force && options?.modelId && typeof context.llm.getModelCapabilities === 'function')
+    ? context.llm.getModelCapabilities(options.modelId, options.providerId)
+    : [];
+
+  const tasks = MEDIA_RULES
+    .filter(({ capability, isMatch }) => {
+      const needsProcess = options?.force || !capabilities.includes(capability);
+      return needsProcess && attachments.some(isMatch);
+    })
+    .map(({ process }) => process(attachments, context, promptRegistry, options?.preprocessContext));
+
+  if (tasks.length > 0) {
+    await Promise.all(tasks);
+  }
+}
+

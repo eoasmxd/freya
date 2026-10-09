@@ -1,10 +1,10 @@
-import type { ChannelMessage, ILLMService, LLMMessage } from '@eoasmxd/freya-sdk';
+import type { ChannelMessage, ILLMService, LLMMessage, FreyaAttachment } from '@eoasmxd/freya-sdk';
 import { FreyaCommandExecutor } from '../command/command-executor.js';
 import { currentConnectionStorage, type DefaultFreyaContext } from '../context.js';
 import type { FreyaPromptRegistry } from '../prompt/prompt-registry.js';
 import { FreyaSessionManager } from '../session/session-manager.js';
 import type { FreyaAgentExecutor } from './agent-executor.js';
-import { preprocessAudio, preprocessImages } from './agent-preprocessor.js';
+import { preprocessAttachments, isMediaAttachment } from './agent-preprocessor.js';
 import { I18n } from '../i18n/index.js';
 import { zh } from '../i18n/locales/zh.js';
 import { en } from '../i18n/locales/en.js';
@@ -122,23 +122,9 @@ export class FreyaAgentService {
       let userText = message.content;
       const attachments = message.attachments || [];
 
-      const capabilities = (session.modelId && typeof this.llm.getModelCapabilities === 'function')
-        ? this.llm.getModelCapabilities(session.modelId, session.providerId)
-        : [];
-      const hasImageCapability = capabilities.includes('image');
-      const hasAudioCapability = capabilities.includes('audio');
-
-      const imageAttachments = attachments.filter((a) => a.mimeType.startsWith('image/') || a.type === 'image');
-      const audioAttachments = attachments.filter(
-        (a) =>
-          a.mimeType.startsWith('audio/') ||
-          (a.type === 'file' &&
-            (a.mimeType.includes('wav') || a.mimeType.includes('mp3') || a.mimeType.includes('m4a')))
-      );
-
       const now = Date.now();
       const TEN_MINUTES_MS = 10 * 60 * 1000;
-      const hasNewMedia = imageAttachments.length > 0 || audioAttachments.length > 0;
+      const hasNewMedia = attachments.some(isMediaAttachment);
       let prevUserText = '';
 
       if (hasNewMedia) {
@@ -154,6 +140,15 @@ export class FreyaAgentService {
             }
           }
         }
+
+        await preprocessAttachments(attachments, this.context, this.promptRegistry, {
+          modelId: session.modelId,
+          providerId: session.providerId,
+          preprocessContext: {
+            prevUserText,
+            currentUserText: message.content
+          }
+        });
       } else {
         const currentText = message.content;
         if (currentText && currentText.trim() !== '') {
@@ -167,14 +162,7 @@ export class FreyaAgentService {
               }
 
               const isUser = histMsg.role === 'user';
-              const hasImage = histMsg.attachments?.some((a) => a.mimeType.startsWith('image/'));
-              const hasAudio = histMsg.attachments?.some(
-                (a) =>
-                  a.mimeType.startsWith('audio/') ||
-                  (a.type === 'file' &&
-                    (a.mimeType.includes('wav') || a.mimeType.includes('mp3') || a.mimeType.includes('m4a')))
-              );
-              const hasMedia = hasImage || hasAudio;
+              const hasMedia = histMsg.attachments?.some(isMediaAttachment);
               const hasText = histMsg.content && histMsg.content.trim() !== '';
 
               if (isUser && hasText) {
@@ -195,46 +183,18 @@ export class FreyaAgentService {
               currentUserText: currentText
             };
             for (const msg of recentMediaMessages) {
-              if (msg.attachments) {
-                const msgImages = msg.attachments.filter((a) => a.mimeType.startsWith('image/'));
-                const msgAudios = msg.attachments.filter(
-                  (a) =>
-                    a.mimeType.startsWith('audio/') ||
-                    (a.type === 'file' &&
-                      (a.mimeType.includes('wav') || a.mimeType.includes('mp3') || a.mimeType.includes('m4a')))
-                );
-
-                if (msgImages.length > 0) {
-                  await preprocessImages(msg.attachments, '', this.context, this.promptRegistry, secondaryContext);
-                }
-                if (msgAudios.length > 0) {
-                  await preprocessAudio(msg.attachments, '', this.context, this.promptRegistry, secondaryContext);
-                }
-              }
+              await preprocessAttachments(msg.attachments, this.context, this.promptRegistry, {
+                force: true,
+                preprocessContext: secondaryContext
+              });
             }
             await this.sessionManager.updateSession(message.sessionId, {});
           }
         }
       }
 
-      const preprocessContext = {
-        prevUserText,
-        currentUserText: message.content
-      };
-
-      const preprocessors: Promise<any>[] = [];
-      if (!hasAudioCapability && audioAttachments.length > 0) {
-        preprocessors.push(
-          preprocessAudio(attachments, '', this.context, this.promptRegistry, preprocessContext)
-        );
-      }
-      if (!hasImageCapability && imageAttachments.length > 0) {
-        preprocessors.push(
-          preprocessImages(attachments, '', this.context, this.promptRegistry, preprocessContext)
-        );
-      }
-
-      await Promise.all(preprocessors);
+      await this.sessionManager.compressSessionIfNeeded(message.sessionId);
+      const baselineHistoryLength = session.history.length;
 
       const controller = new AbortController();
       this.abortControllers.set(message.sessionId, controller);
@@ -258,6 +218,7 @@ export class FreyaAgentService {
         );
 
         this.context.eventBus.emit('session:reply:text', { sessionId: message.sessionId, content: response.content });
+        this.sessionManager.triggerPostChatCompaction(message.sessionId);
       } catch (err: any) {
         if (err.name === 'AbortError') {
           this.context.logger.warn(`Session ${message.sessionId} generation aborted by user.`);
@@ -270,6 +231,7 @@ export class FreyaAgentService {
           }
         } else {
           this.context.logger.error('Error processing chat stream:', err);
+          await this.sessionManager.rollbackIfHasAttachments(message.sessionId, baselineHistoryLength);
           const errDetail = err.message || 'Unknown error';
           this.context.eventBus.emit('session:reply:error', {
             sessionId: message.sessionId,
@@ -295,14 +257,14 @@ export class FreyaAgentService {
   }
 
   /**
-   * 运行子智能体会话并等待执行结果
-   * Run sub-agent session and await execution result
+   * 委派独立子智能体执行任务并等待结果
+   * Delegate task to subagent and await execution result
    */
-  async runSubAgent(
+  async delegateTask(
     parentSessionId: string,
     childSessionId: string,
     prompt: string,
-    options?: { providerId?: string; modelId?: string }
+    options?: { providerId?: string; modelId?: string; attachments?: FreyaAttachment[]; toolboxes?: string[]; skillId?: string; ephemeral?: boolean; }
   ): Promise<string> {
     const ctrl = new AbortController();
     const key = `${parentSessionId}_sub_${childSessionId}`;
@@ -310,8 +272,31 @@ export class FreyaAgentService {
 
     const startTime = Date.now();
     try {
-      await this.sessionManager.createSession(childSessionId, { parentId: parentSessionId, prompt });
-      await this.sessionManager.appendMessage(childSessionId, { role: 'user', content: prompt });
+      const parentSession = await this.sessionManager.getOrCreate(parentSessionId);
+      const isEphemeral = options?.ephemeral !== undefined ? options.ephemeral : !!parentSession.ephemeral;
+
+      const session = await this.sessionManager.createSession(childSessionId, { 
+        parentId: parentSessionId, 
+        prompt,
+        providerId: options?.providerId,
+        modelId: options?.modelId,
+        activeToolboxIds: options?.toolboxes,
+        activeSkillId: options?.skillId,
+        ephemeral: isEphemeral
+      });
+
+      const attachments = options?.attachments || [];
+      await preprocessAttachments(attachments, this.context, this.promptRegistry, {
+        modelId: options?.modelId || session.modelId,
+        providerId: options?.providerId || session.providerId,
+        preprocessContext: { currentUserText: prompt }
+      });
+
+      const userMsg: LLMMessage = { role: 'user', content: prompt, timestamp: Date.now() };
+      if (attachments.length > 0) {
+        userMsg.attachments = attachments;
+      }
+      await this.sessionManager.appendMessage(childSessionId, userMsg);
 
       const replyMessage = await this.agentExecutor.run(childSessionId, {
         signal: ctrl.signal,
@@ -333,35 +318,7 @@ export class FreyaAgentService {
       } catch (flushErr) {
         this.context.logger.error(`[AgentService] Failed to flush sub-agent session ${childSessionId}:`, flushErr);
       }
-    }
-  }
-
-  /**
-   * 取消指定的子智能体会话
-   * Cancel specified sub-agent session
-   */
-  cancelSubAgent(childSessionId: string): string {
-    let targetKey: string | null = null;
-    let controller: AbortController | null = null;
-
-    for (const [key, ctrl] of this.abortControllers.entries()) {
-      if (key === childSessionId || key.endsWith(`_sub_${childSessionId}`)) {
-        targetKey = key;
-        controller = ctrl;
-        break;
-      }
-    }
-
-    if (controller && targetKey) {
-      controller.abort();
-      this.abortControllers.delete(targetKey);
-      this.sessionManager.updateSession(childSessionId, { status: 'failed', durationMs: 0 })
-        .then(() => this.sessionManager.flushSession(childSessionId))
-        .catch(() => { });
-      return `ℹ️ Child agent session ${childSessionId} aborted successfully.`;
-    } else {
-      // 未找到活跃子智能体会话异常
-      throw new Error(`Active child agent session not found for ID: ${childSessionId}, or it has already completed.`);
+      this.context.eventBus.emit('session:reply:completed', { sessionId: childSessionId });
     }
   }
 }

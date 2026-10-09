@@ -46,7 +46,7 @@ export class ReadConfigTool implements FreyaTool {
 
   getDefinition(): ToolDefinition {
     return {
-      name: 'read_config',
+      name: 'config_read',
       // 读取系统核心配置
       description: 'Read core system configuration. Sensitive config values are masked by default. Includes a "_readonly" list of property paths that are read-only and locked from modification.',
       parameters: {
@@ -123,7 +123,7 @@ export class UpdateConfigTool implements FreyaTool {
 
   getDefinition(): ToolDefinition {
     return {
-      name: 'update_config',
+      name: 'config_update',
       // 修改系统核心配置局部属性
       description: 'Incrementally update fine-grained property (keyPath) of system configuration (e.g. "log.console"). Most properties take effect dynamically; process-level lifecycle bindings (e.g. "port") require manual core service restart. Modifying sensitive configs requires user authorization.',
       parameters: {

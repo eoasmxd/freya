@@ -3,6 +3,7 @@ import { FreyaPromptRegistry } from '../prompt/prompt-registry.js';
 import type { FreyaSessionManager } from '../session/session-manager.js';
 import type { FreyaSkillRegistry } from '../skill/skill-registry.js';
 import type { FreyaToolRegistry } from '../tools/tool-registry.js';
+import { preprocessAttachments } from './agent-preprocessor.js';
 import { I18n } from '../i18n/index.js';
 import { zh } from '../i18n/locales/zh.js';
 import { en } from '../i18n/locales/en.js';
@@ -38,7 +39,6 @@ export class FreyaAgentExecutor {
     sessionId: string,
     options?: FreyaAgentExecutorOptions,
   ): Promise<LLMMessage> {
-    const toolInstructions = this.toolRegistry.getToolInstructions(this.promptRegistry);
     const skills = Array.from(this.skillRegistry.getSkills().values());
     const executedToolNames = new Set<string>();
 
@@ -50,7 +50,8 @@ export class FreyaAgentExecutor {
 
     while (loop) {
       const session = await this.sessionManager.getOrCreate(sessionId);
-      const tools = this.toolRegistry.getFilteredTools(session.activeToolboxIds || []);
+      const tools = this.toolRegistry.getFilteredTools(session.activeToolboxIds || [], session);
+      const toolInstructions = this.toolRegistry.getToolInstructions(this.promptRegistry, session);
       const history = await this.sessionManager.getHistory(sessionId);
 
       if (signal?.aborted) {
@@ -160,21 +161,42 @@ export class FreyaAgentExecutor {
           });
 
           try {
-            const result = await tool.execute(args);
+            const rawResult = await tool.execute(args);
+            const { content, attachments } = typeof rawResult === 'string'
+              ? { content: rawResult, attachments: undefined }
+              : rawResult;
+
+            if (attachments && attachments.length > 0) {
+              const targetModelId = options?.modelId || session.modelId;
+              const targetProviderId = options?.providerId || session.providerId;
+              await preprocessAttachments(attachments, this.context, this.promptRegistry, {
+                modelId: targetModelId,
+                providerId: targetProviderId,
+                preprocessContext: {
+                  currentUserText: `[Tool: ${toolCall.name}] Output: ${content ? content.slice(0, 300) : ''}`
+                }
+              });
+            }
+
             this.context.eventBus.emit('tool:status', {
               sessionId,
               toolCallId: toolCall.id,
               toolName: toolCall.name,
               status: 'completed',
               arguments: args,
-              result
+              result: rawResult
             });
-            return {
+
+            const toolMsg: LLMMessage = {
               role: 'tool' as const,
-              content: result,
+              content,
               toolCallId: toolCall.id,
               toolName: toolCall.name
             };
+            if (attachments && attachments.length > 0) {
+              toolMsg.attachments = attachments;
+            }
+            return toolMsg;
           } catch (err: any) {
             this.context.eventBus.emit('tool:status', {
               sessionId,
