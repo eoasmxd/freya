@@ -345,7 +345,7 @@ export class FreyaLLMProxy implements ILLMService {
     const hasAudioCapability = capabilities.includes('audio');
 
     return messages.map((msg) => {
-      if (msg.role !== 'user' || !msg.attachments || msg.attachments.length === 0) {
+      if (!msg.attachments || msg.attachments.length === 0) {
         return msg;
       }
 

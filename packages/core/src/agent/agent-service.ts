@@ -4,7 +4,7 @@ import { currentConnectionStorage, type DefaultFreyaContext } from '../context.j
 import type { FreyaPromptRegistry } from '../prompt/prompt-registry.js';
 import { FreyaSessionManager } from '../session/session-manager.js';
 import type { FreyaAgentExecutor } from './agent-executor.js';
-import { preprocessAudio, preprocessImages } from './agent-preprocessor.js';
+import { preprocessAttachments, isMediaAttachment } from './agent-preprocessor.js';
 import { I18n } from '../i18n/index.js';
 import { zh } from '../i18n/locales/zh.js';
 import { en } from '../i18n/locales/en.js';
@@ -122,23 +122,9 @@ export class FreyaAgentService {
       let userText = message.content;
       const attachments = message.attachments || [];
 
-      const capabilities = (session.modelId && typeof this.llm.getModelCapabilities === 'function')
-        ? this.llm.getModelCapabilities(session.modelId, session.providerId)
-        : [];
-      const hasImageCapability = capabilities.includes('image');
-      const hasAudioCapability = capabilities.includes('audio');
-
-      const imageAttachments = attachments.filter((a) => a.mimeType.startsWith('image/') || a.type === 'image');
-      const audioAttachments = attachments.filter(
-        (a) =>
-          a.mimeType.startsWith('audio/') ||
-          (a.type === 'file' &&
-            (a.mimeType.includes('wav') || a.mimeType.includes('mp3') || a.mimeType.includes('m4a')))
-      );
-
       const now = Date.now();
       const TEN_MINUTES_MS = 10 * 60 * 1000;
-      const hasNewMedia = imageAttachments.length > 0 || audioAttachments.length > 0;
+      const hasNewMedia = attachments.some(isMediaAttachment);
       let prevUserText = '';
 
       if (hasNewMedia) {
@@ -154,6 +140,15 @@ export class FreyaAgentService {
             }
           }
         }
+
+        await preprocessAttachments(attachments, this.context, this.promptRegistry, {
+          modelId: session.modelId,
+          providerId: session.providerId,
+          preprocessContext: {
+            prevUserText,
+            currentUserText: message.content
+          }
+        });
       } else {
         const currentText = message.content;
         if (currentText && currentText.trim() !== '') {
@@ -167,14 +162,7 @@ export class FreyaAgentService {
               }
 
               const isUser = histMsg.role === 'user';
-              const hasImage = histMsg.attachments?.some((a) => a.mimeType.startsWith('image/'));
-              const hasAudio = histMsg.attachments?.some(
-                (a) =>
-                  a.mimeType.startsWith('audio/') ||
-                  (a.type === 'file' &&
-                    (a.mimeType.includes('wav') || a.mimeType.includes('mp3') || a.mimeType.includes('m4a')))
-              );
-              const hasMedia = hasImage || hasAudio;
+              const hasMedia = histMsg.attachments?.some(isMediaAttachment);
               const hasText = histMsg.content && histMsg.content.trim() !== '';
 
               if (isUser && hasText) {
@@ -195,46 +183,15 @@ export class FreyaAgentService {
               currentUserText: currentText
             };
             for (const msg of recentMediaMessages) {
-              if (msg.attachments) {
-                const msgImages = msg.attachments.filter((a) => a.mimeType.startsWith('image/'));
-                const msgAudios = msg.attachments.filter(
-                  (a) =>
-                    a.mimeType.startsWith('audio/') ||
-                    (a.type === 'file' &&
-                      (a.mimeType.includes('wav') || a.mimeType.includes('mp3') || a.mimeType.includes('m4a')))
-                );
-
-                if (msgImages.length > 0) {
-                  await preprocessImages(msg.attachments, '', this.context, this.promptRegistry, secondaryContext);
-                }
-                if (msgAudios.length > 0) {
-                  await preprocessAudio(msg.attachments, '', this.context, this.promptRegistry, secondaryContext);
-                }
-              }
+              await preprocessAttachments(msg.attachments, this.context, this.promptRegistry, {
+                force: true,
+                preprocessContext: secondaryContext
+              });
             }
             await this.sessionManager.updateSession(message.sessionId, {});
           }
         }
       }
-
-      const preprocessContext = {
-        prevUserText,
-        currentUserText: message.content
-      };
-
-      const preprocessors: Promise<any>[] = [];
-      if (!hasAudioCapability && audioAttachments.length > 0) {
-        preprocessors.push(
-          preprocessAudio(attachments, '', this.context, this.promptRegistry, preprocessContext)
-        );
-      }
-      if (!hasImageCapability && imageAttachments.length > 0) {
-        preprocessors.push(
-          preprocessImages(attachments, '', this.context, this.promptRegistry, preprocessContext)
-        );
-      }
-
-      await Promise.all(preprocessors);
 
       const controller = new AbortController();
       this.abortControllers.set(message.sessionId, controller);
@@ -320,29 +277,11 @@ export class FreyaAgentService {
       });
 
       const attachments = options?.attachments || [];
-      if (attachments.length > 0) {
-        const targetModelId = options?.modelId || session.modelId;
-        const targetProviderId = options?.providerId || session.providerId;
-        const capabilities = typeof this.llm.getModelCapabilities === 'function'
-          ? this.llm.getModelCapabilities(targetModelId, targetProviderId)
-          : [];
-        const hasImageCapability = capabilities.includes('image');
-        const hasAudioCapability = capabilities.includes('audio');
-
-        const imageAttachments = attachments.filter((a) => a.mimeType.startsWith('image/') || a.type === 'image');
-        const audioAttachments = attachments.filter((a) => a.mimeType.startsWith('audio/') || (a.type === 'file' && (a.mimeType.includes('wav') || a.mimeType.includes('mp3') || a.mimeType.includes('m4a'))));
-
-        const preprocessors: Promise<any>[] = [];
-        const preprocessContext = { prevUserText: '', currentUserText: prompt };
-        
-        if (!hasAudioCapability && audioAttachments.length > 0) {
-          preprocessors.push(preprocessAudio(attachments, '', this.context, this.promptRegistry, preprocessContext));
-        }
-        if (!hasImageCapability && imageAttachments.length > 0) {
-          preprocessors.push(preprocessImages(attachments, '', this.context, this.promptRegistry, preprocessContext));
-        }
-        await Promise.all(preprocessors);
-      }
+      await preprocessAttachments(attachments, this.context, this.promptRegistry, {
+        modelId: options?.modelId || session.modelId,
+        providerId: options?.providerId || session.providerId,
+        preprocessContext: { currentUserText: prompt }
+      });
 
       const userMsg: LLMMessage = { role: 'user', content: prompt, timestamp: Date.now() };
       if (attachments.length > 0) {
