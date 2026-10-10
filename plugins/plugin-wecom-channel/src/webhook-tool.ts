@@ -88,12 +88,12 @@ export class WecomSendWebhookTool implements FreyaTool {
           },
           messageType: {
             type: "string",
-            enum: ["text", "markdown", "image", "file"],
-            description: "Message format type to send."
+            enum: ["text", "markdown", "markdown_v2", "image", "file"],
+            description: "Message format type to send: 'text', 'markdown' (supports font colors info/comment/warning, but no tables/lists/codeblocks), 'markdown_v2' (supports tables, code blocks, lists, quotes, but no font colors), 'image', 'file'."
           },
           content: {
             type: "string",
-            description: "Message body content (required when messageType is 'text' or 'markdown')."
+            description: "Message body content (max 4096 bytes). Required for 'text', 'markdown', or 'markdown_v2'. Note: '#' headers require a trailing space. Use 'markdown' for colored fonts (<font color=\"info|comment|warning\">); use 'markdown_v2' for tables, code blocks, lists."
           },
           filePath: {
             type: "string",
@@ -155,6 +155,19 @@ export class WecomSendWebhookTool implements FreyaTool {
         });
       }
 
+      if (messageType === "markdown_v2") {
+        if (!content || typeof content !== "string") {
+          return "❌ Error: 'content' is required when messageType is 'markdown_v2'.";
+        }
+        if (Buffer.byteLength(content, "utf-8") > 4096) {
+          return "❌ Error: Markdown V2 content exceeds 4096 bytes limit.";
+        }
+        return await this.sendPayload(sendUrl, target, messageType, {
+          msgtype: "markdown_v2",
+          markdown_v2: { content }
+        });
+      }
+
       if (messageType === "image") {
         if (!filePath || typeof filePath !== "string") {
           return "❌ Error: 'filePath' is required when messageType is 'image'.";
@@ -202,7 +215,7 @@ export class WecomSendWebhookTool implements FreyaTool {
         });
       }
 
-      return `❌ Error: Unsupported messageType "${messageType}". Supported types: text, markdown, image, file.`;
+      return `❌ Error: Unsupported messageType "${messageType}". Supported types: text, markdown, markdown_v2, image, file.`;
     } catch (err: any) {
       return `❌ Failed to execute WeCom webhook: ${err.message}`;
     }
