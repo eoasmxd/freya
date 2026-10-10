@@ -77,8 +77,28 @@ description:
 
 ### Webhook 发送工具调用规范 (`wecom_send_webhook`)
 - **`target`**：配置中预设的 `name`（如 `ops-alert`）或直接传入的 Webhook Key / 完整 URL；
-- **`messageType`**：`text` | `markdown` | `image` | `file`；
-- **`content`**：发送文本或 Markdown 时的内容；
+- **`messageType`**：`text` | `markdown` | `markdown_v2` | `image` | `file`；
+- **`content`**：发送文本或 Markdown 时的内容（≤ 4096 字节）；
 - **`filePath`**：发送图片（JPG/PNG ≤ 2MB）或文件（≤ 20MB）时的工作区相对路径（沙箱安全隔离）。
+
+#### 企业微信 Webhook Markdown 格式差异与选型指南
+
+企微 Webhook 对 Markdown 的支持存在两个不同版本且语法互斥，请依据展示需求正确选用：
+
+| 语法特性 | `markdown` (传统企微 Markdown) | `markdown_v2` (企微 Markdown V2) |
+| :--- | :--- | :--- |
+| **标题** | 支持 1~6 级（`#` 与文字间**必须保留空格**） | 支持 1~6 级（`#` 与文字间**必须保留空格**） |
+| **加粗 / 斜体** | 仅支持加粗 `**粗体**` | 支持加粗 `**粗体**` 与斜体 `*斜体*` |
+| **文字颜色** | 支持 `<font color="info">绿色</font>`、`comment` 灰色、`warning` 橙红 | **不支持** `<font>` 颜色标签 |
+| **代码段** | 仅支持单行代码 `` `code` `` | 支持单行代码与独立多行代码块 ` ``` ` |
+| **列表 / 表格** | **不支持** 列表和表格 | 支持无序列表 `- `、有序列表 `1. `、GFM 表格 |
+| **引用** | 单级引用 `> 内容` | 支持多级引用 `>`、`>>`、`>>>` |
+| **超链接与图片** | 支持链接 `[文字](url)` | 支持链接 `[文字](url)` 与图片 `![图片](url)` |
+| **大小限制** | ≤ 4096 字节（UTF-8 编码） | ≤ 4096 字节（UTF-8 编码） |
+
+> **选型建议**：
+> - **状态告警/高亮摘要**：需要使用红绿灰颜色标签（`<font color="info|comment|warning">`）时，必须选用 `markdown` 类型；
+> - **数据报表/技术内容**：需要输出表格、多行代码块、层级列表时，必须选用 `markdown_v2` 类型；
+
 
 
