@@ -264,6 +264,7 @@ export default class OpenAICompatiblePlugin implements LLMPlugin {
       let finalContent = '';
       let usage: LLMTokenUsage | undefined;
       let finishReason: string | null = null;
+      let lastToolCallIndex = 0;
       const streamToolCallsMap = new Map<number, { id: string; name: string; arguments: string }>();
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
@@ -299,7 +300,10 @@ export default class OpenAICompatiblePlugin implements LLMPlugin {
                 }
                 if (Array.isArray(choice?.delta?.tool_calls)) {
                   for (const tc of choice.delta.tool_calls) {
-                    const idx = typeof tc.index === 'number' ? tc.index : streamToolCallsMap.size;
+                    const idx = typeof tc.index === 'number'
+                      ? tc.index
+                      : (tc.id || tc.function?.name ? streamToolCallsMap.size : lastToolCallIndex);
+                    lastToolCallIndex = idx;
                     let call = streamToolCallsMap.get(idx);
                     if (!call) {
                       call = { id: '', name: '', arguments: '' };
@@ -334,7 +338,7 @@ export default class OpenAICompatiblePlugin implements LLMPlugin {
         .map((tc, idx) => ({
           id: tc.id || `call_${Math.random().toString(36).substring(2, 11)}_${idx}`,
           name: tc.name,
-          arguments: tc.arguments
+          arguments: tc.arguments && tc.arguments.trim() ? tc.arguments : '{}'
         }));
       const hasStreamToolCalls = streamToolCalls.length > 0;
 

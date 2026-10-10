@@ -469,6 +469,13 @@ export default class GeminiPlugin implements LLMPlugin {
         );
       }
       if (!finalContent.trim() && !hasStreamToolCalls) {
+        if (streamFinishReason && streamFinishReason !== 'STOP') {
+          throw new Error(
+            this.i18n.t('error.generationBlocked', 'Gemini generation blocked by safety policy or empty (finishReason: "{reason}")', {
+              reason: streamFinishReason
+            })
+          );
+        }
         throw new Error(
           this.i18n.t('error.emptyResponse', 'Gemini service returned an empty response without tool calls. Please check prompt instructions or model settings.')
         );
