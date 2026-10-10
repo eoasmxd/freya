@@ -267,18 +267,52 @@ export class FreyaPromptRegistry {
    */
   composeSystemPrompt(
     activeSkill?: { id: string; content: string },
-    toolInstructions: string[] = [],
     availableSkills: { id: string; name: LocalizedText; description?: LocalizedText }[] = [],
+    activeToolboxIds: string[] = [],
+    availableToolboxes: { id: string; instruction?: string }[] = [],
     lang?: string
   ): string {
     let systemPrompt = this.getSystemPrompt(lang);
 
-    if (toolInstructions.length > 0) {
-      systemPrompt += `\n\n# TOOLS ADDITIONAL INSTRUCTIONS\n${toolInstructions.join('\n\n')}`;
+    const toolBlocks: string[] = [];
+    const metaPrompt = this.get('tool.prompt.meta', lang);
+    if (metaPrompt) {
+      toolBlocks.push(`### Core Meta Capabilities\n${metaPrompt}`);
     }
 
-    if (availableSkills && availableSkills.length > 0) {
-      const listLines = availableSkills
+    const hasToolboxes = availableToolboxes.length > 0 || activeToolboxIds.length > 0;
+    if (hasToolboxes) {
+      const loadedBoxStr = activeToolboxIds.length > 0
+        ? activeToolboxIds.map((id) => `\`${id}\``).join(', ')
+        : 'None';
+      const inactiveBoxes = availableToolboxes.filter((tb) => !activeToolboxIds.includes(tb.id));
+      const onDemandBoxStr = inactiveBoxes.length > 0
+        ? inactiveBoxes.map((tb) => `\`${tb.id}\``).join(', ')
+        : 'None';
+
+      toolBlocks.push([
+        `- Loaded Toolboxes (In-Use): ${loadedBoxStr} (Tools are ready in your tools list. Do NOT call activate_toolbox)`,
+        `- On-Demand Toolboxes (Available): ${onDemandBoxStr} (Call \`activate_toolbox(["id"])\` when needed)`
+      ].join('\n'));
+
+      for (const tb of availableToolboxes) {
+        if (tb.instruction) {
+          const isLoaded = activeToolboxIds.includes(tb.id);
+          const statusTag = isLoaded
+            ? '(Status: Loaded / In-Use)'
+            : '(Status: Available On-Demand)';
+          toolBlocks.push(`### Toolbox Capabilities [ID: "${tb.id}"] ${statusTag}\n${tb.instruction}`);
+        }
+      }
+    }
+
+    if (toolBlocks.length > 0) {
+      systemPrompt += `\n\n# TOOLS ADDITIONAL INSTRUCTIONS\n${toolBlocks.join('\n\n')}`;
+    }
+
+    const pendingSkills = (availableSkills || []).filter((s) => s.id !== activeSkill?.id);
+    if (pendingSkills.length > 0) {
+      const listLines = pendingSkills
         .map((s) => {
           const name = this.i18n.resolve(s.name);
           const desc = this.i18n.resolve(s.description) || 'No description';
@@ -290,7 +324,7 @@ export class FreyaPromptRegistry {
     }
 
     if (activeSkill && activeSkill.content) {
-      systemPrompt += `\n\n# PLUGIN PROMPT [${activeSkill.id}]\n${activeSkill.content}`;
+      systemPrompt += `\n\n# ACTIVE SKILL [${activeSkill.id}]\n${activeSkill.content}`;
     }
 
     return systemPrompt;

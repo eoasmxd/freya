@@ -51,7 +51,7 @@ export class FreyaAgentExecutor {
     while (loop) {
       const session = await this.sessionManager.getOrCreate(sessionId);
       const tools = this.toolRegistry.getFilteredTools(session.activeToolboxIds || [], session);
-      const toolInstructions = this.toolRegistry.getToolInstructions(this.promptRegistry, session);
+      const toolboxes = this.toolRegistry.getToolboxSummaries(this.promptRegistry, session);
       const history = await this.sessionManager.getHistory(sessionId);
 
       if (signal?.aborted) {
@@ -59,7 +59,12 @@ export class FreyaAgentExecutor {
       }
 
       const activeSkill = skills.find((s) => s.id === session.activeSkillId);
-      systemPrompt = this.promptRegistry.composeSystemPrompt(activeSkill, toolInstructions, skills);
+      systemPrompt = this.promptRegistry.composeSystemPrompt(
+        activeSkill,
+        skills,
+        session.activeToolboxIds || [],
+        toolboxes
+      );
 
       const maxTurns = options?.maxTurns ?? 20;
       if (turnCount++ >= maxTurns) {
