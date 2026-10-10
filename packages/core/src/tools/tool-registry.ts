@@ -200,31 +200,21 @@ export class FreyaToolRegistry {
   }
 
   /**
-   * 聚合所有已启用的工具提示词引导说明
-   * Aggregate instruction prompt guides for all enabled toolboxes
+   * 获取所有已启用的工具箱及其指示词说明
+   * Get all enabled toolboxes and their instruction prompts
    */
-  getToolInstructions(promptRegistry: FreyaPromptRegistry, session?: Session): string[] {
-    const instructions: string[] = [];
-
-    const metaPrompt = promptRegistry.get('tool.prompt.meta');
-    if (metaPrompt) {
-      instructions.push(`### Core Meta Capabilities\n${metaPrompt}`);
-    }
-
+  getToolboxSummaries(promptRegistry: FreyaPromptRegistry, session?: Session): { id: string; instruction?: string }[] {
+    const list: { id: string; instruction?: string }[] = [];
     for (const toolbox of this.toolboxes) {
       const toolboxId = toolbox.getId();
       if (!this.isToolboxEnabled(toolboxId, session)) {
         continue;
       }
       const key = toolbox.getInstructionPrompt?.();
-      if (!key) continue;
-
-      const resolved = promptRegistry.get(key);
-      if (resolved) {
-        instructions.push(`### Toolbox Capabilities [ID: "${toolboxId}"]\n${resolved}`);
-      }
+      const instruction = key ? promptRegistry.get(key) : undefined;
+      list.push({ id: toolboxId, instruction });
     }
-    return instructions;
+    return list;
   }
 
   getRegisteredToolboxIds(session?: Session): string[] {

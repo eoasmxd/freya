@@ -171,7 +171,7 @@ export default class FreyaWeixinChannelPlugin implements ChannelPlugin {
   private buildWeixinBaseInfo(): Record<string, string> {
     return {
       channel_version: "2.4.9",
-      bot_agent: "Freya/0.8.3"
+      bot_agent: "Freya/0.8.4"
     };
   }
 
@@ -469,7 +469,7 @@ export default class FreyaWeixinChannelPlugin implements ChannelPlugin {
           }
         } catch (err: any) {
           if (err.name === "AbortError") break;
-          ctx.logger.error(`WeChat account [${accountId}] polling network error:`, err.message);
+          ctx.logger.warn(`WeChat account [${accountId}] polling network error:`, err.message);
           await new Promise((resolve) => setTimeout(resolve, 5000));
         }
       }

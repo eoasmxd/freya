@@ -302,6 +302,7 @@ export default class GeminiPlugin implements LLMPlugin {
       let streamToolCalls: any[] | undefined;
       let thoughtSignature: string | undefined;
       let buffer = '';
+      let streamFinishReason: string | null = null;
 
       try {
         const stream = response.body;
@@ -339,6 +340,9 @@ export default class GeminiPlugin implements LLMPlugin {
                   }
 
                   const candidate = parsed.candidates?.[0];
+                  if (candidate?.finishReason) {
+                    streamFinishReason = candidate.finishReason;
+                  }
                   const parts = candidate?.content?.parts || [];
                   for (const part of parts) {
                     if (part?.text) {
@@ -412,6 +416,9 @@ export default class GeminiPlugin implements LLMPlugin {
                   }
 
                   const candidate = parsed.candidates?.[0];
+                  if (candidate?.finishReason) {
+                    streamFinishReason = candidate.finishReason;
+                  }
                   const parts = candidate?.content?.parts || [];
                   for (const part of parts) {
                     if (part?.text) {
@@ -453,6 +460,25 @@ export default class GeminiPlugin implements LLMPlugin {
           this.context.logger.warn('Gemini HTTP stream connection aborted.');
         }
         throw err;
+      }
+
+      const hasStreamToolCalls = Array.isArray(streamToolCalls) && streamToolCalls.length > 0;
+      if (streamFinishReason === 'MAX_TOKENS' && !finalContent.trim() && !hasStreamToolCalls) {
+        throw new Error(
+          this.i18n.t('error.maxTokensExceeded', 'Gemini generation reached maxTokens limit (finishReason: MAX_TOKENS) without valid output. Please increase maxTokens.')
+        );
+      }
+      if (!finalContent.trim() && !hasStreamToolCalls) {
+        if (streamFinishReason && streamFinishReason !== 'STOP') {
+          throw new Error(
+            this.i18n.t('error.generationBlocked', 'Gemini generation blocked by safety policy or empty (finishReason: "{reason}")', {
+              reason: streamFinishReason
+            })
+          );
+        }
+        throw new Error(
+          this.i18n.t('error.emptyResponse', 'Gemini service returned an empty response without tool calls. Please check prompt instructions or model settings.')
+        );
       }
 
       const message: LLMMessage = {
@@ -509,12 +535,23 @@ export default class GeminiPlugin implements LLMPlugin {
       }
     }
 
-    if (textContent === '' && toolCalls.length === 0 && candidate?.finishReason && candidate.finishReason !== 'STOP') {
-      // Gemini 输出安全策略拦截或未生成
+    const hasToolCalls = toolCalls.length > 0;
+    if (candidate?.finishReason === 'MAX_TOKENS' && !textContent.trim() && !hasToolCalls) {
       throw new Error(
-        this.i18n.t('error.generationBlocked', 'Gemini generation blocked by safety policy or empty (finishReason: "{reason}")', {
-          reason: candidate.finishReason
-        })
+        this.i18n.t('error.maxTokensExceeded', 'Gemini generation reached maxTokens limit (finishReason: MAX_TOKENS) without valid output. Please increase maxTokens.')
+      );
+    }
+
+    if (!textContent.trim() && !hasToolCalls) {
+      if (candidate?.finishReason && candidate.finishReason !== 'STOP') {
+        throw new Error(
+          this.i18n.t('error.generationBlocked', 'Gemini generation blocked by safety policy or empty (finishReason: "{reason}")', {
+            reason: candidate.finishReason
+          })
+        );
+      }
+      throw new Error(
+        this.i18n.t('error.emptyResponse', 'Gemini service returned an empty response without tool calls. Please check prompt instructions or model settings.')
       );
     }
 
