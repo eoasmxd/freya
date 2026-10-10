@@ -1,6 +1,8 @@
-import type { FreyaContext } from '@eoasmxd/freya-sdk';
+import type { FreyaAttachment, FreyaContext, RouteContext } from '@eoasmxd/freya-sdk';
 import crypto from 'node:crypto';
+import fs from 'node:fs/promises';
 import http from 'node:http';
+import path from 'node:path';
 import type { Duplex } from 'node:stream';
 import { WebSocket, WebSocketServer } from 'ws';
 import { I18n } from '../i18n/index.js';
@@ -12,6 +14,39 @@ const WSS_HANDLER_ID = 'built-in-ws-channel';
 const PING_INTERVAL_MS = 30_000;
 
 const RECONNECT_TIMEOUT_MS = 30_000;
+
+const WS_UPLOAD_PATH = '/ws/upload';
+
+const MAX_UPLOAD_SIZE = 10 * 1024 * 1024;
+
+const WS_MIME_MAP: Record<string, string> = {
+    '.pdf': 'application/pdf',
+    '.txt': 'text/plain',
+    '.html': 'text/html',
+    '.htm': 'text/html',
+    '.csv': 'text/csv',
+    '.md': 'text/markdown',
+    '.json': 'application/json',
+    '.xml': 'application/xml',
+    '.yaml': 'application/yaml',
+    '.yml': 'application/yaml',
+    '.docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    '.xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    '.pptx': 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+    '.mp4': 'video/mp4',
+    '.mov': 'video/quicktime',
+    '.webm': 'video/webm',
+    '.ogg': 'audio/ogg',
+    '.mp3': 'audio/mpeg',
+    '.wav': 'audio/wav',
+    '.m4a': 'audio/mp4',
+    '.jpg': 'image/jpeg',
+    '.jpeg': 'image/jpeg',
+    '.png': 'image/png',
+    '.gif': 'image/gif',
+    '.webp': 'image/webp',
+    '.svg': 'image/svg+xml'
+};
 
 interface WsConnectionMeta {
     ws: WebSocket;
@@ -36,6 +71,7 @@ export class FreyaWsChannel {
     private connections = new Set<WebSocket>();
     private wsMetaMap = new Map<string, WsConnectionMeta>();
     private reconnectTimers = new Map<string, ReturnType<typeof setTimeout>>();
+    private unregisterUploadApi?: () => void;
     private ctx?: FreyaContext;
     private isSetup = false;
     private readonly i18n = new I18n({ zh, en });
@@ -51,9 +87,24 @@ export class FreyaWsChannel {
         ctx.eventBus.on('connection:reply:delta', this.handleConnectionReplyDelta);
         ctx.eventBus.on('connection:event', this.handleConnectionEvent);
         ctx.eventBus.on('connection:reply:completed', this.handleConnectionReplyCompleted);
+
+        if (ctx.http && !this.unregisterUploadApi) {
+            this.unregisterUploadApi = ctx.http.registerApi(
+                WS_UPLOAD_PATH,
+                (req, res, routeContext) => this.handleUpload(req, res, routeContext),
+                { auth: true }
+            );
+        }
     }
 
     async start(ctx: FreyaContext): Promise<void> {
+        if (ctx.http && !this.unregisterUploadApi) {
+            this.unregisterUploadApi = ctx.http.registerApi(
+                WS_UPLOAD_PATH,
+                (req, res, routeContext) => this.handleUpload(req, res, routeContext),
+                { auth: true }
+            );
+        }
         const handleProtocols = (protocols: Set<string>) => {
             if (protocols.has('freya-auth')) return 'freya-auth';
             return false;
@@ -184,13 +235,15 @@ export class FreyaWsChannel {
                             ephemeral,
                             language: msgLanguage,
                             toolboxes,
-                            skillId
+                            skillId,
+                            attachments
                         } = payload.data || {};
 
                         const parsedToolboxes = this.parseToolboxIds(toolboxes);
                         const resolvedSkillId = typeof skillId === 'string' && skillId.trim()
                             ? skillId.trim()
                             : undefined;
+                        const resolvedAttachments = this.normalizeAttachments(attachments);
 
                         const messagePayload = {
                             connectionId: meta.connId,
@@ -201,7 +254,8 @@ export class FreyaWsChannel {
                             channelType: meta.channelType,
                             defaultLanguage: msgLanguage || meta.defaultLanguage,
                             toolboxes: parsedToolboxes.length > 0 ? parsedToolboxes : undefined,
-                            skillId: resolvedSkillId
+                            skillId: resolvedSkillId,
+                            attachments: resolvedAttachments
                         };
                         ctx.eventBus.emit('connection:message', messagePayload);
                     } else if (payload.event === 'client:interrupt') {
@@ -332,6 +386,11 @@ export class FreyaWsChannel {
         }
         this.reconnectTimers.clear();
 
+        if (this.unregisterUploadApi) {
+            this.unregisterUploadApi();
+            this.unregisterUploadApi = undefined;
+        }
+
         if (this.wss) {
             this.wss.close();
         }
@@ -441,5 +500,391 @@ export class FreyaWsChannel {
         this.wss?.handleUpgrade(req, socket, head, (ws) => {
             this.wss?.emit('connection', ws, req);
         });
+    }
+
+    /**
+     * 处理 HTTP 文件上传接口请求。
+     * Handle HTTP file upload endpoint request.
+     */
+    private async handleUpload(
+        req: http.IncomingMessage,
+        res: http.ServerResponse,
+        context: RouteContext
+    ): Promise<boolean | void> {
+        if (req.method === 'OPTIONS') {
+            res.writeHead(204, {
+                'Access-Control-Allow-Origin': '*',
+                'Access-Control-Allow-Methods': 'POST, OPTIONS',
+                'Access-Control-Allow-Headers': 'Content-Type, X-File-Name, Authorization'
+            });
+            res.end();
+            return true;
+        }
+
+        if (req.method !== 'POST') {
+            res.writeHead(405, {
+                'Content-Type': 'application/json; charset=utf-8',
+                'Access-Control-Allow-Origin': '*'
+            });
+            res.end(JSON.stringify({ error: 'Method Not Allowed' }));
+            return true;
+        }
+
+        if (!this.ctx) {
+            res.writeHead(500, {
+                'Content-Type': 'application/json; charset=utf-8',
+                'Access-Control-Allow-Origin': '*'
+            });
+            res.end(JSON.stringify({ error: 'Context not initialized' }));
+            return true;
+        }
+
+        const chunks: Buffer[] = [];
+        let totalSize = 0;
+        let isPayloadTooLarge = false;
+
+        try {
+            await new Promise<void>((resolve, reject) => {
+                req.on('data', (chunk: Buffer) => {
+                    if (isPayloadTooLarge) return;
+                    totalSize += chunk.length;
+                    if (totalSize > MAX_UPLOAD_SIZE) {
+                        isPayloadTooLarge = true;
+                        reject(new Error('Payload Too Large'));
+                        return;
+                    }
+                    chunks.push(chunk);
+                });
+                req.on('end', () => resolve());
+                req.on('error', (err) => reject(err));
+            });
+        } catch (err: any) {
+            const isTooLarge = err.message === 'Payload Too Large' || isPayloadTooLarge;
+            if (!res.headersSent && !res.writableEnded) {
+                res.writeHead(isTooLarge ? 413 : 400, {
+                    'Content-Type': 'application/json; charset=utf-8',
+                    'Access-Control-Allow-Origin': '*'
+                });
+                res.end(JSON.stringify({ error: err.message || 'Upload failed' }));
+            }
+            if (isTooLarge && !req.destroyed) {
+                req.destroy();
+            }
+            return true;
+        }
+
+        const rawBuffer = Buffer.concat(chunks);
+        if (rawBuffer.length === 0) {
+            res.writeHead(400, {
+                'Content-Type': 'application/json; charset=utf-8',
+                'Access-Control-Allow-Origin': '*'
+            });
+            res.end(JSON.stringify({ error: 'Empty file payload' }));
+            return true;
+        }
+
+        const contentType = String(req.headers['content-type'] || '');
+        let fileBuffer: Buffer | undefined;
+        let originalFileName = '';
+        let detectedMime = '';
+
+        if (contentType.includes('multipart/form-data')) {
+            const boundaryMatch = contentType.match(/boundary=([^;]+)/i);
+            const boundary = boundaryMatch ? boundaryMatch[1].trim().replace(/^["']|["']$/g, '') : '';
+            if (!boundary) {
+                res.writeHead(400, {
+                    'Content-Type': 'application/json; charset=utf-8',
+                    'Access-Control-Allow-Origin': '*'
+                });
+                res.end(JSON.stringify({ error: 'Missing boundary in multipart request' }));
+                return true;
+            }
+            const parsed = this.parseMultipartFormData(rawBuffer, boundary);
+            if (!parsed) {
+                res.writeHead(400, {
+                    'Content-Type': 'application/json; charset=utf-8',
+                    'Access-Control-Allow-Origin': '*'
+                });
+                res.end(JSON.stringify({ error: 'Invalid multipart payload or missing file' }));
+                return true;
+            }
+            fileBuffer = parsed.data;
+            originalFileName = parsed.fileName || '';
+            detectedMime = parsed.mimeType || '';
+        }
+
+        if (!fileBuffer) {
+            fileBuffer = rawBuffer;
+            const xFileName = req.headers['x-file-name'];
+            const contentDisposition = req.headers['content-disposition'];
+            const queryFilename = context.query.get('filename') || context.query.get('name');
+
+            if (typeof xFileName === 'string' && xFileName.trim()) {
+                try {
+                    originalFileName = decodeURIComponent(xFileName.trim());
+                } catch {
+                    originalFileName = xFileName.trim();
+                }
+            } else if (contentDisposition) {
+                const fnMatch = contentDisposition.match(/filename\*?=(?:UTF-8'')?["']?([^"';\r\n]+)["']?/i);
+                if (fnMatch) {
+                    try {
+                        originalFileName = decodeURIComponent(fnMatch[1].trim());
+                    } catch {
+                        originalFileName = fnMatch[1].trim();
+                    }
+                }
+            } else if (queryFilename) {
+                originalFileName = queryFilename.trim();
+            }
+
+            detectedMime = contentType.split(';')[0].trim();
+        }
+
+        if (!originalFileName) {
+            const magic = this.detectMimeType(fileBuffer);
+            originalFileName = `upload_${Date.now()}.${magic.ext}`;
+            if (!detectedMime || detectedMime === 'application/octet-stream') {
+                detectedMime = magic.mimeType;
+            }
+        }
+
+        const ext = path.extname(originalFileName).toLowerCase();
+        let finalMimeType = detectedMime;
+        if (!finalMimeType || finalMimeType === 'application/octet-stream') {
+            finalMimeType = WS_MIME_MAP[ext] || this.detectMimeType(fileBuffer).mimeType;
+        }
+
+        const isImage = finalMimeType.startsWith('image/');
+        const finalType: 'image' | 'file' = isImage ? 'image' : 'file';
+
+        try {
+            const cacheDir = path.resolve(this.ctx.paths.workspaceDir, 'cache/ws');
+            await fs.mkdir(cacheDir, { recursive: true });
+
+            const safeOriginalName = path.basename(originalFileName)
+                .replace(/[\\/:*?"<>|\x00-\x1f]/g, '_')
+                .trim()
+                .slice(0, 100) || 'upload_file';
+            const safeFileName = `${Date.now()}-${crypto.randomBytes(4).toString('hex')}-${safeOriginalName}`;
+            const targetFilePath = path.join(cacheDir, safeFileName);
+            await fs.writeFile(targetFilePath, fileBuffer);
+
+            const relativePath = `cache/ws/${safeFileName}`;
+
+            res.writeHead(200, {
+                'Content-Type': 'application/json; charset=utf-8',
+                'Access-Control-Allow-Origin': '*'
+            });
+            res.end(JSON.stringify({
+                success: true,
+                data: {
+                    type: finalType,
+                    fileName: safeOriginalName,
+                    mimeType: finalMimeType,
+                    path: relativePath,
+                    size: fileBuffer.length
+                }
+            }));
+            return true;
+        } catch (err: any) {
+            this.ctx.logger.error(`[WsChannel] Failed to save uploaded file: ${err.message}`);
+            if (!res.headersSent && !res.writableEnded) {
+                res.writeHead(500, {
+                    'Content-Type': 'application/json; charset=utf-8',
+                    'Access-Control-Allow-Origin': '*'
+                });
+                res.end(JSON.stringify({ error: 'Failed to save file' }));
+            }
+            return true;
+        }
+    }
+
+    /**
+     * 解析 multipart/form-data 数据提取文件。
+     * Parse multipart/form-data payload to extract file.
+     */
+    private parseMultipartFormData(
+        bodyBuffer: Buffer,
+        boundary: string
+    ): { fileName?: string; mimeType?: string; data: Buffer } | null {
+        const delimiter = Buffer.from(`--${boundary}`);
+        const crlf = Buffer.from('\r\n\r\n');
+        let startIndex = bodyBuffer.indexOf(delimiter);
+        if (startIndex === -1) return null;
+
+        while (startIndex !== -1) {
+            let partStart = startIndex + delimiter.length;
+            if (
+                partStart + 2 <= bodyBuffer.length &&
+                bodyBuffer[partStart] === 45 &&
+                bodyBuffer[partStart + 1] === 45
+            ) {
+                break;
+            }
+            if (partStart + 2 <= bodyBuffer.length && bodyBuffer[partStart] === 13 && bodyBuffer[partStart + 1] === 10) {
+                partStart += 2;
+            } else if (partStart < bodyBuffer.length && bodyBuffer[partStart] === 10) {
+                partStart += 1;
+            }
+
+            const nextIndex = bodyBuffer.indexOf(delimiter, partStart);
+            if (nextIndex === -1) break;
+
+            let partEnd = nextIndex;
+            if (partEnd >= partStart + 2 && bodyBuffer[partEnd - 2] === 13 && bodyBuffer[partEnd - 1] === 10) {
+                partEnd -= 2;
+            } else if (partEnd >= partStart + 1 && bodyBuffer[partEnd - 1] === 10) {
+                partEnd -= 1;
+            }
+
+            const partBuffer = bodyBuffer.subarray(partStart, partEnd);
+            const headerEndIndex = partBuffer.indexOf(crlf);
+            if (headerEndIndex !== -1) {
+                const headerStr = partBuffer.subarray(0, headerEndIndex).toString('utf-8');
+                const data = partBuffer.subarray(headerEndIndex + crlf.length);
+
+                const filenameMatch =
+                    headerStr.match(/filename\*=(?:UTF-8''|utf-8'')?([^;\r\n]+)/i) ||
+                    headerStr.match(/filename=(?:"([^"]*)"|([^;\r\n\s]+))/i);
+                const mimeMatch = headerStr.match(/Content-Type:\s*([^\r\n;]+)/i);
+
+                if (filenameMatch) {
+                    let rawFileName = (filenameMatch[1] ?? filenameMatch[2] ?? '').trim();
+                    rawFileName = rawFileName.replace(/^["']|["']$/g, '');
+                    try {
+                        rawFileName = decodeURIComponent(rawFileName);
+                    } catch { }
+                    return {
+                        fileName: path.basename(rawFileName),
+                        mimeType: mimeMatch ? mimeMatch[1].trim() : undefined,
+                        data
+                    };
+                }
+            }
+            startIndex = nextIndex;
+        }
+        return null;
+    }
+
+    /**
+     * 检测二进制前缀魔数识别 MIME 类型。
+     * Detect MIME type from buffer magic numbers.
+     */
+    private detectMimeType(buffer: Buffer): { mimeType: string; ext: string } {
+        if (buffer.length > 4) {
+            if (buffer[0] === 0xff && buffer[1] === 0xd8 && buffer[2] === 0xff) {
+                return { mimeType: 'image/jpeg', ext: 'jpg' };
+            }
+            if (buffer[0] === 0x89 && buffer[1] === 0x50 && buffer[2] === 0x4e && buffer[3] === 0x47) {
+                return { mimeType: 'image/png', ext: 'png' };
+            }
+            if (buffer[0] === 0x47 && buffer[1] === 0x49 && buffer[2] === 0x46) {
+                return { mimeType: 'image/gif', ext: 'gif' };
+            }
+            if (buffer[0] === 0x52 && buffer[1] === 0x49 && buffer[2] === 0x46 && buffer[3] === 0x46) {
+                const webpHeader = buffer.subarray(8, 12).toString('ascii');
+                if (webpHeader === 'WEBP') {
+                    return { mimeType: 'image/webp', ext: 'webp' };
+                }
+            }
+        }
+        return { mimeType: 'application/octet-stream', ext: 'bin' };
+    }
+
+    /**
+     * 规范化并校验传入的附件列表。
+     * Normalize and validate incoming attachments.
+     */
+    private normalizeAttachments(rawInput: unknown): FreyaAttachment[] | undefined {
+        if (!Array.isArray(rawInput) || rawInput.length === 0) {
+            return undefined;
+        }
+
+        const result: FreyaAttachment[] = [];
+
+        for (const item of rawInput) {
+            if (!item) continue;
+
+            let candidateUrl: string | undefined;
+            let candidatePath: string | undefined;
+            let candidateMime: string | undefined;
+            let candidateType: 'image' | 'file' | undefined;
+            let candidateDescription: string | undefined;
+
+            if (typeof item === 'string') {
+                const trimmed = item.trim();
+                if (!trimmed) continue;
+                if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
+                    candidateUrl = trimmed;
+                } else {
+                    candidatePath = trimmed;
+                }
+            } else if (typeof item === 'object') {
+                const obj = item as Record<string, any>;
+                if (typeof obj.url === 'string' && obj.url.trim()) {
+                    candidateUrl = obj.url.trim();
+                }
+                if (typeof obj.path === 'string' && obj.path.trim()) {
+                    candidatePath = obj.path.trim();
+                }
+                if (typeof obj.mimeType === 'string' && obj.mimeType.trim()) {
+                    candidateMime = obj.mimeType.trim();
+                }
+                if (obj.type === 'image' || obj.type === 'file') {
+                    candidateType = obj.type;
+                }
+                if (typeof obj.description === 'string' && obj.description.trim()) {
+                    candidateDescription = obj.description.trim();
+                }
+            } else {
+                continue;
+            }
+
+            if (!candidateUrl && !candidatePath) {
+                continue;
+            }
+
+            if (candidatePath && this.ctx?.paths.workspaceDir) {
+                if (path.isAbsolute(candidatePath)) {
+                    this.ctx.logger.warn(`[WsChannel] Rejected absolute attachment path: ${candidatePath}`);
+                    continue;
+                }
+                const workspaceAbs = this.ctx.paths.workspaceDir;
+                const targetAbs = path.resolve(workspaceAbs, candidatePath);
+                const workspacePrefix = workspaceAbs.endsWith(path.sep) ? workspaceAbs : workspaceAbs + path.sep;
+                if (targetAbs !== workspaceAbs && !targetAbs.startsWith(workspacePrefix)) {
+                    this.ctx.logger.warn(`[WsChannel] Rejected out-of-workspace attachment path: ${candidatePath}`);
+                    continue;
+                }
+            }
+
+            const targetResource = candidateUrl || candidatePath || '';
+            let ext = '';
+            try {
+                if (candidateUrl) {
+                    ext = path.extname(new URL(candidateUrl).pathname).toLowerCase();
+                } else {
+                    ext = path.extname(targetResource).toLowerCase();
+                }
+            } catch {
+                ext = path.extname(targetResource).toLowerCase();
+            }
+
+            const mimeType = candidateMime || WS_MIME_MAP[ext] || 'application/octet-stream';
+            const type: 'image' | 'file' = candidateType || (mimeType.startsWith('image/') ? 'image' : 'file');
+
+            const attachment: FreyaAttachment = {
+                type,
+                mimeType,
+                ...(candidateUrl ? { url: candidateUrl } : {}),
+                ...(candidatePath ? { path: candidatePath } : {}),
+                ...(candidateDescription ? { description: candidateDescription } : {})
+            };
+
+            result.push(attachment);
+        }
+
+        return result.length > 0 ? result : undefined;
     }
 }
