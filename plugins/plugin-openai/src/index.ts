@@ -264,6 +264,7 @@ export default class OpenAICompatiblePlugin implements LLMPlugin {
       let finalContent = '';
       let usage: LLMTokenUsage | undefined;
       let finishReason: string | null = null;
+      const streamToolCallsMap = new Map<number, { id: string; name: string; arguments: string }>();
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
       let buffer = '';
@@ -296,6 +297,19 @@ export default class OpenAICompatiblePlugin implements LLMPlugin {
                   finalContent += text;
                   options?.onChunk?.(text);
                 }
+                if (Array.isArray(choice?.delta?.tool_calls)) {
+                  for (const tc of choice.delta.tool_calls) {
+                    const idx = typeof tc.index === 'number' ? tc.index : streamToolCallsMap.size;
+                    let call = streamToolCallsMap.get(idx);
+                    if (!call) {
+                      call = { id: '', name: '', arguments: '' };
+                      streamToolCallsMap.set(idx, call);
+                    }
+                    if (tc.id) call.id = tc.id;
+                    if (tc.function?.name) call.name += tc.function.name;
+                    if (tc.function?.arguments) call.arguments += tc.function.arguments;
+                  }
+                }
                 if (parsed.usage) {
                   usage = {
                     promptTokens: parsed.usage.prompt_tokens,
@@ -315,19 +329,37 @@ export default class OpenAICompatiblePlugin implements LLMPlugin {
         throw err;
       }
 
-      if (finishReason === 'length' && !finalContent.trim()) {
+      const streamToolCalls = Array.from(streamToolCallsMap.values())
+        .filter((tc) => tc.name)
+        .map((tc, idx) => ({
+          id: tc.id || `call_${Math.random().toString(36).substring(2, 11)}_${idx}`,
+          name: tc.name,
+          arguments: tc.arguments
+        }));
+      const hasStreamToolCalls = streamToolCalls.length > 0;
+
+      if (finishReason === 'length' && !finalContent.trim() && !hasStreamToolCalls) {
         throw new Error(
           this.i18n.t('error.lengthLimitReached', 'Generation terminated due to token limit (finish_reason: length) without valid output. Please increase maxTokens.')
         );
       }
-      if (!finalContent.trim()) {
+      if (!finalContent.trim() && !hasStreamToolCalls) {
         throw new Error(
           this.i18n.t('error.emptyResponse', 'LLM service returned an empty response without tool calls. Please check prompt instructions or model settings.')
         );
       }
 
+      const message: LLMMessage = {
+        role: 'assistant',
+        content: finalContent
+      };
+
+      if (hasStreamToolCalls) {
+        message.toolCalls = streamToolCalls;
+      }
+
       return {
-        message: { role: 'assistant', content: finalContent },
+        message,
         usage
       };
     }
