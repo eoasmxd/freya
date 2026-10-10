@@ -469,7 +469,7 @@ export default class FreyaWeixinChannelPlugin implements ChannelPlugin {
           }
         } catch (err: any) {
           if (err.name === "AbortError") break;
-          ctx.logger.error(`WeChat account [${accountId}] polling network error:`, err.message);
+          ctx.logger.warn(`WeChat account [${accountId}] polling network error:`, err.message);
           await new Promise((resolve) => setTimeout(resolve, 5000));
         }
       }

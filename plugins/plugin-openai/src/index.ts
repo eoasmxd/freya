@@ -263,6 +263,7 @@ export default class OpenAICompatiblePlugin implements LLMPlugin {
     if (isStream && response.body) {
       let finalContent = '';
       let usage: LLMTokenUsage | undefined;
+      let finishReason: string | null = null;
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
       let buffer = '';
@@ -287,6 +288,9 @@ export default class OpenAICompatiblePlugin implements LLMPlugin {
               try {
                 const parsed = JSON.parse(trimmed.slice(6));
                 const choice = parsed.choices?.[0];
+                if (choice?.finish_reason) {
+                  finishReason = choice.finish_reason;
+                }
                 if (choice?.delta?.content) {
                   const text = choice.delta.content;
                   finalContent += text;
@@ -311,6 +315,17 @@ export default class OpenAICompatiblePlugin implements LLMPlugin {
         throw err;
       }
 
+      if (finishReason === 'length' && !finalContent.trim()) {
+        throw new Error(
+          this.i18n.t('error.lengthLimitReached', 'Generation terminated due to token limit (finish_reason: length) without valid output. Please increase maxTokens.')
+        );
+      }
+      if (!finalContent.trim()) {
+        throw new Error(
+          this.i18n.t('error.emptyResponse', 'LLM service returned an empty response without tool calls. Please check prompt instructions or model settings.')
+        );
+      }
+
       return {
         message: { role: 'assistant', content: finalContent },
         usage
@@ -326,9 +341,25 @@ export default class OpenAICompatiblePlugin implements LLMPlugin {
       );
     }
 
+    const finishReason = choice.finish_reason;
+    const rawContent = choice.message?.content;
+    const hasToolCalls = Array.isArray(choice.message?.tool_calls) && choice.message.tool_calls.length > 0;
+    const contentText = typeof rawContent === 'string' ? rawContent : '';
+
+    if (finishReason === 'length' && !contentText.trim() && !hasToolCalls) {
+      throw new Error(
+        this.i18n.t('error.lengthLimitReached', 'Generation terminated due to token limit (finish_reason: length) without valid output. Please increase maxTokens.')
+      );
+    }
+    if (!contentText.trim() && !hasToolCalls) {
+      throw new Error(
+        this.i18n.t('error.emptyResponse', 'LLM service returned an empty response without tool calls. Please check prompt instructions or model settings.')
+      );
+    }
+
     const message: LLMMessage = {
       role: 'assistant',
-      content: choice.message.content || ''
+      content: contentText
     };
 
     if (choice.message.tool_calls && choice.message.tool_calls.length > 0) {

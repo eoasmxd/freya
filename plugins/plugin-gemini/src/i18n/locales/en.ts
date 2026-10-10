@@ -6,5 +6,7 @@ export default {
   'error.streamError': 'Gemini stream error: {detail}',
   'error.apiError': 'Gemini API error: {detail}',
   'error.promptBlocked': 'Gemini prompt blocked by safety policy (blockReason: "{reason}")',
-  'error.generationBlocked': 'Gemini generation blocked by safety policy or empty (finishReason: "{reason}")'
+  'error.generationBlocked': 'Gemini generation blocked by safety policy or empty (finishReason: "{reason}")',
+  'error.maxTokensExceeded': 'Gemini generation reached maxTokens limit (finishReason: MAX_TOKENS) without valid output. Please increase maxTokens.',
+  'error.emptyResponse': 'Gemini service returned an empty response without tool calls. Please check prompt instructions or model settings.'
 };
