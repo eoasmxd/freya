@@ -1,41 +1,58 @@
 import type { ConfigFieldSchema } from '@eoasmxd/freya-sdk';
 
 export class FreyaConfigSchemaRegistry {
-  private schema = new Map<string, ConfigFieldSchema[]>();
+  private schemas = new Map<string, ConfigFieldSchema[]>();
+  private fields = new Map<string, {
+    namespace: string;
+    source: 'builtin' | 'launch' | 'runtime' | 'npm';
+    field: ConfigFieldSchema;
+  }>();
 
-  register(namespace: string, fields: ConfigFieldSchema[]): void {
-    this.schema.set(namespace, fields);
+  register(
+    namespace: string,
+    fields: ConfigFieldSchema[],
+    source: 'builtin' | 'launch' | 'runtime' | 'npm'
+  ): void {
+    this.schemas.set(namespace, fields);
+    for (const field of fields) {
+      this.fields.set(field.key, { namespace, source, field });
+    }
   }
 
-  getSchema(): Map<string, ConfigFieldSchema[]> {
-    return this.schema;
+  getFieldSource(keyPath: string): 'builtin' | 'launch' | 'runtime' | 'npm' | undefined {
+    return this.fields.get(keyPath)?.source;
+  }
+
+  getFieldNamespace(keyPath: string): string | undefined {
+    return this.fields.get(keyPath)?.namespace;
+  }
+
+  getSchemas(): Map<string, ConfigFieldSchema[]> {
+    return this.schemas;
+  }
+
+  getFields(): Map<string, { namespace: string; source: 'builtin' | 'launch' | 'runtime' | 'npm'; field: ConfigFieldSchema }> {
+    return this.fields;
   }
 
   findField(keyPath: string): ConfigFieldSchema | undefined {
-    for (const fields of this.schema.values()) {
-      for (const field of fields) {
-        if (field.key === keyPath) return field;
-      }
-    }
-    return undefined;
+    return this.fields.get(keyPath)?.field;
   }
 
   getDefaults(): Record<string, any> {
     const defaults: Record<string, any> = {};
-    for (const fields of this.schema.values()) {
-      for (const field of fields) {
-        const keys = field.key.split('.');
-        let current = defaults;
-        for (let i = 0; i < keys.length - 1; i++) {
-          if (!current[keys[i]] || typeof current[keys[i]] !== 'object') {
-            current[keys[i]] = {};
-          }
-          current = current[keys[i]];
+    for (const { field } of this.fields.values()) {
+      const keys = field.key.split('.');
+      let current = defaults;
+      for (let i = 0; i < keys.length - 1; i++) {
+        if (!current[keys[i]] || typeof current[keys[i]] !== 'object') {
+          current[keys[i]] = {};
         }
-        const lastKey = keys[keys.length - 1];
-        if (!(lastKey in current)) {
-          current[lastKey] = field.defaultValue;
-        }
+        current = current[keys[i]];
+      }
+      const lastKey = keys[keys.length - 1];
+      if (!(lastKey in current)) {
+        current[lastKey] = field.defaultValue;
       }
     }
     return defaults;
@@ -55,10 +72,8 @@ export class FreyaConfigSchemaRegistry {
         }
       }
     };
-    for (const fields of this.schema.values()) {
-      for (const field of fields) {
-        traverse(field, '');
-      }
+    for (const { field } of this.fields.values()) {
+      traverse(field, '');
     }
     return keys;
   }
@@ -77,10 +92,8 @@ export class FreyaConfigSchemaRegistry {
         }
       }
     };
-    for (const fields of this.schema.values()) {
-      for (const field of fields) {
-        traverse(field, '');
-      }
+    for (const { field } of this.fields.values()) {
+      traverse(field, '');
     }
     return keys;
   }
@@ -103,10 +116,8 @@ export class FreyaConfigSchemaRegistry {
         }
       }
     };
-    for (const fields of this.schema.values()) {
-      for (const field of fields) {
-        traverse(field, '');
-      }
+    for (const { field } of this.fields.values()) {
+      traverse(field, '');
     }
     return keys;
   }

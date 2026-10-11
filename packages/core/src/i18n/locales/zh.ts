@@ -176,6 +176,8 @@ export const zh: Record<string, string> = {
   // 配置管理器运行态文案
   // Configuration Manager runtime messages
   'config.error.readonlyRejected': '❌ 属性 "{keyPath}" 当前处于只读锁定状态（受启动参数限制或所属插件已禁用），禁止修改。',
+  'config.error.hiddenRejected': '❌ 属性 "{keyPath}" 当前处于隐藏状态，禁止访问或修改。',
+  'config.error.unknownProperty': '❌ 属性 "{keyPath}" 在配置规范中不存在，禁止写入。',
   'config.update.propertySuccess': '核心配置中的属性 "{keyPath}" 已成功修改，已实时生效。',
   'config.update.globalSuccess': '全量全局配置已成功修改，并实时热更新生效。',
   'config.provider.missingId': '❌ 缺少必要参数：id 不能为空。',

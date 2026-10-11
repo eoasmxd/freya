@@ -4,7 +4,7 @@ import { zh } from '../i18n/locales/zh.js';
 import { en } from '../i18n/locales/en.js';
 import fs from 'node:fs/promises';
 import path from 'node:path';
-import { FREYA_APP, FREYA_HOME, FREYA_LAUNCH } from '../utils/paths.js';
+import { FREYA_APP, FREYA_HOME, FREYA_LAUNCH, areThreePathsDistinct } from '../utils/paths.js';
 
 export interface FreyaSkill {
   id: string;
@@ -62,10 +62,29 @@ export class FreyaSkillRegistry {
         }
       }
 
+      const launchConfigMap = new Map<string, boolean>();
+      if (areThreePathsDistinct()) {
+        const launchConfigSkillsPath = path.join(FREYA_LAUNCH, 'config', 'skills.json');
+        try {
+          const launchRaw = await fs.readFile(launchConfigSkillsPath, 'utf-8');
+          const launchList = JSON.parse(launchRaw);
+          if (Array.isArray(launchList)) {
+            for (const item of launchList) {
+              if (item && typeof item.id === 'string' && typeof item.enabled === 'boolean') {
+                launchConfigMap.set(item.id, item.enabled);
+              }
+            }
+          }
+        } catch { }
+      }
+
       let configChanged = false;
       for (const skill of this.skills.values()) {
         if (configMap.has(skill.id)) {
           skill.enabled = configMap.get(skill.id)!;
+        } else if (skill.source === 'builtin' && launchConfigMap.has(skill.id)) {
+          skill.enabled = launchConfigMap.get(skill.id)!;
+          configChanged = true;
         } else {
           configChanged = true;
         }

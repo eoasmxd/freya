@@ -116,7 +116,6 @@ export class FreyaConfigApi {
 
       if (pathname === '/api/config/schema' && req.method === 'GET') {
         const targetNamespace = urlObj.searchParams.get('namespace') || undefined;
-        const schemaMap = this.configManager.getSchema();
         const resolveEnumOption = (opt: any): any => {
           if (typeof opt === 'object' && opt !== null && opt.value !== undefined) {
             return {
@@ -127,26 +126,38 @@ export class FreyaConfigApi {
           return opt;
         };
 
-        const resolveField = (f: ConfigFieldSchema, ns: string): any => ({
+        const resolveField = (f: ConfigFieldSchema): any => ({
           ...f,
-          readonly: this.configManager.isFieldReadonly(f.key, ns) || f.readonly || false,
+          readonly: this.configManager.isFieldReadonly(f.key) || f.readonly || false,
           description: this.i18n.resolve(f.description, defaultLang),
           category: f.category ? this.i18n.resolve(f.category, defaultLang) : undefined,
           enumValues: f.enumValues ? f.enumValues.map(resolveEnumOption) : undefined,
-          children: f.children ? f.children.map(c => resolveField(c, ns)) : undefined
+          children: f.children
+            ? f.children.map((c) => ({
+              ...c,
+              description: this.i18n.resolve(c.description, defaultLang),
+              enumValues: c.enumValues ? c.enumValues.map(resolveEnumOption) : undefined
+            }))
+            : undefined
         });
 
         if (targetNamespace) {
-          const fields = schemaMap.get(targetNamespace) || [];
-          const data = fields.map(f => resolveField(f, targetNamespace));
+          const fields = this.configManager.getSchema(targetNamespace);
+          const data = fields
+            .filter(f => !this.configManager.isFieldHidden(f.key))
+            .map(f => resolveField(f));
           res.writeHead(200, this.headers);
           res.end(JSON.stringify({ success: true, data, namespace: targetNamespace }));
           return true;
         }
 
         const data: Record<string, any> = {};
-        for (const [ns, fields] of schemaMap.entries()) {
-          data[ns] = Array.isArray(fields) ? fields.map((f: ConfigFieldSchema) => resolveField(f, ns)) : [];
+        for (const [ns, fields] of this.configManager.getSchemas().entries()) {
+          data[ns] = Array.isArray(fields)
+            ? fields
+              .filter((f: ConfigFieldSchema) => !this.configManager.isFieldHidden(f.key))
+              .map(f => resolveField(f))
+            : [];
         }
         res.writeHead(200, this.headers);
         res.end(JSON.stringify({ success: true, data }));
