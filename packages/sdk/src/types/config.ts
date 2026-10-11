@@ -18,4 +18,6 @@ export interface ConfigFieldSchema {
   category?: LocalizedText;
   uiHint?: 'text' | 'textarea' | 'password' | 'select' | 'slider';
   children?: ConfigFieldSchema[];
+  enableWhen?: string;
+  showWhen?: string;
 }

@@ -33,10 +33,13 @@ export default class HomeAssistantPlugin implements ToolPlugin {
   async setup(ctx: FreyaContext): Promise<void> {
     this.i18n.setContext(ctx);
     this.security.setContext(ctx);
+    this.client.setContext(ctx);
     this.client.startBackgroundSync(60_000);
-    this.deployer.deployIfNeeded(ctx).catch((err) => {
-      ctx.logger.warn(`[HomeAssistantPlugin] Integration deployment encountered an error: ${err}`);
-    });
+    if (process.env.SUPERVISOR_TOKEN) {
+      this.deployer.deployIfNeeded(ctx).catch((err) => {
+        ctx.logger.warn(`[HomeAssistantPlugin] Integration deployment encountered an error: ${err}`);
+      });
+    }
   }
 
   async stop(ctx: FreyaContext): Promise<void> {

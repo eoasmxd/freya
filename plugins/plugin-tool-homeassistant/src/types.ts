@@ -54,13 +54,3 @@ export interface HAEntityRegistryEntry {
   unique_id?: string;
   [key: string]: any;
 }
-
-/**
- * Home Assistant 客户端通信配置
- * Home Assistant client communication configuration
- */
-export interface HomeAssistantClientConfig {
-  baseUrl: string;
-  wsUrl: string;
-  token: string;
-}

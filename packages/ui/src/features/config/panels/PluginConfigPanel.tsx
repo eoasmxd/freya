@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useI18n } from '../../../i18n/index.js';
+import { evalWhen } from '../evalWhen.js';
 
 interface PluginEntry {
   id: string;
@@ -23,6 +24,8 @@ interface ConfigFieldSchema {
   max?: number;
   enumValues?: (string | { value: string; label?: string })[];
   children?: ConfigFieldSchema[];
+  enableWhen?: string;
+  showWhen?: string;
 }
 
 interface PluginConfigPanelProps {
@@ -199,7 +202,22 @@ export const PluginConfigPanel: React.FC<PluginConfigPanelProps> = ({ getApiUrl 
   };
 
   const renderField = (pluginId: string, field: ConfigFieldSchema, isPluginEnabled: boolean) => {
-    const isFieldDisabled = !isPluginEnabled || field.readonly;
+    const resolveFieldValue = (key: string): any => {
+      const dirty = dirtyValues[pluginId]?.[key];
+      if (dirty !== undefined) return dirty;
+      const current = getValueByPath(configValues, key);
+      if (current !== undefined) return current;
+      const targetField = schemas[pluginId]?.find(s => s.key === key);
+      return targetField ? targetField.defaultValue : undefined;
+    };
+
+    const isShown = evalWhen(field.showWhen, resolveFieldValue);
+    if (!isShown) {
+      return null;
+    }
+
+    const isConditionEnabled = evalWhen(field.enableWhen, resolveFieldValue);
+    const isFieldDisabled = !isPluginEnabled || Boolean(field.readonly) || !isConditionEnabled;
     const currentValue = getFieldValue(pluginId, field);
 
     if (field.type === 'array' && Array.isArray(field.children) && field.children.length > 0) {
@@ -429,6 +447,14 @@ export const PluginConfigPanel: React.FC<PluginConfigPanelProps> = ({ getApiUrl 
         <label className="config-label" style={{ fontSize: '0.82rem', margin: 0, opacity: isFieldDisabled ? 0.6 : 1 }}>
           {displayLabel}
           {field.readonly && <span title={t('global.fieldReadonlyHint', 'Current item is locked as read-only')} style={{ fontSize: '11px', cursor: 'help' }}>🔒</span>}
+          {!isConditionEnabled && field.enableWhen && (
+            <span
+              title={t('global.fieldDisabledByCondition', 'Disabled due to condition: {condition}', { condition: field.enableWhen })}
+              style={{ fontSize: '11px', cursor: 'help', marginLeft: '4px' }}
+            >
+              ⚠️
+            </span>
+          )}
         </label>
 
         {isBoolean ? (

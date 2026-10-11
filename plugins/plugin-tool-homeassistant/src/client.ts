@@ -1,28 +1,78 @@
-import type { HAEntityRegistryEntry, HAEntityState, HAServiceDomain, HomeAssistantClientConfig } from './types.js';
+import type { FreyaContext } from '@eoasmxd/freya-sdk';
+import type { HAEntityRegistryEntry, HAEntityState, HAServiceDomain } from './types.js';
+
+interface ClientConnectionConfig {
+  baseUrl: string;
+  wsUrl: string;
+  token: string;
+  isAddon: boolean;
+}
 
 /**
  * Home Assistant REST 与 WebSocket 通信客户端
  * Home Assistant REST and WebSocket communication client
  */
 export class HomeAssistantClient {
-  private readonly config: HomeAssistantClientConfig;
-  private readonly cacheTtlMs: number;
+  private ctx?: FreyaContext;
+  private lastResolvedBaseUrl = '';
+  private readonly cacheTtlMs = 60_000;
   private exposedCache = new Set<string>();
   private registryCache = new Map<string, HAEntityRegistryEntry>();
   private lastSyncTime = 0;
   private syncPromise: Promise<Set<string>> | null = null;
   private syncTimer: NodeJS.Timeout | null = null;
 
-  constructor(options?: Partial<HomeAssistantClientConfig>) {
-    const token = options?.token || process.env.SUPERVISOR_TOKEN || '';
-    const baseUrl = options?.baseUrl || 'http://supervisor/core/api';
-    const wsUrl = options?.wsUrl || 'ws://supervisor/core/websocket';
+  setContext(ctx: FreyaContext): void {
+    this.ctx = ctx;
+  }
 
-    this.cacheTtlMs = 60_000;
-    this.config = {
-      baseUrl: baseUrl.replace(/\/+$/, ''),
+  /**
+   * 动态获取当前有效的连接配置
+   * Dynamically resolve currently effective client configuration
+   */
+  private getConfig(): ClientConnectionConfig {
+    const supervisorToken = process.env.SUPERVISOR_TOKEN;
+    if (supervisorToken) {
+      return {
+        baseUrl: 'http://supervisor/core/api',
+        wsUrl: 'ws://supervisor/core/websocket',
+        token: supervisorToken,
+        isAddon: true
+      };
+    }
+
+    const cfg = (this.ctx?.config as any)?.homeassistant;
+    const rawUrl = String(cfg?.url || (this.ctx?.config as any)?.['homeassistant.url'] || '').trim().replace(/\/+$/, '');
+    const token = String(cfg?.token || (this.ctx?.config as any)?.['homeassistant.token'] || '').trim();
+
+    let baseUrl = '';
+    let wsUrl = '';
+
+    if (rawUrl) {
+      baseUrl = rawUrl.endsWith('/api') ? rawUrl : `${rawUrl}/api`;
+      try {
+        const parsed = new URL(rawUrl);
+        const wsProtocol = parsed.protocol === 'https:' ? 'wss:' : 'ws:';
+        wsUrl = `${wsProtocol}//${parsed.host}/api/websocket`;
+      } catch {
+        wsUrl = '';
+      }
+    }
+
+    if (baseUrl && this.lastResolvedBaseUrl && this.lastResolvedBaseUrl !== baseUrl) {
+      this.exposedCache.clear();
+      this.registryCache.clear();
+      this.lastSyncTime = 0;
+    }
+    if (baseUrl) {
+      this.lastResolvedBaseUrl = baseUrl;
+    }
+
+    return {
+      baseUrl,
       wsUrl,
-      token
+      token,
+      isAddon: false
     };
   }
 
@@ -49,10 +99,19 @@ export class HomeAssistantClient {
   }
 
   private triggerSync(): void {
+    const config = this.getConfig();
+    if (!config.token || !config.baseUrl) {
+      return;
+    }
     this.fetchExposedViaWebSocket().catch(() => { });
   }
 
   async getExposedEntities(): Promise<Set<string>> {
+    const config = this.getConfig();
+    if (!config.token || !config.baseUrl) {
+      throw new Error('Home Assistant is not configured. Please set homeassistant.url and homeassistant.token in settings.');
+    }
+
     const now = Date.now();
     if (this.exposedCache.size > 0 && now - this.lastSyncTime < this.cacheTtlMs) {
       return this.exposedCache;
@@ -76,12 +135,13 @@ export class HomeAssistantClient {
   }
 
   async sendDiscovery(service = 'freya', configData?: Record<string, any>): Promise<boolean> {
-    if (!this.config.token) {
+    const config = this.getConfig();
+    if (!config.isAddon || !config.token) {
       return false;
     }
 
     try {
-      const supervisorUrl = this.config.baseUrl.replace(/\/core\/api$/, '');
+      const supervisorUrl = config.baseUrl.replace(/\/core\/api$/, '');
       let host = 'freya';
       let port = 3000;
 
@@ -89,13 +149,18 @@ export class HomeAssistantClient {
         const selfInfoRes = await fetch(`${supervisorUrl}/addons/self/info`, {
           method: 'GET',
           headers: {
-            Authorization: `Bearer ${this.config.token}`,
+            Authorization: `Bearer ${config.token}`,
             'Content-Type': 'application/json'
           },
           signal: AbortSignal.timeout(3_000)
         });
         if (selfInfoRes.ok) {
-          const selfInfo = await selfInfoRes.json();
+          const selfInfo = (await selfInfoRes.json()) as {
+            data?: {
+              hostname?: string;
+              ingress_port?: number;
+            };
+          };
           if (selfInfo?.data?.hostname) {
             host = selfInfo.data.hostname;
           }
@@ -108,7 +173,7 @@ export class HomeAssistantClient {
       const response = await fetch(`${supervisorUrl}/discovery`, {
         method: 'POST',
         headers: {
-          Authorization: `Bearer ${this.config.token}`,
+          Authorization: `Bearer ${config.token}`,
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
@@ -134,12 +199,13 @@ export class HomeAssistantClient {
       return this.syncPromise;
     }
 
-    this.syncPromise = new Promise<Set<string>>((resolve, reject) => {
-      if (!this.config.token) {
-        return reject(new Error('SUPERVISOR_TOKEN or HA_TOKEN credential not found.'));
-      }
+    const config = this.getConfig();
+    if (!config.token || !config.wsUrl) {
+      throw new Error('Home Assistant is not configured. Please set homeassistant.url and homeassistant.token in settings.');
+    }
 
-      const socket = new WebSocket(this.config.wsUrl);
+    this.syncPromise = new Promise<Set<string>>((resolve, reject) => {
+      const socket = new WebSocket(config.wsUrl);
       let messageId = 1;
       let exposeRequestId = -1;
       let entriesRequestId = -1;
@@ -152,7 +218,7 @@ export class HomeAssistantClient {
         clearTimeout(timer);
         try { socket.close(); } catch { }
         if (err) {
-          if (this.exposedCache.size > 0) {
+          if (this.lastSyncTime > 0 && this.exposedCache.size > 0) {
             resolve(this.exposedCache);
           } else {
             reject(err);
@@ -174,7 +240,7 @@ export class HomeAssistantClient {
           if (data.type === 'auth_required') {
             socket.send(JSON.stringify({
               type: 'auth',
-              access_token: this.config.token
+              access_token: config.token
             }));
             return;
           }
@@ -280,80 +346,83 @@ export class HomeAssistantClient {
     return this.syncPromise;
   }
 
-  async getStates(): Promise<HAEntityState[]> {
-    const url = `${this.config.baseUrl}/states`;
-    const response = await fetch(url, {
-      method: 'GET',
-      headers: {
-        Authorization: `Bearer ${this.config.token}`,
-        'Content-Type': 'application/json'
-      },
-      signal: AbortSignal.timeout(10_000)
-    });
+  private async request(url: string, init: RequestInit, config: ClientConnectionConfig): Promise<Response> {
+    try {
+      const response = await fetch(url, {
+        ...init,
+        headers: {
+          Authorization: `Bearer ${config.token}`,
+          'Content-Type': 'application/json',
+          ...(init.headers || {})
+        }
+      });
 
-    if (!response.ok) {
-      const errText = await response.text().catch(() => '');
-      throw new Error(`Failed to query states [${response.status}]: ${errText || response.statusText}`);
+      if (!response.ok) {
+        const errText = await response.text().catch(() => '');
+        if (response.status === 401) {
+          throw new Error('Home Assistant authentication failed (401 Unauthorized): Invalid or expired token.');
+        }
+        if (response.status === 403) {
+          throw new Error('Home Assistant access forbidden (403 Forbidden): Token lacks required permissions.');
+        }
+        throw new Error(`Home Assistant request failed [${response.status}]: ${errText || response.statusText}`);
+      }
+
+      return response;
+    } catch (err: any) {
+      if (err.message && err.message.startsWith('Home Assistant')) {
+        throw err;
+      }
+      const cause = err?.cause?.code || err?.cause?.message || err?.message || '';
+      throw new Error(`Failed to connect to Home Assistant (${config.baseUrl}): ${cause || 'network request failed'}`);
     }
+  }
 
+  async getStates(): Promise<HAEntityState[]> {
+    const config = this.getConfig();
+    if (!config.baseUrl || !config.token) {
+      throw new Error('Home Assistant is not configured. Please set homeassistant.url and homeassistant.token in settings.');
+    }
+    const url = `${config.baseUrl}/states`;
+    const response = await this.request(url, { method: 'GET', signal: AbortSignal.timeout(10_000) }, config);
     return (await response.json()) as HAEntityState[];
   }
 
   async getState(entityId: string): Promise<HAEntityState> {
-    const url = `${this.config.baseUrl}/states/${encodeURIComponent(entityId)}`;
-    const response = await fetch(url, {
-      method: 'GET',
-      headers: {
-        Authorization: `Bearer ${this.config.token}`,
-        'Content-Type': 'application/json'
-      },
-      signal: AbortSignal.timeout(10_000)
-    });
-
-    if (!response.ok) {
-      const errText = await response.text().catch(() => '');
-      throw new Error(`Failed to query state for entity "${entityId}" [${response.status}]: ${errText || response.statusText}`);
+    const config = this.getConfig();
+    if (!config.baseUrl || !config.token) {
+      throw new Error('Home Assistant is not configured. Please set homeassistant.url and homeassistant.token in settings.');
     }
-
+    const url = `${config.baseUrl}/states/${encodeURIComponent(entityId)}`;
+    const response = await this.request(url, { method: 'GET', signal: AbortSignal.timeout(10_000) }, config);
     return (await response.json()) as HAEntityState;
   }
 
   async callService(domain: string, service: string, serviceData: Record<string, any> = {}): Promise<any> {
-    const url = `${this.config.baseUrl}/services/${encodeURIComponent(domain)}/${encodeURIComponent(service)}`;
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${this.config.token}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify(serviceData),
-      signal: AbortSignal.timeout(10_000)
-    });
-
-    if (!response.ok) {
-      const errText = await response.text().catch(() => '');
-      throw new Error(`Failed to call service "${domain}.${service}" [${response.status}]: ${errText || response.statusText}`);
+    const config = this.getConfig();
+    if (!config.baseUrl || !config.token) {
+      throw new Error('Home Assistant is not configured. Please set homeassistant.url and homeassistant.token in settings.');
     }
-
+    const url = `${config.baseUrl}/services/${encodeURIComponent(domain)}/${encodeURIComponent(service)}`;
+    const response = await this.request(
+      url,
+      {
+        method: 'POST',
+        body: JSON.stringify(serviceData),
+        signal: AbortSignal.timeout(10_000)
+      },
+      config
+    );
     return await response.json().catch(() => ({}));
   }
 
   async getServices(): Promise<HAServiceDomain[]> {
-    const url = `${this.config.baseUrl}/services`;
-    const response = await fetch(url, {
-      method: 'GET',
-      headers: {
-        Authorization: `Bearer ${this.config.token}`,
-        'Content-Type': 'application/json'
-      },
-      signal: AbortSignal.timeout(10_000)
-    });
-
-    if (!response.ok) {
-      const errText = await response.text().catch(() => '');
-      throw new Error(`Failed to query services [${response.status}]: ${errText || response.statusText}`);
+    const config = this.getConfig();
+    if (!config.baseUrl || !config.token) {
+      throw new Error('Home Assistant is not configured. Please set homeassistant.url and homeassistant.token in settings.');
     }
-
+    const url = `${config.baseUrl}/services`;
+    const response = await this.request(url, { method: 'GET', signal: AbortSignal.timeout(10_000) }, config);
     return (await response.json()) as HAServiceDomain[];
   }
 
@@ -364,6 +433,10 @@ export class HomeAssistantClient {
       endTime?: string;
     }
   ): Promise<HAEntityState[]> {
+    const config = this.getConfig();
+    if (!config.baseUrl || !config.token) {
+      throw new Error('Home Assistant is not configured. Please set homeassistant.url and homeassistant.token in settings.');
+    }
     const timestamp = options?.startTime ? encodeURIComponent(options.startTime) : '';
     const endpoint = timestamp ? `/history/period/${timestamp}` : '/history/period';
     const params = new URLSearchParams();
@@ -374,21 +447,8 @@ export class HomeAssistantClient {
     params.set('significant_changes_only', '1');
     params.set('minimal_response', '1');
 
-    const url = `${this.config.baseUrl}${endpoint}?${params.toString()}`;
-    const response = await fetch(url, {
-      method: 'GET',
-      headers: {
-        Authorization: `Bearer ${this.config.token}`,
-        'Content-Type': 'application/json'
-      },
-      signal: AbortSignal.timeout(15_000)
-    });
-
-    if (!response.ok) {
-      const errText = await response.text().catch(() => '');
-      throw new Error(`Failed to query history for entity "${entityId}" [${response.status}]: ${errText || response.statusText}`);
-    }
-
+    const url = `${config.baseUrl}${endpoint}?${params.toString()}`;
+    const response = await this.request(url, { method: 'GET', signal: AbortSignal.timeout(15_000) }, config);
     const data = (await response.json()) as HAEntityState[][];
     return Array.isArray(data) && data.length > 0 && Array.isArray(data[0]) ? data[0] : [];
   }

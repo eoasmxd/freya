@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useI18n } from '../../../i18n';
+import { evalWhen } from '../evalWhen.js';
 
 interface GlobalConfigPanelProps {
   getApiUrl: (path: string) => string;
@@ -30,6 +31,8 @@ interface ConfigFieldSchema {
   uiHint?: string;
   enumValues?: (string | { value: string; label?: string })[];
   children?: ConfigFieldSchema[];
+  enableWhen?: string;
+  showWhen?: string;
 }
 
 export const GlobalConfigPanel: React.FC<GlobalConfigPanelProps> = ({ getApiUrl }) => {
@@ -434,7 +437,23 @@ export const GlobalConfigPanel: React.FC<GlobalConfigPanelProps> = ({ getApiUrl 
             : t('global.extNsPrefix', 'Extension Config: {name}', { name: ns });
 
         const renderFieldItem = (field: ConfigFieldSchema) => {
-                    const currentValue = dynamicValues[field.key];
+          const resolveFieldValue = (key: string): any => {
+            if (dynamicValues[key] !== undefined) return dynamicValues[key];
+            const current = getValueByPath(dynamicValues, key);
+            if (current !== undefined) return current;
+            for (const fList of Object.values(schemas)) {
+              const matched = fList.find(f => f.key === key);
+              if (matched) return matched.defaultValue;
+            }
+            return undefined;
+          };
+
+          const isShown = evalWhen(field.showWhen, resolveFieldValue);
+          if (!isShown) return null;
+
+          const isConditionEnabled = evalWhen(field.enableWhen, resolveFieldValue);
+          const isFieldDisabled = Boolean(field.readonly) || !isConditionEnabled;
+          const currentValue = dynamicValues[field.key];
 
                     if (field.type === 'array' && field.key.startsWith('models.')) {
                       const bindings: ModelBinding[] = Array.isArray(currentValue) ? currentValue : [];
@@ -831,15 +850,23 @@ export const GlobalConfigPanel: React.FC<GlobalConfigPanelProps> = ({ getApiUrl 
 
                     return (
                       <div key={field.key} className={`config-field-row ${isBoolean ? 'is-boolean' : 'is-input'}`}>
-                        <label className="config-label" style={{ fontSize: '0.84rem', color: field.readonly ? 'rgba(255, 255, 255, 0.45)' : 'rgba(255, 255, 255, 0.85)', fontWeight: 500, margin: 0, display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <label className="config-label" style={{ fontSize: '0.84rem', color: isFieldDisabled ? 'rgba(255, 255, 255, 0.45)' : 'rgba(255, 255, 255, 0.85)', fontWeight: 500, margin: 0, display: 'flex', alignItems: 'center', gap: '6px' }}>
                           {displayLabel}
                           {field.readonly && <span title={t('global.fieldReadonlyHint', 'Current item is locked as read-only')} style={{ fontSize: '12px', cursor: 'help' }}>🔒</span>}
+                          {!isConditionEnabled && field.enableWhen && (
+                            <span
+                              title={t('global.fieldDisabledByCondition', 'Disabled due to condition: {condition}', { condition: field.enableWhen })}
+                              style={{ fontSize: '12px', cursor: 'help' }}
+                            >
+                              ⚠️
+                            </span>
+                          )}
                         </label>
                         {isBoolean ? (
-                          <label className="switch" style={{ margin: 0, opacity: field.readonly ? 0.5 : 1, cursor: field.readonly ? 'not-allowed' : 'pointer' }}>
+                          <label className="switch" style={{ margin: 0, opacity: isFieldDisabled ? 0.5 : 1, cursor: isFieldDisabled ? 'not-allowed' : 'pointer' }}>
                             <input
                               type="checkbox"
-                              disabled={field.readonly}
+                              disabled={isFieldDisabled}
                               checked={Boolean(currentValue)}
                               onChange={(e) => setDynamicValues(prev => ({ ...prev, [field.key]: e.target.checked }))}
                             />
@@ -847,9 +874,9 @@ export const GlobalConfigPanel: React.FC<GlobalConfigPanelProps> = ({ getApiUrl 
                           </label>
                         ) : field.enumValues && field.enumValues.length > 0 ? (
                           <select
-                            disabled={field.readonly}
+                            disabled={isFieldDisabled}
                             className="config-input config-field-input"
-                            style={{ opacity: field.readonly ? 0.5 : 1, cursor: field.readonly ? 'not-allowed' : undefined }}
+                            style={{ opacity: isFieldDisabled ? 0.5 : 1, cursor: isFieldDisabled ? 'not-allowed' : undefined }}
                             value={currentValue ?? field.defaultValue ?? (typeof field.enumValues[0] === 'object' ? field.enumValues[0]?.value : field.enumValues[0])}
                             onChange={(e) => setDynamicValues(prev => ({ ...prev, [field.key]: e.target.value }))}
                           >
@@ -864,27 +891,27 @@ export const GlobalConfigPanel: React.FC<GlobalConfigPanelProps> = ({ getApiUrl 
                         ) : field.type === 'number' ? (
                           <input
                             type="number"
-                            disabled={field.readonly}
+                            disabled={isFieldDisabled}
                             className="config-input config-field-input"
-                            style={{ opacity: field.readonly ? 0.5 : 1, cursor: field.readonly ? 'not-allowed' : undefined }}
+                            style={{ opacity: isFieldDisabled ? 0.5 : 1, cursor: isFieldDisabled ? 'not-allowed' : undefined }}
                             value={currentValue ?? ''}
                             onChange={(e) => setDynamicValues(prev => ({ ...prev, [field.key]: Number(e.target.value) }))}
                           />
                         ) : field.uiHint === 'textarea' ? (
                           <textarea
-                            disabled={field.readonly}
+                            disabled={isFieldDisabled}
                             className="config-input config-field-input"
                             rows={3}
-                            style={{ opacity: field.readonly ? 0.5 : 1, cursor: field.readonly ? 'not-allowed' : undefined, padding: '0.4rem 0.6rem', fontSize: '0.8rem', resize: 'vertical' }}
+                            style={{ opacity: isFieldDisabled ? 0.5 : 1, cursor: isFieldDisabled ? 'not-allowed' : undefined, padding: '0.4rem 0.6rem', fontSize: '0.8rem', resize: 'vertical' }}
                             value={currentValue ?? ''}
                             onChange={(e) => setDynamicValues(prev => ({ ...prev, [field.key]: e.target.value }))}
                           />
                         ) : (
                           <input
                             type="text"
-                            disabled={field.readonly}
+                            disabled={isFieldDisabled}
                             className="config-input config-field-input"
-                            style={{ opacity: field.readonly ? 0.5 : 1, cursor: field.readonly ? 'not-allowed' : undefined }}
+                            style={{ opacity: isFieldDisabled ? 0.5 : 1, cursor: isFieldDisabled ? 'not-allowed' : undefined }}
                             value={typeof currentValue === 'object' ? JSON.stringify(currentValue) : (currentValue ?? '')}
                             onChange={(e) => {
                               let val: any = e.target.value;
