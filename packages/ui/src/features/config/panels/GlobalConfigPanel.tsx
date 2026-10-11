@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useI18n } from '../../../i18n';
-import { evalWhen } from '../evalWhen.js';
+import { evalWhen, isFieldVisible } from '../evalWhen.js';
 
 interface GlobalConfigPanelProps {
   getApiUrl: (path: string) => string;
@@ -448,7 +448,15 @@ export const GlobalConfigPanel: React.FC<GlobalConfigPanelProps> = ({ getApiUrl 
             return undefined;
           };
 
-          const isShown = evalWhen(field.showWhen, resolveFieldValue);
+          const findFieldSchema = (key: string): ConfigFieldSchema | undefined => {
+            for (const fList of Object.values(schemas)) {
+              const matched = fList.find((f) => f.key === key);
+              if (matched) return matched;
+            }
+            return undefined;
+          };
+
+          const isShown = isFieldVisible(field, resolveFieldValue, findFieldSchema);
           if (!isShown) return null;
 
           const isConditionEnabled = evalWhen(field.enableWhen, resolveFieldValue);

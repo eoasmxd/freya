@@ -870,7 +870,8 @@ export class FreyaConfigManager {
         min: 1,
         max: 65535,
         category: this.i18n.all('schema.core.category.server', 'Server'),
-        manualOnly: true
+        manualOnly: true,
+        showWhen: 'server.enabled'
       },
       {
         key: 'server.auth.enabled',
@@ -878,7 +879,8 @@ export class FreyaConfigManager {
         description: this.i18n.all('schema.core.server.auth.enabled.desc', 'Enable Web and WebSocket login authentication'),
         type: 'boolean',
         category: this.i18n.all('schema.core.category.server', 'Server'),
-        manualOnly: true
+        manualOnly: true,
+        showWhen: 'server.enabled'
       },
       {
         key: 'server.auth.password',
@@ -888,7 +890,8 @@ export class FreyaConfigManager {
         sensitive: true,
         uiHint: 'password',
         category: this.i18n.all('schema.core.category.server', 'Server'),
-        manualOnly: true
+        manualOnly: true,
+        showWhen: 'server.enabled && server.auth.enabled'
       },
       {
         key: 'cli.enabled',
@@ -931,7 +934,8 @@ export class FreyaConfigManager {
         type: 'number',
         min: 1,
         max: 100,
-        category: this.i18n.all('schema.core.category.context', 'Context Management')
+        category: this.i18n.all('schema.core.category.context', 'Context Management'),
+        showWhen: 'contextManagement.enabled'
       },
       {
         key: 'contextManagement.historyLimit',
@@ -940,7 +944,8 @@ export class FreyaConfigManager {
         type: 'number',
         min: 10,
         max: 500,
-        category: this.i18n.all('schema.core.category.context', 'Context Management')
+        category: this.i18n.all('schema.core.category.context', 'Context Management'),
+        showWhen: 'contextManagement.enabled'
       },
       {
         key: 'contextManagement.keepRecentTurns',
@@ -949,14 +954,16 @@ export class FreyaConfigManager {
         type: 'number',
         min: 1,
         max: 50,
-        category: this.i18n.all('schema.core.category.context', 'Context Management')
+        category: this.i18n.all('schema.core.category.context', 'Context Management'),
+        showWhen: 'contextManagement.enabled'
       },
       {
         key: 'contextManagement.summarizeEnabled',
         defaultValue: true,
         description: this.i18n.all('schema.core.context.summarizeEnabled.desc', 'Enable context summary compression'),
         type: 'boolean',
-        category: this.i18n.all('schema.core.category.context', 'Context Management')
+        category: this.i18n.all('schema.core.category.context', 'Context Management'),
+        showWhen: 'contextManagement.enabled'
       },
       {
         key: 'contextManagement.summaryMaxTokens',
@@ -965,7 +972,8 @@ export class FreyaConfigManager {
         type: 'number',
         min: 50,
         max: 4096,
-        category: this.i18n.all('schema.core.category.context', 'Context Management')
+        category: this.i18n.all('schema.core.category.context', 'Context Management'),
+        showWhen: 'contextManagement.enabled && contextManagement.summarizeEnabled'
       },
       {
         key: 'contextManagement.toolboxIdleTimeoutRounds',
@@ -974,7 +982,8 @@ export class FreyaConfigManager {
         type: 'number',
         min: 1,
         max: 100,
-        category: this.i18n.all('schema.core.category.context', 'Context Management')
+        category: this.i18n.all('schema.core.category.context', 'Context Management'),
+        showWhen: 'contextManagement.enabled'
       },
       {
         key: 'tools.builtin.config.enabled',

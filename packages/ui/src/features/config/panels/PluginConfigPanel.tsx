@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useI18n } from '../../../i18n/index.js';
-import { evalWhen } from '../evalWhen.js';
+import { evalWhen, isFieldVisible } from '../evalWhen.js';
 
 interface PluginEntry {
   id: string;
@@ -211,7 +211,11 @@ export const PluginConfigPanel: React.FC<PluginConfigPanelProps> = ({ getApiUrl 
       return targetField ? targetField.defaultValue : undefined;
     };
 
-    const isShown = evalWhen(field.showWhen, resolveFieldValue);
+    const findFieldSchema = (key: string): ConfigFieldSchema | undefined => {
+      return schemas[pluginId]?.find((s) => s.key === key);
+    };
+
+    const isShown = isFieldVisible(field, resolveFieldValue, findFieldSchema);
     if (!isShown) {
       return null;
     }
