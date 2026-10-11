@@ -9,7 +9,7 @@ import { FreyaPromptRegistry } from '../prompt/prompt-registry.js';
 import { I18n } from '../i18n/index.js';
 import { zh } from '../i18n/locales/zh.js';
 import { en } from '../i18n/locales/en.js';
-import { FREYA_APP, FREYA_HOME, FREYA_LAUNCH } from '../utils/paths.js';
+import { FREYA_APP, FREYA_HOME, FREYA_LAUNCH, areThreePathsDistinct } from '../utils/paths.js';
 import { FreyaPluginRegistry } from './plugin-registry.js';
 
 export interface PluginConfigEntry {
@@ -582,6 +582,22 @@ export class FreyaPluginManager {
       }
     }
 
+    const launchConfigMap = new Map<string, boolean>();
+    if (areThreePathsDistinct()) {
+      const launchConfigPluginsPath = path.join(FREYA_LAUNCH, 'config', 'plugins.json');
+      try {
+        const launchRaw = await fs.readFile(launchConfigPluginsPath, 'utf-8');
+        const launchList = JSON.parse(launchRaw);
+        if (Array.isArray(launchList)) {
+          for (const item of launchList) {
+            if (item && typeof item.id === 'string' && typeof item.enabled === 'boolean') {
+              launchConfigMap.set(item.id, item.enabled);
+            }
+          }
+        }
+      } catch { }
+    }
+
     const discovered = await this.scanAllChannels(configuredIds);
     ctx.logger.info(`Discovered ${discovered.length} plugin modules across cascading scan paths.`);
 
@@ -592,17 +608,22 @@ export class FreyaPluginManager {
 
     for (const info of discovered) {
       if (info.valid && info.schema) {
-        this.configSchemaRegistry.register(info.id, info.schema);
+        this.configSchemaRegistry.register(info.id, info.schema, info.source);
       }
 
       this.pluginPaths.set(info.id, info.mainEntry);
       this.pluginPrompts.set(info.id, info.prompts || []);
       this.pluginResolvedDirs.set(info.id, info.resolvedDir);
 
-      const isEnabledInConfig = configMap.get(info.id);
-      const enabled = isEnabledInConfig !== undefined ? isEnabledInConfig : (info.defaultEnabled ?? false);
-
-      if (isEnabledInConfig === undefined) {
+      let enabled: boolean;
+      const isConfiguredInHome = configMap.has(info.id);
+      if (isConfiguredInHome) {
+        enabled = configMap.get(info.id)!;
+      } else if (info.source === 'builtin' && launchConfigMap.has(info.id)) {
+        enabled = launchConfigMap.get(info.id)!;
+        configChanged = true;
+      } else {
+        enabled = info.defaultEnabled ?? false;
         configChanged = true;
       }
 

@@ -1,6 +1,7 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
-import { FREYA_HOME } from '../utils/paths.js';
+import type { ConfigFieldSchema } from '@eoasmxd/freya-sdk';
+import { FREYA_HOME, FREYA_LAUNCH } from '../utils/paths.js';
 
 /**
  * 配置文件底层 IO 处理器
@@ -14,6 +15,20 @@ export class FreyaConfigFileHandler {
       return JSON.parse(data);
     } catch {
       return {};
+    }
+  }
+
+  async readLaunchSchemaConfig(): Promise<Partial<ConfigFieldSchema>[]> {
+    const filePath = path.join(FREYA_LAUNCH, 'config', 'schema.json');
+    try {
+      const data = await fs.readFile(filePath, 'utf-8');
+      const parsed = JSON.parse(data);
+      if (Array.isArray(parsed)) {
+        return parsed;
+      }
+      return [];
+    } catch {
+      return [];
     }
   }
 

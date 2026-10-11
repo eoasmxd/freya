@@ -7,8 +7,15 @@
     "outDir": "dist"
   },
   "references": [
-    { "path": "../../packages/sdk" }
+    {
+      "path": "../../packages/sdk"
+    }
   ],
-  "include": ["src/**/*.ts"],
-  "exclude": ["node_modules", "dist"]
+  "include": [
+    "src/**/*.ts"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist"
+  ]
 }

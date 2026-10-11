@@ -7,17 +7,10 @@ import { FreyaConfigSchemaRegistry } from './schema-registry.js';
 import type { FreyaSkillRegistry, FreyaSkill } from '../skill/skill-registry.js';
 import crypto from 'node:crypto';
 import path from 'node:path';
-import { FREYA_HOME } from '../utils/paths.js';
+import { FREYA_HOME, areThreePathsDistinct } from '../utils/paths.js';
 import { I18n } from '../i18n/index.js';
 import { zh } from '../i18n/locales/zh.js';
 import { en } from '../i18n/locales/en.js';
-
-function cleanPathFromError(err: any): string {
-  const rawMessage = err?.message || String(err);
-  const escapedCwd = process.cwd().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  const regex = new RegExp(escapedCwd + '[\\\\/]?', 'g');
-  return rawMessage.replace(regex, '');
-}
 
 function maskSensitiveData(data: any, sensitiveKeys: string[]): any {
   if (!sensitiveKeys || sensitiveKeys.length === 0) {
@@ -81,41 +74,40 @@ function setValueByKeyPath(obj: any, keyPath: string, value: any): void {
   current[parts[parts.length - 1]] = value;
 }
 
-function filterConfigBySchema(data: any, schemaRegistry: FreyaConfigSchemaRegistry): any {
+
+function filterConfigBySchema(
+  data: any,
+  schemaRegistry: FreyaConfigSchemaRegistry,
+  isFieldHidden?: (keyPath: string) => boolean
+): any {
   if (!data || typeof data !== 'object') return data;
 
   const result: Record<string, any> = {};
-  const schemaMap = schemaRegistry.getSchema();
-  const allFields: ConfigFieldSchema[] = [];
 
-  for (const fields of schemaMap.values()) {
-    allFields.push(...fields);
-  }
+  for (const { field } of schemaRegistry.getFields().values()) {
+    if (isFieldHidden && isFieldHidden(field.key)) {
+      continue;
+    }
 
-  for (const field of allFields) {
     const value = getValueByKeyPath(data, field.key);
     if (value === undefined) {
       continue;
     }
 
-    if (field.children && field.type === 'array') {
-      if (Array.isArray(value)) {
-        const filteredArr = value.map((item: any) => {
-          if (item && typeof item === 'object' && field.children) {
-            const cleanedItem: Record<string, any> = {};
-            for (const child of field.children) {
-              if (child.key in item) {
-                cleanedItem[child.key] = item[child.key];
-              }
+    if (field.children && Array.isArray(value)) {
+      const filteredArr = value.map((item: any) => {
+        if (item && typeof item === 'object') {
+          const cleanedItem: Record<string, any> = {};
+          for (const child of field.children!) {
+            if (child.key in item) {
+              cleanedItem[child.key] = item[child.key];
             }
-            return cleanedItem;
           }
-          return item;
-        });
-        setValueByKeyPath(result, field.key, filteredArr);
-      } else {
-        setValueByKeyPath(result, field.key, value);
-      }
+          return cleanedItem;
+        }
+        return item;
+      });
+      setValueByKeyPath(result, field.key, filteredArr);
     } else {
       setValueByKeyPath(result, field.key, value);
     }
@@ -165,6 +157,8 @@ export class FreyaConfigManager {
   private promptManager: FreyaPromptManager;
   private skillRegistry?: FreyaSkillRegistry;
   private i18n = new I18n({ zh, en });
+  private launchReadonlyKeys = new Set<string>();
+  private launchHiddenKeys = new Set<string>();
 
   constructor(
     context: FreyaContext,
@@ -201,11 +195,9 @@ export class FreyaConfigManager {
    */
   getReadonlyKeys(includeManualOnly = false): string[] {
     const readonlySet = new Set<string>();
-    for (const [ns, fields] of this.schemaRegistry.getSchema().entries()) {
-      for (const field of fields) {
-        if (this.isFieldReadonly(field.key, ns)) {
-          readonlySet.add(field.key);
-        }
+    for (const { field } of this.schemaRegistry.getFields().values()) {
+      if (this.isFieldReadonly(field.key)) {
+        readonlySet.add(field.key);
       }
     }
     if (includeManualOnly) {
@@ -235,8 +227,33 @@ export class FreyaConfigManager {
   async mergeAndPersist(): Promise<void> {
     try {
       const existingConfig = await this.fileHandler.readFreyaConfig();
-      const defaults = this.schemaRegistry.getDefaults();
-      const merged = deepMerge(defaults, existingConfig);
+      const base = this.schemaRegistry.getDefaults();
+
+      if (areThreePathsDistinct()) {
+        const launchSchemas = await this.fileHandler.readLaunchSchemaConfig();
+        for (const item of launchSchemas) {
+          if (item && typeof item.key === 'string') {
+            const source = this.schemaRegistry.getFieldSource(item.key);
+            if (source === 'builtin') {
+              if (item.readonly === true) {
+                this.launchReadonlyKeys.add(item.key);
+              }
+              if (item.hidden === true) {
+                this.launchHiddenKeys.add(item.key);
+              }
+              if (item.defaultValue !== undefined) {
+                const targetField = this.schemaRegistry.findField(item.key);
+                if (targetField) {
+                  targetField.defaultValue = item.defaultValue;
+                }
+                setValueByKeyPath(base, item.key, item.defaultValue);
+              }
+            }
+          }
+        }
+      }
+
+      const merged = deepMerge(base, existingConfig);
 
       this.updateContextConfig(merged);
       await this.fileHandler.writeFreyaConfig(merged);
@@ -290,8 +307,8 @@ export class FreyaConfigManager {
    */
   async readConfig(revealSensitive = false): Promise<any> {
     const jsonObj = await this.fileHandler.readFreyaConfig();
-    const filtered = filterConfigBySchema(jsonObj, this.schemaRegistry);
-    if ((this.context?.config as any)?.server?.port !== undefined && process.argv.includes('--port')) {
+    const filtered = filterConfigBySchema(jsonObj, this.schemaRegistry, (key) => this.isFieldHidden(key));
+    if ((this.context?.config as any)?.server?.port !== undefined && process.argv.includes('--port') && !this.isFieldHidden('server.port')) {
       if (!filtered.server) filtered.server = {};
       filtered.server.port = (this.context.config as any).server.port;
     }
@@ -305,29 +322,26 @@ export class FreyaConfigManager {
    * 检查指定配置项是否处于只读锁定状态
    * Check whether specified configuration item is locked as read-only
    */
-  isFieldReadonly(keyPath: string, namespace?: string): boolean {
+  isFieldReadonly(keyPath: string): boolean {
+    if (this.launchReadonlyKeys.has(keyPath)) {
+      return true;
+    }
     if (keyPath === 'cli.enabled' && process.argv.includes('--no-cli')) {
       return true;
     }
-
     if ((keyPath === 'server.port' || keyPath === 'server.enabled') && process.argv.includes('--port')) {
       return true;
     }
-
     if ((keyPath === 'server.auth.enabled' || keyPath === 'server.auth.password') && process.argv.includes('--no-auth')) {
+      return true;
+    }
+    const field = this.schemaRegistry.findField(keyPath);
+    if (field?.readonly === true) {
       return true;
     }
 
     if (this.pluginManager) {
-      let targetPluginId = namespace;
-      if (!targetPluginId) {
-        for (const [ns, fields] of this.schemaRegistry.getSchema().entries()) {
-          if (ns !== 'core' && fields.some((f) => f.key === keyPath || keyPath.startsWith(`${f.key}.`))) {
-            targetPluginId = ns;
-            break;
-          }
-        }
-      }
+      const targetPluginId = this.schemaRegistry.getFieldNamespace(keyPath);
       if (targetPluginId && targetPluginId !== 'core') {
         const entries = this.pluginManager.getPluginEntries();
         const entry = entries.find((e) => e.id === targetPluginId);
@@ -339,7 +353,34 @@ export class FreyaConfigManager {
     return false;
   }
 
+  /**
+   * 检查指定配置项是否处于隐藏状态
+   * Check whether specified configuration item is hidden
+   */
+  isFieldHidden(keyPath: string): boolean {
+    if (this.launchHiddenKeys.has(keyPath)) {
+      return true;
+    }
+    const field = this.schemaRegistry.findField(keyPath);
+    return field?.hidden === true;
+  }
+
   async updateConfig(keyPath: string, value: any): Promise<string> {
+    const fieldSchema = this.schemaRegistry.findField(keyPath);
+    if (!fieldSchema) {
+      return this.i18n.t(
+        'config.error.unknownProperty',
+        '❌ Property "{keyPath}" does not exist in configuration schema.',
+        { keyPath }
+      );
+    }
+    if (this.isFieldHidden(keyPath)) {
+      return this.i18n.t(
+        'config.error.hiddenRejected',
+        '❌ Property "{keyPath}" is hidden and cannot be accessed or modified.',
+        { keyPath }
+      );
+    }
     if (this.isFieldReadonly(keyPath)) {
       return this.i18n.t(
         'config.error.readonlyRejected',
@@ -368,7 +409,6 @@ export class FreyaConfigManager {
     };
 
     let safeValue = restoreMaskedValues(value, oldValue);
-    const fieldSchema = this.schemaRegistry.findField(keyPath);
     if (fieldSchema?.type === 'sha256') {
       if (value === '******' || value === oldValue || typeof value !== 'string') {
         safeValue = oldValue;
@@ -400,7 +440,11 @@ export class FreyaConfigManager {
   async updateConfigs(updates: Record<string, any>): Promise<string> {
     const writableUpdates: Record<string, any> = {};
     for (const [keyPath, value] of Object.entries(updates)) {
-      if (!this.isFieldReadonly(keyPath)) {
+      if (
+        this.schemaRegistry.findField(keyPath) &&
+        !this.isFieldReadonly(keyPath) &&
+        !this.isFieldHidden(keyPath)
+      ) {
         writableUpdates[keyPath] = value;
       }
     }
@@ -826,7 +870,8 @@ export class FreyaConfigManager {
         min: 1,
         max: 65535,
         category: this.i18n.all('schema.core.category.server', 'Server'),
-        manualOnly: true
+        manualOnly: true,
+        showWhen: 'server.enabled'
       },
       {
         key: 'server.auth.enabled',
@@ -834,7 +879,8 @@ export class FreyaConfigManager {
         description: this.i18n.all('schema.core.server.auth.enabled.desc', 'Enable Web and WebSocket login authentication'),
         type: 'boolean',
         category: this.i18n.all('schema.core.category.server', 'Server'),
-        manualOnly: true
+        manualOnly: true,
+        showWhen: 'server.enabled'
       },
       {
         key: 'server.auth.password',
@@ -844,7 +890,8 @@ export class FreyaConfigManager {
         sensitive: true,
         uiHint: 'password',
         category: this.i18n.all('schema.core.category.server', 'Server'),
-        manualOnly: true
+        manualOnly: true,
+        showWhen: 'server.enabled && server.auth.enabled'
       },
       {
         key: 'cli.enabled',
@@ -887,7 +934,8 @@ export class FreyaConfigManager {
         type: 'number',
         min: 1,
         max: 100,
-        category: this.i18n.all('schema.core.category.context', 'Context Management')
+        category: this.i18n.all('schema.core.category.context', 'Context Management'),
+        showWhen: 'contextManagement.enabled'
       },
       {
         key: 'contextManagement.historyLimit',
@@ -896,7 +944,8 @@ export class FreyaConfigManager {
         type: 'number',
         min: 10,
         max: 500,
-        category: this.i18n.all('schema.core.category.context', 'Context Management')
+        category: this.i18n.all('schema.core.category.context', 'Context Management'),
+        showWhen: 'contextManagement.enabled'
       },
       {
         key: 'contextManagement.keepRecentTurns',
@@ -905,14 +954,16 @@ export class FreyaConfigManager {
         type: 'number',
         min: 1,
         max: 50,
-        category: this.i18n.all('schema.core.category.context', 'Context Management')
+        category: this.i18n.all('schema.core.category.context', 'Context Management'),
+        showWhen: 'contextManagement.enabled'
       },
       {
         key: 'contextManagement.summarizeEnabled',
         defaultValue: true,
         description: this.i18n.all('schema.core.context.summarizeEnabled.desc', 'Enable context summary compression'),
         type: 'boolean',
-        category: this.i18n.all('schema.core.category.context', 'Context Management')
+        category: this.i18n.all('schema.core.category.context', 'Context Management'),
+        showWhen: 'contextManagement.enabled'
       },
       {
         key: 'contextManagement.summaryMaxTokens',
@@ -921,7 +972,8 @@ export class FreyaConfigManager {
         type: 'number',
         min: 50,
         max: 4096,
-        category: this.i18n.all('schema.core.category.context', 'Context Management')
+        category: this.i18n.all('schema.core.category.context', 'Context Management'),
+        showWhen: 'contextManagement.enabled && contextManagement.summarizeEnabled'
       },
       {
         key: 'contextManagement.toolboxIdleTimeoutRounds',
@@ -930,7 +982,8 @@ export class FreyaConfigManager {
         type: 'number',
         min: 1,
         max: 100,
-        category: this.i18n.all('schema.core.category.context', 'Context Management')
+        category: this.i18n.all('schema.core.category.context', 'Context Management'),
+        showWhen: 'contextManagement.enabled'
       },
       {
         key: 'tools.builtin.config.enabled',
@@ -1009,10 +1062,18 @@ export class FreyaConfigManager {
       }
     ];
 
-    this.schemaRegistry.register('core', coreFields);
+    this.schemaRegistry.register('core', coreFields, 'builtin');
   }
 
-  getSchema(): Map<string, ConfigFieldSchema[]> {
-    return this.schemaRegistry.getSchema();
+  getSchemas(): Map<string, ConfigFieldSchema[]> {
+    return this.schemaRegistry.getSchemas();
+  }
+
+  getSchema(namespace: string): ConfigFieldSchema[] {
+    return this.schemaRegistry.getSchemas().get(namespace) || [];
+  }
+
+  getFields(): Map<string, { namespace: string; source: 'builtin' | 'launch' | 'runtime' | 'npm'; field: ConfigFieldSchema }> {
+    return this.schemaRegistry.getFields();
   }
 }

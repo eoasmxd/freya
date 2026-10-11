@@ -176,6 +176,8 @@ export const en: Record<string, string> = {
   // 配置管理器运行态文案
   // Configuration Manager runtime messages
   'config.error.readonlyRejected': '❌ Property "{keyPath}" is currently read-only (locked by startup arguments or disabled plugin) and cannot be modified.',
+  'config.error.hiddenRejected': '❌ Property "{keyPath}" is hidden and cannot be accessed or modified.',
+  'config.error.unknownProperty': '❌ Property "{keyPath}" does not exist in configuration schema.',
   'config.update.propertySuccess': 'Core configuration property "{keyPath}" updated successfully and took effect immediately.',
   'config.update.globalSuccess': 'Global configuration updated successfully and took effect immediately.',
   'config.provider.missingId': '❌ Missing required parameter: id cannot be empty.',

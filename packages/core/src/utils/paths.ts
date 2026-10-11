@@ -57,3 +57,20 @@ export const FREYA_APP = customApp
 export const FREYA_LAUNCH = customLaunch
   ? path.resolve(customLaunch)
   : process.cwd();
+
+/**
+ * 判断应用物理安装目录、宿主启动目录与用户持久化主目录三者是否互不相同
+ * Determine whether FREYA_APP, FREYA_LAUNCH, and FREYA_HOME are all distinct
+ */
+export function areThreePathsDistinct(): boolean {
+  const normalize = (p: string) => {
+    const resolved = path.resolve(p);
+    return process.platform === 'win32' ? resolved.toLowerCase() : resolved;
+  };
+  const app = normalize(FREYA_APP);
+  const launch = normalize(FREYA_LAUNCH);
+  const home = normalize(FREYA_HOME);
+  return app !== launch && launch !== home && app !== home;
+}
+
+

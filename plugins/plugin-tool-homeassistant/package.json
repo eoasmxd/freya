@@ -1,0 +1,38 @@
+{
+  "name": "@eoasmxd/freya-plugin-tool-homeassistant",
+  "version": "0.9.1",
+  "private": true,
+  "license": "MIT",
+  "publishConfig": {
+    "access": "public"
+  },
+  "description": "Freya Home Assistant interaction and control toolbox plugin",
+  "freya": {
+    "displayName": {
+      "zh": "Home Assistant 智能交互工具集",
+      "en": "Home Assistant Smart Control Toolbox"
+    },
+    "description": {
+      "zh": "Freya Home Assistant 交互工具集插件",
+      "en": "Freya Home Assistant interaction and control toolbox plugin"
+    },
+    "defaultEnabled": false,
+    "schema": "./schema.json",
+    "prompts": [
+      "plugin.prompt.homeassistant.md"
+    ]
+  },
+  "type": "module",
+  "main": "./dist/index.js",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "@eoasmxd/freya-sdk": "workspace:^"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "typescript": "^5.5.0"
+  }
+}

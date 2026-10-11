@@ -14,7 +14,10 @@ export interface ConfigFieldSchema {
   sensitive?: boolean;
   manualOnly?: boolean;
   readonly?: boolean;
+  hidden?: boolean;
   category?: LocalizedText;
   uiHint?: 'text' | 'textarea' | 'password' | 'select' | 'slider';
   children?: ConfigFieldSchema[];
+  enableWhen?: string;
+  showWhen?: string;
 }
