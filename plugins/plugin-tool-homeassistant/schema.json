@@ -1,0 +1,46 @@
+[
+  {
+    "key": "homeassistant.allowControl",
+    "defaultValue": false,
+    "description": {
+      "zh": "允许智能体调用设备控制服务 (关闭时为安全只读模式，仅允许查询状态)",
+      "en": "Allow agent to call device control services (safe read-only mode when disabled, query states only)"
+    },
+    "type": "boolean",
+    "manualOnly": true
+  },
+  {
+    "key": "homeassistant.controlLevel",
+    "defaultValue": "standard",
+    "description": {
+      "zh": "设备控制权限等级 (需先开启上方设备控制)。提升权限级别会增加安全风险，请遵循最小权限原则，仅在必要时开放。",
+      "en": "Control permission level (requires enabling device control above). Elevating privileges increases security risks. Follow the principle of least privilege."
+    },
+    "type": "string",
+    "uiHint": "select",
+    "enumValues": [
+      {
+        "value": "standard",
+        "label": {
+          "zh": "常规控制 (家电与场景)",
+          "en": "Standard (Appliances & Scenes)"
+        }
+      },
+      {
+        "value": "high_risk",
+        "label": {
+          "zh": "高危控制 (含门锁/阀门/警报)",
+          "en": "High Risk (Locks, Valves, Sirens)"
+        }
+      },
+      {
+        "value": "system",
+        "label": {
+          "zh": "系统管理 (最高权限/完全访问)",
+          "en": "System (Highest / Full Access)"
+        }
+      }
+    ],
+    "manualOnly": true
+  }
+]

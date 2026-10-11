@@ -1,0 +1,18 @@
+[
+  {
+    "key": "cli.enabled",
+    "hidden": true,
+    "readonly": true,
+    "defaultValue": false
+  },
+  {
+    "key": "server.enabled",
+    "readonly": true,
+    "defaultValue": true
+  },
+  {
+    "key": "server.port",
+    "readonly": true,
+    "defaultValue": 3000
+  }
+]
