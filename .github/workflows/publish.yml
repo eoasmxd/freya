@@ -57,6 +57,22 @@ jobs:
           VERSION=$(node -p "require('./package.json').version")
           echo "version=$VERSION" >> $GITHUB_OUTPUT
 
+      - name: Wait for NPM package propagation
+        if: needs.publish-npm.result == 'success'
+        run: |
+          VERSION="${{ steps.pkg_version.outputs.version }}"
+          echo "Waiting for @eoasmxd/freya@${VERSION} to be available on NPM..."
+          for i in {1..30}; do
+            if npm view "@eoasmxd/freya@${VERSION}" version > /dev/null 2>&1; then
+              echo "Package @eoasmxd/freya@${VERSION} is now available!"
+              exit 0
+            fi
+            echo "Package not yet available, retrying in 10s ($i/30)..."
+            sleep 10
+          done
+          echo "Error: Timeout waiting for package propagation on NPM."
+          exit 1
+
       - name: Set up QEMU for multi-platform emulation
         uses: docker/setup-qemu-action@v3
 
@@ -70,8 +86,8 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Extract Docker Metadata (x86)
-        id: meta_x86
+      - name: Extract Docker Metadata
+        id: meta
         uses: docker/metadata-action@v5
         with:
           images: ghcr.io/${{ github.repository }}
@@ -79,39 +95,16 @@ jobs:
             type=raw,value=${{ steps.pkg_version.outputs.version }}
             type=raw,value=latest
 
-      - name: Extract Docker Metadata (ARM64)
-        id: meta_arm64
-        uses: docker/metadata-action@v5
-        with:
-          images: ghcr.io/${{ github.repository }}-arm64
-          tags: |
-            type=raw,value=${{ steps.pkg_version.outputs.version }}
-            type=raw,value=latest
-
-      - name: Build and Push x86 Docker Image
+      - name: Build and Push Multi-Platform Docker Image
         uses: docker/build-push-action@v5
         with:
           context: .
           file: ./Dockerfile
-          platforms: linux/amd64
+          platforms: linux/amd64,linux/arm64
           push: true
           build-args: |
             FREYA_VERSION=${{ steps.pkg_version.outputs.version }}
-          tags: ${{ steps.meta_x86.outputs.tags }}
-          labels: ${{ steps.meta_x86.outputs.labels }}
-          cache-from: type=gha,scope=x86
-          cache-to: type=gha,mode=max,scope=x86
-
-      - name: Build and Push ARM64 Docker Image
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          file: ./Dockerfile
-          platforms: linux/arm64
-          push: true
-          build-args: |
-            FREYA_VERSION=${{ steps.pkg_version.outputs.version }}
-          tags: ${{ steps.meta_arm64.outputs.tags }}
-          labels: ${{ steps.meta_arm64.outputs.labels }}
-          cache-from: type=gha,scope=arm64
-          cache-to: type=gha,mode=max,scope=arm64
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha,scope=freya
+          cache-to: type=gha,mode=max,scope=freya
