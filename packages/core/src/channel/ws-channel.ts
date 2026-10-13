@@ -4,10 +4,14 @@ import fs from 'node:fs/promises';
 import http from 'node:http';
 import path from 'node:path';
 import type { Duplex } from 'node:stream';
+import { createRequire } from 'node:module';
 import { WebSocket, WebSocketServer } from 'ws';
 import { I18n } from '../i18n/index.js';
 import { zh } from '../i18n/locales/zh.js';
 import { en } from '../i18n/locales/en.js';
+
+const require = createRequire(import.meta.url);
+const CORE_VERSION: string = (require('../../package.json') as { version?: string })?.version || '1.0.1';
 
 const WSS_HANDLER_ID = 'built-in-ws-channel';
 
@@ -201,7 +205,8 @@ export class FreyaWsChannel {
                     ),
                     connectionId: connId,
                     sessionId: meta.defaultSessionId,
-                    language: effectiveLanguage
+                    language: effectiveLanguage,
+                    version: CORE_VERSION
                 }
             }));
 
@@ -344,7 +349,8 @@ export class FreyaWsChannel {
                     connectionId: stableConnId,
                     sessionId: meta.defaultSessionId,
                     language: effectiveLanguage,
-                    recovered: true
+                    recovered: true,
+                    version: CORE_VERSION
                 }
             }));
         }

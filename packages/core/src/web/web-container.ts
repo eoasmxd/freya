@@ -3,9 +3,13 @@ import { I18n } from '../i18n/index.js';
 import { zh } from '../i18n/locales/zh.js';
 import { en } from '../i18n/locales/en.js';
 import http from 'node:http';
+import { createRequire } from 'node:module';
 import type { Duplex } from 'node:stream';
 import { createStaticHandler, getUiDistPath, normalizePrefix } from './static-handler.js';
 import { FreyaAuthService } from './auth-service.js';
+
+const require = createRequire(import.meta.url);
+const CORE_VERSION: string = (require('../../package.json') as { version?: string })?.version || '1.0.1';
 
 export type UpgradeHandler = (req: http.IncomingMessage, socket: Duplex, head: Buffer) => void;
 
@@ -123,6 +127,8 @@ export class FreyaWebContainer implements FreyaHttpService {
             return this.authService.handleAuthApi(req, res, context, this.ctx, this.isNoAuthCli);
         }, { auth: false });
 
+        this.registerApi('/api/version', (req, res) => this.handleVersionApi(req, res), { auth: false });
+
         this.httpServer = http.createServer(async (req, res) => {
             await this.handleHttpRequest(req, res);
         });
@@ -220,6 +226,37 @@ export class FreyaWebContainer implements FreyaHttpService {
         }
 
         socket.destroy();
+    }
+
+    private handleVersionApi(req: http.IncomingMessage, res: http.ServerResponse): boolean {
+        if (req.method === 'OPTIONS') {
+            res.writeHead(204, {
+                'Access-Control-Allow-Origin': '*',
+                'Access-Control-Allow-Methods': 'GET, OPTIONS',
+                'Access-Control-Allow-Headers': 'Content-Type, Authorization'
+            });
+            res.end();
+            return true;
+        }
+
+        if (req.method !== 'GET') {
+            res.writeHead(405, {
+                'Content-Type': 'application/json; charset=utf-8',
+                'Access-Control-Allow-Origin': '*'
+            });
+            res.end(JSON.stringify({ success: false, error: 'Method Not Allowed' }));
+            return true;
+        }
+
+        res.writeHead(200, {
+            'Content-Type': 'application/json; charset=utf-8',
+            'Access-Control-Allow-Origin': '*'
+        });
+        res.end(JSON.stringify({
+            success: true,
+            version: CORE_VERSION
+        }));
+        return true;
     }
 
     async stop(): Promise<void> {

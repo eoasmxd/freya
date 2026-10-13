@@ -57,14 +57,11 @@ async function main() {
   const rootPkg = JSON.parse(rootPkgRaw);
   const rootVersion = rootPkg.version || '0.1.0';
 
-  if (isRelease) {
-    console.log(`📝 Release mode: Syncing SDK package version to ${rootVersion}...`);
-    const sdkPkgPath = path.join(PROJECT_ROOT, 'packages', 'sdk', 'package.json');
-    const rawSdkPkg = await fs.readFile(sdkPkgPath, 'utf-8');
-    const sdkPkg = JSON.parse(rawSdkPkg);
-    sdkPkg.version = rootVersion;
-    await fs.writeFile(sdkPkgPath, JSON.stringify(sdkPkg, null, 2) + '\n', 'utf-8');
-  }
+  const sdkPkgPath = path.join(PROJECT_ROOT, 'packages', 'sdk', 'package.json');
+  const rawSdkPkg = await fs.readFile(sdkPkgPath, 'utf-8');
+  const sdkPkg = JSON.parse(rawSdkPkg);
+  const sdkVersion = sdkPkg.version || rootVersion;
+  console.log(`📦 Root package version: ${rootVersion}, SDK package version: ${sdkVersion}`);
 
   console.log('🧹 Cleaning root dist directory...');
   await fs.rm(distDir, { recursive: true, force: true });
@@ -90,7 +87,7 @@ async function main() {
   const rawCorePkg = await fs.readFile(path.join(coreDestDir, 'package.json'), 'utf-8');
   const corePkg = JSON.parse(rawCorePkg);
   if (corePkg.dependencies && corePkg.dependencies['@eoasmxd/freya-sdk']) {
-    corePkg.dependencies['@eoasmxd/freya-sdk'] = isRelease ? `^${rootVersion}` : 'file:../sdk';
+    corePkg.dependencies['@eoasmxd/freya-sdk'] = isRelease ? `^${sdkVersion}` : 'file:../sdk';
   }
   await fs.writeFile(path.join(coreDestDir, 'package.json'), JSON.stringify(corePkg, null, 2));
 
@@ -117,10 +114,10 @@ async function main() {
       const rawPkg = await fs.readFile(pluginPkgDest, 'utf-8');
       const pkg = JSON.parse(rawPkg);
       if (pkg.dependencies && pkg.dependencies['@eoasmxd/freya-sdk']) {
-        pkg.dependencies['@eoasmxd/freya-sdk'] = isRelease ? `^${rootVersion}` : 'file:../../sdk';
+        pkg.dependencies['@eoasmxd/freya-sdk'] = isRelease ? `^${sdkVersion}` : 'file:../../sdk';
       }
       if (pkg.devDependencies && pkg.devDependencies['@eoasmxd/freya-sdk']) {
-        pkg.devDependencies['@eoasmxd/freya-sdk'] = isRelease ? `^${rootVersion}` : 'file:../../sdk';
+        pkg.devDependencies['@eoasmxd/freya-sdk'] = isRelease ? `^${sdkVersion}` : 'file:../../sdk';
       }
       await fs.writeFile(pluginPkgDest, JSON.stringify(pkg, null, 2));
     } catch {
@@ -204,7 +201,7 @@ async function main() {
 
   console.log('📝 Collecting and merging distribution dependencies...');
   const finalDeps = {
-    "@eoasmxd/freya-sdk": isRelease ? `^${rootVersion}` : "file:./sdk"
+    "@eoasmxd/freya-sdk": isRelease ? `^${sdkVersion}` : "file:./sdk"
   };
 
   if (corePkg.dependencies) {
