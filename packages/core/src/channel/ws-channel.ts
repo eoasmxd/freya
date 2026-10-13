@@ -11,7 +11,11 @@ import { zh } from '../i18n/locales/zh.js';
 import { en } from '../i18n/locales/en.js';
 
 const require = createRequire(import.meta.url);
-const CORE_VERSION: string = (require('../../package.json') as { version?: string })?.version || '1.0.1';
+let CORE_VERSION = '1.0.1';
+try {
+    CORE_VERSION = (require('../../package.json') as { version?: string })?.version || '1.0.1';
+} catch {
+}
 
 const WSS_HANDLER_ID = 'built-in-ws-channel';
 

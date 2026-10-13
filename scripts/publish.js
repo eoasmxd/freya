@@ -8,10 +8,11 @@ const PROJECT_ROOT = path.resolve(__dirname, '..');
 
 function isVersionPublished(name, version) {
   try {
-    const output = execSync(`npm view ${name}@${version} version --json`, {
+    const output = execSync(`npm view "${name}@${version}" version --json`, {
       stdio: ['pipe', 'pipe', 'pipe']
     }).toString().trim();
-    return Boolean(output && output.includes(version));
+    const parsed = JSON.parse(output);
+    return parsed === version;
   } catch {
     return false;
   }

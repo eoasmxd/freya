@@ -9,7 +9,11 @@ import { createStaticHandler, getUiDistPath, normalizePrefix } from './static-ha
 import { FreyaAuthService } from './auth-service.js';
 
 const require = createRequire(import.meta.url);
-const CORE_VERSION: string = (require('../../package.json') as { version?: string })?.version || '1.0.1';
+let CORE_VERSION = '1.0.1';
+try {
+    CORE_VERSION = (require('../../package.json') as { version?: string })?.version || '1.0.1';
+} catch {
+}
 
 export type UpgradeHandler = (req: http.IncomingMessage, socket: Duplex, head: Buffer) => void;
 
