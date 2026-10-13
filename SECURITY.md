@@ -7,7 +7,7 @@ Freya is a local-first microkernel AI Agent system. This document defines the se
 ## 1. Threat Model & Built-in Logical Sandboxes
 
 > [!NOTE]
-> **System Virtualization Notice**: To keep the codebase lightweight, the Freya monolithic microkernel runs directly within the host process by default. Official production-ready Docker images (`ghcr.io/eoasmxd/freya:latest`) are available, and **we strongly recommend using Docker container isolation for production and multi-tenant environments**.
+> **System Virtualization Notice**: To keep the codebase lightweight, the Freya monolithic microkernel runs directly within the host process by default. Official production-ready Docker images (`eoasmxd/freya:latest`) are available, and **we strongly recommend using Docker container isolation for production and multi-tenant environments**.
 > Meanwhile, to ensure autonomous agent safety across diverse environments, official built-in tools implement the following three layers of logical sandbox defense gateways:
 
 *   **Workspace Sandbox**:
@@ -28,7 +28,7 @@ Freya is a local-first microkernel AI Agent system. This document defines the se
 *   **Bypass Vectors**: Untrusted third-party skill or tool plugins can directly import Node.js native system APIs (such as `node:child_process` for shell command execution, or `node:fs` for arbitrary filesystem I/O), **completely circumventing** the logical workspace and network sandboxes.
 *   **Preventative Measures**:
     1.  **Strictly avoid** loading and executing any third-party plugins from unknown sources or without thorough manual code security audits.
-    2.  **Deploy via Official Docker Images**: When running in production or testing untrusted third-party plugins, it is strongly recommended to use the official Docker image (`ghcr.io/eoasmxd/freya:latest`), mounting only necessary persistent data directories (e.g., `-v $(pwd)/freya-data:/data`) to achieve process-level and filesystem isolation from the host.
+    2.  **Deploy via Official Docker Images**: When running in production or testing untrusted third-party plugins, it is strongly recommended to use the official Docker image (`eoasmxd/freya:latest`), mounting only necessary persistent data directories (e.g., `-v $(pwd)/freya-data:/data`) to achieve process-level and filesystem isolation from the host.
 
 ---
 
