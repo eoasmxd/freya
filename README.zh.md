@@ -46,7 +46,7 @@ docker run -d \
   -p 3000:3000 \
   -v $(pwd)/freya-data:/data \
   --restart unless-stopped \
-  ghcr.io/eoasmxd/freya:latest
+  eoasmxd/freya:latest
 ```
 
 或使用本地源码构建镜像运行：

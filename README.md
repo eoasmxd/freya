@@ -48,7 +48,7 @@ docker run -d \
   -p 3000:3000 \
   -v $(pwd)/freya-data:/data \
   --restart unless-stopped \
-  ghcr.io/eoasmxd/freya:latest
+  eoasmxd/freya:latest
 ```
 
 Or build and run locally from source:

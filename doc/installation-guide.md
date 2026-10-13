@@ -62,7 +62,7 @@ docker run -d \
   -p 3000:3000 \
   -v $(pwd)/freya-data:/data \
   --restart unless-stopped \
-  ghcr.io/eoasmxd/freya:latest
+  eoasmxd/freya:latest
 ```
 
 *也可以使用本地源码直接构建镜像并运行：*
@@ -78,7 +78,7 @@ docker run -d --name freya -p 3000:3000 -v $(pwd)/freya-data:/data freya
 
 ### 3.3 容器版本平滑更新
 当发布了新的镜像版本时，执行以下三步即可无损升级：
-1. **拉取最新镜像**：`docker pull ghcr.io/eoasmxd/freya:latest`
+1. **拉取最新镜像**：`docker pull eoasmxd/freya:latest`
 2. **销毁旧容器**：`docker rm -f freya`（用户配置与会话记忆均保留在 `./freya-data` 挂载目录中，数据安全无损）
 3. **重新拉起服务**：重新执行 3.1 中的 `docker run` 命令即可。
 

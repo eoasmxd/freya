@@ -62,7 +62,7 @@ docker run -d \
   -p 3000:3000 \
   -v $(pwd)/freya-data:/data \
   --restart unless-stopped \
-  ghcr.io/eoasmxd/freya:latest
+  eoasmxd/freya:latest
 ```
 
 *Alternatively, build and run directly from local source:*
@@ -78,7 +78,7 @@ docker run -d --name freya -p 3000:3000 -v $(pwd)/freya-data:/data freya
 
 ### 3.3 Seamless Container Upgrades
 When a new image version is published, follow these three steps for a zero-loss upgrade:
-1. **Pull the latest image**: `docker pull ghcr.io/eoasmxd/freya:latest`
+1. **Pull the latest image**: `docker pull eoasmxd/freya:latest`
 2. **Remove the old container**: `docker rm -f freya` (configurations and conversation memories are preserved in the `./freya-data` mount, ensuring data safety)
 3. **Relaunch the service**: Re-run the `docker run` command from step 3.1.
 
