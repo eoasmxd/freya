@@ -11,11 +11,13 @@ COPY . .
 RUN pnpm install --frozen-lockfile
 RUN pnpm build:release
 
+WORKDIR /repo/packages/sdk
+RUN mkdir -p /app-dist/sdk && npm pack --pack-destination /app-dist/sdk
+
 WORKDIR /repo/dist
-RUN npm pack --pack-destination /app-dist
+RUN mkdir -p /app-dist/app && npm pack --pack-destination /app-dist/app
 
 
-# 阶段 2：轻量生产运行时
 FROM node:22-bookworm-slim
 
 WORKDIR /app
@@ -26,8 +28,11 @@ ENV NODE_ENV=production \
 
 RUN mkdir -p /data
 
-COPY --from=builder /app-dist/*.tgz /tmp/freya.tgz
-RUN npm install -g /tmp/freya.tgz --no-audit --no-fund && rm -f /tmp/freya.tgz
+COPY --from=builder /app-dist/sdk/*.tgz /tmp/sdk.tgz
+COPY --from=builder /app-dist/app/*.tgz /tmp/freya.tgz
+RUN npm install -g /tmp/sdk.tgz --no-audit --no-fund && \
+    npm install -g /tmp/freya.tgz --no-audit --no-fund && \
+    rm -f /tmp/sdk.tgz /tmp/freya.tgz
 
 COPY docker/config/schema.json /app/config/schema.json
 
