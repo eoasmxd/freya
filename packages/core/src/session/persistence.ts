@@ -8,6 +8,7 @@ const DATA_DIR = path.resolve(FREYA_HOME, 'data');
 const SESSIONS_DIR = path.resolve(DATA_DIR, 'sessions');
 const INDEX_FILE = path.resolve(DATA_DIR, 'sessions.json');
 const EPHEMERAL_INDEX_FILE = path.resolve(DATA_DIR, 'ephemeral-sessions.jsonl');
+const ARCHIVED_INDEX_FILE = path.resolve(DATA_DIR, 'archived-sessions.jsonl');
 
 const sessionDirByUuid = (uuid: string) => path.resolve(SESSIONS_DIR, uuid);
 const sessionFileByUuid = (uuid: string) => path.resolve(sessionDirByUuid(uuid), 'session.json');
@@ -31,14 +32,32 @@ export class FreyaSessionPersistence {
     /**
      * 读取索引文件 sessions.json。
      * Read index file sessions.json.
-     * 返回已解析的索引列表；文件不存在时返回空数组。
-     * Returns parsed index list; returns empty array if file does not exist.
+     * 返回已解析的活跃索引列表；自动分离历史归档数据至 JSONL。
+     * Returns parsed active index list; automatically segregates historical archives to JSONL.
      */
     async loadIndex(): Promise<SessionIndex[]> {
         try {
             const data = await fs.readFile(INDEX_FILE, 'utf-8');
             const list: SessionIndex[] = JSON.parse(data);
-            return list;
+            const activeList: SessionIndex[] = [];
+            const archivedList: SessionIndex[] = [];
+
+            for (const item of list) {
+                if (item.archived) {
+                    archivedList.push(item);
+                } else {
+                    activeList.push(item);
+                }
+            }
+
+            if (archivedList.length > 0) {
+                for (const archivedItem of archivedList) {
+                    await this.appendArchivedIndex(archivedItem);
+                }
+                await this.saveIndex(activeList);
+            }
+
+            return activeList;
         } catch (err: any) {
             if (err.code !== 'ENOENT') {
                 this.logger?.error('Failed to load session index sessions.json:', err);
@@ -50,13 +69,11 @@ export class FreyaSessionPersistence {
     async saveIndex(indices: SessionIndex[]): Promise<void> {
         try {
             const list: SessionIndex[] = indices
-                .filter((idx) => !idx.ephemeral)
+                .filter((idx) => !idx.ephemeral && !idx.archived)
                 .map((idx) => ({
                     id: idx.id,
                     uuid: idx.uuid,
                     parentId: idx.parentId,
-                    archived: idx.archived,
-                    archivedAt: idx.archivedAt,
                     summary: idx.summary,
                     updatedAt: idx.updatedAt,
                     modelId: idx.modelId,
@@ -72,6 +89,37 @@ export class FreyaSessionPersistence {
             await fs.writeFile(INDEX_FILE, JSON.stringify(list, null, 2), 'utf-8');
         } catch (err) {
             this.logger?.error('Failed to save session index sessions.json:', err);
+        }
+    }
+
+    /**
+     * 追加写入已归档会话索引至 JSONL 文件。
+     * Append archived session index entry to JSONL file.
+     */
+    async appendArchivedIndex(entry: SessionIndex): Promise<void> {
+        try {
+            const record = {
+                id: entry.id,
+                uuid: entry.uuid,
+                parentId: entry.parentId,
+                archivedAt: entry.archivedAt,
+                summary: entry.summary,
+                updatedAt: entry.updatedAt,
+                modelId: entry.modelId,
+                providerId: entry.providerId,
+                status: entry.status,
+                startTime: entry.startTime,
+                durationMs: entry.durationMs,
+                promptTokens: entry.promptTokens,
+                completionTokens: entry.completionTokens,
+                cachedPromptTokens: entry.cachedPromptTokens,
+                totalTokens: entry.totalTokens,
+                cost: entry.cost
+            };
+            await fs.mkdir(path.dirname(ARCHIVED_INDEX_FILE), { recursive: true });
+            await fs.appendFile(ARCHIVED_INDEX_FILE, JSON.stringify(record) + '\n', 'utf-8');
+        } catch (err) {
+            this.logger?.error('Failed to append archived session index:', err);
         }
     }
 

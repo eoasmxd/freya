@@ -138,7 +138,7 @@ export class DelegateTaskTool implements FreyaTool {
     }
 
     const parentSessionId = args.__sessionId || 'unknown_parent';
-    const parentSessionIndex = this.sessionManager?.findLatestIndexById(parentSessionId);
+    const parentSessionIndex = this.sessionManager?.findIndexById(parentSessionId);
     if (parentSessionIndex?.parentId) {
       return '❌ Subagents cannot delegate tasks to another subagent.';
     }
@@ -211,7 +211,7 @@ export class AgentChatTool implements FreyaTool {
     }
 
     const sessionId = args.__sessionId;
-    const sessionIndex = sessionId ? this.sessionManager?.findLatestIndexById(sessionId) : undefined;
+    const sessionIndex = sessionId ? this.sessionManager?.findIndexById(sessionId) : undefined;
     const providerId = args.providerId || sessionIndex?.providerId;
     const modelId = args.modelId || sessionIndex?.modelId;
 

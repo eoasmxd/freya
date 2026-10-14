@@ -151,7 +151,7 @@ Web 对话框内支持快捷控制命令：
 - **`/session new [名称]`**：拉起拥有独立上下文的分支子会话。
 - **`/session main`**：由分支会话切回主会话。
 - **`/session switch <ID>`**：直接切换至指定的活动会话。
-- **`/session list [archived|all]`**：按条件查看会话列表。
+- **`/session list`**：查看当前活跃会话列表。
 
 ---
 

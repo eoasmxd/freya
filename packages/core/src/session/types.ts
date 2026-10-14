@@ -8,8 +8,8 @@ export interface SessionIndex {
     id: string;
     uuid: string;
     parentId: string | null;
-    archived: boolean;
-    archivedAt: string | null;
+    archived?: boolean;
+    archivedAt?: string | null;
     summary?: string;
     updatedAt: string;
     modelId?: string;

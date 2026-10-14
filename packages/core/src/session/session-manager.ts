@@ -32,12 +32,8 @@ export class FreyaSessionManager {
         private skillRegistry?: FreyaSkillRegistry
     ) { }
 
-    findLatestIndexById(id: string): SessionIndex | undefined {
-        const matched = Array.from(this.sessionIndices.values()).filter(idx => idx.id === id);
-        if (matched.length === 0) return undefined;
-        const active = matched.find(idx => !idx.archived);
-        if (active) return active;
-        return matched.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())[0];
+    findIndexById(id: string): SessionIndex | undefined {
+        return Array.from(this.sessionIndices.values()).find(idx => idx.id === id);
     }
 
     /**
@@ -151,7 +147,7 @@ export class FreyaSessionManager {
         const cached = this.sessions.get(id);
         if (cached && !cached.archived) return cached;
 
-        const idx = this.findLatestIndexById(id);
+        const idx = this.findIndexById(id);
         if (!idx) {
             // 会话不存在异常
             throw new Error(`Session not found: ${id}`);
@@ -162,8 +158,8 @@ export class FreyaSessionManager {
             id: idx.id,
             uuid: idx.uuid,
             parentId: idx.parentId,
-            archived: idx.archived,
-            archivedAt: idx.archivedAt,
+            archived: idx.archived ?? false,
+            archivedAt: idx.archivedAt ?? null,
             summary: idx.summary,
             history: data.history,
             lastSnapshotId: data.lastSnapshotId,
@@ -220,6 +216,10 @@ export class FreyaSessionManager {
         await this.persistence.saveSessionData(session);
         if (session.ephemeral) {
             await this.persistence.appendEphemeralIndex(session);
+        } else if (session.archived) {
+            await this.persistence.appendArchivedIndex(session);
+            this.sessionIndices.delete(session.uuid);
+            await this.saveIndex();
         } else {
             await this.saveIndex();
         }
@@ -253,7 +253,7 @@ export class FreyaSessionManager {
     }
 
     async getOrCreate(id: string, options?: { ephemeral?: boolean; activeToolboxIds?: string[]; activeSkillId?: string }): Promise<Session> {
-        const index = this.findLatestIndexById(id);
+        const index = this.findIndexById(id);
         if (index && !index.archived) {
             try {
                 const session = await this.lazyLoadSession(id);
@@ -304,7 +304,7 @@ export class FreyaSessionManager {
 
 
     has(id: string): boolean {
-        return !!this.findLatestIndexById(id);
+        return !!this.findIndexById(id);
     }
 
     async appendMessage(sessionId: string, message: LLMMessage): Promise<void> {
@@ -437,50 +437,41 @@ export class FreyaSessionManager {
         });
     }
 
-    private async archive(id: string): Promise<void> {
-        const session = await this.getOrCreate(id);
-        session.archived = true;
-        session.archivedAt = new Date().toISOString();
-        session.updatedAt = session.archivedAt;
-
-        await this.persistSession(session);
-    }
-
-    async archiveAndRecreate(id: string): Promise<{ oldId: string; newId: string }> {
+    async archiveAndRecreate(id: string): Promise<{ oldId: string; newId: string; archived: boolean }> {
         const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
         const oldId = `${id}_${timestamp}`;
 
-        let parentId: string | null = null;
-        let providerId: string | undefined;
-        let modelId: string | undefined;
-        let activeSkillId: string | undefined;
+        return await this.enqueueWrite(id, async (session) => {
+            const currentSession = session ?? await this.getOrCreate(id);
+            const hasHistory = (currentSession.history && currentSession.history.length > 0) || Boolean(currentSession.lastSnapshotId);
 
-        const oldSession = this.sessions.get(id);
-        if (oldSession) {
-            parentId = oldSession.parentId;
-            providerId = oldSession.providerId;
-            modelId = oldSession.modelId;
-            activeSkillId = oldSession.activeSkillId;
-        }
+            if (!hasHistory) {
+                return { oldId: id, newId: id, archived: false };
+            }
 
-        await this.archive(id);
+            const parentId = currentSession.parentId ?? undefined;
+            const providerId = currentSession.providerId;
+            const modelId = currentSession.modelId;
+            const activeSkillId = currentSession.activeSkillId;
 
-        const oldIdx = this.findLatestIndexById(id);
-        if (oldIdx) {
-            oldIdx.id = oldId;
-            await this.saveIndex();
-        }
-        this.sessions.delete(id);
+            currentSession.id = oldId;
+            currentSession.archived = true;
+            currentSession.archivedAt = new Date().toISOString();
+            currentSession.updatedAt = currentSession.archivedAt;
 
-        await this.createSession(id, {
-            parentId: parentId ?? undefined,
-            providerId,
-            modelId,
-            activeSkillId
+            await this.persistSession(currentSession);
+            this.sessions.delete(id);
+
+            await this.createSession(id, {
+                parentId,
+                providerId,
+                modelId,
+                activeSkillId
+            });
+
+            this.logger?.info(`[SessionManager] Session archived and recreated: ${id} → ${oldId}`);
+            return { oldId, newId: id, archived: true };
         });
-
-        this.logger?.info(`[SessionManager] Session archived and recreated: ${id} → ${oldId}`);
-        return { oldId, newId: id };
     }
 
     /**
@@ -516,7 +507,7 @@ export class FreyaSessionManager {
         return session;
     }
 
-    listSessions(filter?: { parentId?: string; archived?: boolean; ephemeral?: boolean }): SessionIndex[] {
+    listSessions(filter?: { parentId?: string; ephemeral?: boolean }): SessionIndex[] {
         let list = Array.from(this.sessionIndices.values());
 
         if (filter?.ephemeral !== undefined) {
@@ -527,9 +518,6 @@ export class FreyaSessionManager {
 
         if (filter?.parentId !== undefined) {
             list = list.filter(idx => idx.parentId === filter.parentId);
-        }
-        if (filter?.archived !== undefined) {
-            list = list.filter(idx => idx.archived === filter.archived);
         }
 
         return list.map(idx => {
