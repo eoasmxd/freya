@@ -591,6 +591,9 @@ export class FreyaSessionManager {
     startAutoArchiveTimer(): void {
         if (this.autoArchiveTimer) return;
         const intervalMs = 60 * 60 * 1000;
+        this.scanAndArchiveExpiredSessions().catch((err) => {
+            this.logger?.error('[SessionManager] Failed to scan and archive expired sessions on startup:', err);
+        });
         this.autoArchiveTimer = setInterval(() => {
             this.scanAndArchiveExpiredSessions().catch((err) => {
                 this.logger?.error('[SessionManager] Failed to scan and archive expired sessions:', err);
