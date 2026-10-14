@@ -32,32 +32,14 @@ export class FreyaSessionPersistence {
     /**
      * 读取索引文件 sessions.json。
      * Read index file sessions.json.
-     * 返回已解析的活跃索引列表；自动分离历史归档数据至 JSONL。
-     * Returns parsed active index list; automatically segregates historical archives to JSONL.
+     * 返回已解析的索引列表（剔除临时会话）。
+     * Returns parsed index list without ephemerals.
      */
     async loadIndex(): Promise<SessionIndex[]> {
         try {
             const data = await fs.readFile(INDEX_FILE, 'utf-8');
             const list: SessionIndex[] = JSON.parse(data);
-            const activeList: SessionIndex[] = [];
-            const archivedList: SessionIndex[] = [];
-
-            for (const item of list) {
-                if (item.archived) {
-                    archivedList.push(item);
-                } else {
-                    activeList.push(item);
-                }
-            }
-
-            if (archivedList.length > 0) {
-                for (const archivedItem of archivedList) {
-                    await this.appendArchivedIndex(archivedItem);
-                }
-                await this.saveIndex(activeList);
-            }
-
-            return activeList;
+            return list.filter((item) => !item.ephemeral);
         } catch (err: any) {
             if (err.code !== 'ENOENT') {
                 this.logger?.error('Failed to load session index sessions.json:', err);
@@ -93,33 +75,38 @@ export class FreyaSessionPersistence {
     }
 
     /**
-     * 追加写入已归档会话索引至 JSONL 文件。
-     * Append archived session index entry to JSONL file.
+     * 追加写入已归档会话索引至 JSONL 文件（支持单条或批量）。
+     * Append archived session index entries to JSONL file.
      */
-    async appendArchivedIndex(entry: SessionIndex): Promise<void> {
+    async appendArchivedIndices(entries: SessionIndex | SessionIndex[]): Promise<void> {
+        const list = Array.isArray(entries) ? entries : [entries];
+        if (list.length === 0) return;
         try {
-            const record = {
-                id: entry.id,
-                uuid: entry.uuid,
-                parentId: entry.parentId,
-                archivedAt: entry.archivedAt,
-                summary: entry.summary,
-                updatedAt: entry.updatedAt,
-                modelId: entry.modelId,
-                providerId: entry.providerId,
-                status: entry.status,
-                startTime: entry.startTime,
-                durationMs: entry.durationMs,
-                promptTokens: entry.promptTokens,
-                completionTokens: entry.completionTokens,
-                cachedPromptTokens: entry.cachedPromptTokens,
-                totalTokens: entry.totalTokens,
-                cost: entry.cost
-            };
+            const lines = list.map((entry) => {
+                const record = {
+                    id: entry.id,
+                    uuid: entry.uuid,
+                    parentId: entry.parentId,
+                    archivedAt: entry.archivedAt,
+                    summary: entry.summary,
+                    updatedAt: entry.updatedAt,
+                    modelId: entry.modelId,
+                    providerId: entry.providerId,
+                    status: entry.status,
+                    startTime: entry.startTime,
+                    durationMs: entry.durationMs,
+                    promptTokens: entry.promptTokens,
+                    completionTokens: entry.completionTokens,
+                    cachedPromptTokens: entry.cachedPromptTokens,
+                    totalTokens: entry.totalTokens,
+                    cost: entry.cost
+                };
+                return JSON.stringify(record);
+            }).join('\n') + '\n';
             await fs.mkdir(path.dirname(ARCHIVED_INDEX_FILE), { recursive: true });
-            await fs.appendFile(ARCHIVED_INDEX_FILE, JSON.stringify(record) + '\n', 'utf-8');
+            await fs.appendFile(ARCHIVED_INDEX_FILE, lines, 'utf-8');
         } catch (err) {
-            this.logger?.error('Failed to append archived session index:', err);
+            this.logger?.error('Failed to append archived session indices:', err);
         }
     }
 

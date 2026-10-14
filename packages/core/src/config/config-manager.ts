@@ -1026,6 +1026,15 @@ export class FreyaConfigManager {
         manualOnly: true
       },
       {
+        key: 'session.autoArchiveHours',
+        defaultValue: 48,
+        description: this.i18n.all('schema.core.session.autoArchiveHours.desc', 'Inactive session auto-archive timeout in hours (set to 0 to disable)'),
+        type: 'number',
+        min: 0,
+        max: 8760,
+        category: this.i18n.all('schema.core.category.session', 'Session Management')
+      },
+      {
         key: 'log.console.error',
         defaultValue: true,
         description: this.i18n.all('schema.core.log.console.error.desc', 'Console ERROR logs output (red)'),

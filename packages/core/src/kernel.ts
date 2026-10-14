@@ -170,6 +170,7 @@ export class FreyaKernel {
   }
 
   async stop(): Promise<void> {
+    this.sessionManager?.stopAutoArchiveTimer();
     this.connectionManager?.stop();
     await this.pluginManager?.stopAll(this.context);
     await this.cliChannel?.stop(this.context);

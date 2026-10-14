@@ -22,6 +22,7 @@ export class FreyaSessionManager {
     private sessionIndices = new Map<string, SessionIndex>();
     private updateLocks = new Map<string, Promise<unknown>>();
     private globalIndexLock = Promise.resolve();
+    private autoArchiveTimer?: NodeJS.Timeout;
 
     private context?: FreyaContext;
     private logger?: FreyaContext['logger'];
@@ -73,6 +74,7 @@ export class FreyaSessionManager {
             }
         });
 
+        this.startAutoArchiveTimer();
         this.logger?.info(`[SessionManager] Initialized, loaded ${this.sessionIndices.size} sessions`);
     }
 
@@ -217,7 +219,7 @@ export class FreyaSessionManager {
         if (session.ephemeral) {
             await this.persistence.appendEphemeralIndex(session);
         } else if (session.archived) {
-            await this.persistence.appendArchivedIndex(session);
+            await this.persistence.appendArchivedIndices(session);
             this.sessionIndices.delete(session.uuid);
             await this.saveIndex();
         } else {
@@ -584,5 +586,94 @@ export class FreyaSessionManager {
                 cost: session.cost
             });
         });
+    }
+
+    startAutoArchiveTimer(): void {
+        if (this.autoArchiveTimer) return;
+        const intervalMs = 60 * 60 * 1000;
+        this.scanAndArchiveExpiredSessions().catch((err) => {
+            this.logger?.error('[SessionManager] Failed to scan and archive expired sessions on startup:', err);
+        });
+        this.autoArchiveTimer = setInterval(() => {
+            this.scanAndArchiveExpiredSessions().catch((err) => {
+                this.logger?.error('[SessionManager] Failed to scan and archive expired sessions:', err);
+            });
+        }, intervalMs);
+        this.autoArchiveTimer.unref();
+    }
+
+    stopAutoArchiveTimer(): void {
+        if (this.autoArchiveTimer) {
+            clearInterval(this.autoArchiveTimer);
+            this.autoArchiveTimer = undefined;
+        }
+    }
+
+    async scanAndArchiveExpiredSessions(): Promise<void> {
+        const configHours = (this.context?.config as any)?.session?.autoArchiveHours;
+        const autoArchiveHours = typeof configHours === 'number' ? configHours : 48;
+        if (autoArchiveHours <= 0) return;
+
+        const timeoutMs = autoArchiveHours * 60 * 60 * 1000;
+        const now = Date.now();
+        const activeIndices = Array.from(this.sessionIndices.values());
+        const expiredSessionsToArchive: Session[] = [];
+        let hasIndexChanges = false;
+
+        for (const idx of activeIndices) {
+            if (idx.ephemeral || idx.status === 'running') continue;
+
+            const lastUpdated = new Date(idx.updatedAt).getTime();
+            if (isNaN(lastUpdated)) continue;
+
+            if (now - lastUpdated >= timeoutMs) {
+                try {
+                    await this.enqueueWrite(idx.id, async (session) => {
+                        const currentSession = session ?? await this.getOrCreate(idx.id);
+                        if (currentSession.status === 'running' || currentSession.archived) {
+                            return;
+                        }
+                        const currentUpdated = new Date(currentSession.updatedAt).getTime();
+                        if (!isNaN(currentUpdated) && Date.now() - currentUpdated < timeoutMs) {
+                            return;
+                        }
+
+                        const hasHistory = (currentSession.history && currentSession.history.length > 0) || Boolean(currentSession.lastSnapshotId);
+
+                        if (!hasHistory) {
+                            this.sessionIndices.delete(currentSession.uuid);
+                            this.sessions.delete(idx.id);
+                            hasIndexChanges = true;
+                            this.logger?.info(`[SessionManager] Cleaned up inactive empty session: ${idx.id}`);
+                            return;
+                        }
+
+                        const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+                        const oldId = `${idx.id}_${timestamp}`;
+
+                        currentSession.id = oldId;
+                        currentSession.archived = true;
+                        currentSession.archivedAt = new Date().toISOString();
+                        currentSession.updatedAt = currentSession.archivedAt;
+
+                        this.sessionIndices.delete(currentSession.uuid);
+                        this.sessions.delete(idx.id);
+
+                        expiredSessionsToArchive.push(currentSession);
+                        hasIndexChanges = true;
+                        this.logger?.info(`[SessionManager] Auto-archived expired session: ${idx.id} → ${oldId}`);
+                    });
+                } catch (err) {
+                    this.logger?.error(`[SessionManager] Failed to auto-archive session ${idx.id}:`, err);
+                }
+            }
+        }
+
+        if (expiredSessionsToArchive.length > 0) {
+            await this.persistence.appendArchivedIndices(expiredSessionsToArchive);
+        }
+        if (hasIndexChanges) {
+            await this.saveIndex();
+        }
     }
 }
