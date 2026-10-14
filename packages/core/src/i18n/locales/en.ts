@@ -128,7 +128,9 @@ export const en: Record<string, string> = {
   'schema.core.category.context': 'Context Management',
   'schema.core.category.tools': 'Builtin Tools',
   'schema.core.category.commands': 'Builtin Commands',
+  'schema.core.category.session': 'Session Management',
   'schema.core.category.log': 'Logging',
+  'schema.core.session.autoArchiveHours.desc': 'Inactive session auto-archive timeout in hours (set to 0 to disable)',
 
   'schema.core.system.language.desc': 'System UI and interaction language',
   'schema.core.system.language.enum.auto': 'Auto Detect (auto)',

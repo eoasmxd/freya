@@ -128,7 +128,9 @@ export const zh: Record<string, string> = {
   'schema.core.category.context': '上下文管理',
   'schema.core.category.tools': '系统工具',
   'schema.core.category.commands': '系统指令',
+  'schema.core.category.session': '会话管理',
   'schema.core.category.log': '日志',
+  'schema.core.session.autoArchiveHours.desc': '非活跃会话自动归档超时时间（小时，0 表示禁用）',
 
   'schema.core.system.language.desc': '系统界面与交互语言',
   'schema.core.system.language.enum.auto': '跟随系统 (auto)',

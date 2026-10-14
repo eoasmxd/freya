@@ -51,9 +51,7 @@ export class FreyaSessionPersistence {
             }
 
             if (archivedList.length > 0) {
-                for (const archivedItem of archivedList) {
-                    await this.appendArchivedIndex(archivedItem);
-                }
+                await this.appendArchivedIndices(archivedList);
                 await this.saveIndex(activeList);
             }
 
@@ -93,33 +91,38 @@ export class FreyaSessionPersistence {
     }
 
     /**
-     * 追加写入已归档会话索引至 JSONL 文件。
-     * Append archived session index entry to JSONL file.
+     * 追加写入已归档会话索引至 JSONL 文件（支持单条或批量）。
+     * Append archived session index entries to JSONL file.
      */
-    async appendArchivedIndex(entry: SessionIndex): Promise<void> {
+    async appendArchivedIndices(entries: SessionIndex | SessionIndex[]): Promise<void> {
+        const list = Array.isArray(entries) ? entries : [entries];
+        if (list.length === 0) return;
         try {
-            const record = {
-                id: entry.id,
-                uuid: entry.uuid,
-                parentId: entry.parentId,
-                archivedAt: entry.archivedAt,
-                summary: entry.summary,
-                updatedAt: entry.updatedAt,
-                modelId: entry.modelId,
-                providerId: entry.providerId,
-                status: entry.status,
-                startTime: entry.startTime,
-                durationMs: entry.durationMs,
-                promptTokens: entry.promptTokens,
-                completionTokens: entry.completionTokens,
-                cachedPromptTokens: entry.cachedPromptTokens,
-                totalTokens: entry.totalTokens,
-                cost: entry.cost
-            };
+            const lines = list.map((entry) => {
+                const record = {
+                    id: entry.id,
+                    uuid: entry.uuid,
+                    parentId: entry.parentId,
+                    archivedAt: entry.archivedAt,
+                    summary: entry.summary,
+                    updatedAt: entry.updatedAt,
+                    modelId: entry.modelId,
+                    providerId: entry.providerId,
+                    status: entry.status,
+                    startTime: entry.startTime,
+                    durationMs: entry.durationMs,
+                    promptTokens: entry.promptTokens,
+                    completionTokens: entry.completionTokens,
+                    cachedPromptTokens: entry.cachedPromptTokens,
+                    totalTokens: entry.totalTokens,
+                    cost: entry.cost
+                };
+                return JSON.stringify(record);
+            }).join('\n') + '\n';
             await fs.mkdir(path.dirname(ARCHIVED_INDEX_FILE), { recursive: true });
-            await fs.appendFile(ARCHIVED_INDEX_FILE, JSON.stringify(record) + '\n', 'utf-8');
+            await fs.appendFile(ARCHIVED_INDEX_FILE, lines, 'utf-8');
         } catch (err) {
-            this.logger?.error('Failed to append archived session index:', err);
+            this.logger?.error('Failed to append archived session indices:', err);
         }
     }
 
