@@ -627,33 +627,45 @@ export class FreyaSessionManager {
             if (isNaN(lastUpdated)) continue;
 
             if (now - lastUpdated >= timeoutMs) {
-                await this.enqueueWrite(idx.id, async (session) => {
-                    const currentSession = session ?? await this.getOrCreate(idx.id);
-                    const hasHistory = (currentSession.history && currentSession.history.length > 0) || Boolean(currentSession.lastSnapshotId);
+                try {
+                    await this.enqueueWrite(idx.id, async (session) => {
+                        const currentSession = session ?? await this.getOrCreate(idx.id);
+                        if (currentSession.status === 'running' || currentSession.archived) {
+                            return;
+                        }
+                        const currentUpdated = new Date(currentSession.updatedAt).getTime();
+                        if (!isNaN(currentUpdated) && Date.now() - currentUpdated < timeoutMs) {
+                            return;
+                        }
 
-                    if (!hasHistory) {
+                        const hasHistory = (currentSession.history && currentSession.history.length > 0) || Boolean(currentSession.lastSnapshotId);
+
+                        if (!hasHistory) {
+                            this.sessionIndices.delete(currentSession.uuid);
+                            this.sessions.delete(idx.id);
+                            hasIndexChanges = true;
+                            this.logger?.info(`[SessionManager] Cleaned up inactive empty session: ${idx.id}`);
+                            return;
+                        }
+
+                        const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+                        const oldId = `${idx.id}_${timestamp}`;
+
+                        currentSession.id = oldId;
+                        currentSession.archived = true;
+                        currentSession.archivedAt = new Date().toISOString();
+                        currentSession.updatedAt = currentSession.archivedAt;
+
                         this.sessionIndices.delete(currentSession.uuid);
                         this.sessions.delete(idx.id);
+
+                        expiredSessionsToArchive.push(currentSession);
                         hasIndexChanges = true;
-                        this.logger?.info(`[SessionManager] Cleaned up inactive empty session: ${idx.id}`);
-                        return;
-                    }
-
-                    const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
-                    const oldId = `${idx.id}_${timestamp}`;
-
-                    currentSession.id = oldId;
-                    currentSession.archived = true;
-                    currentSession.archivedAt = new Date().toISOString();
-                    currentSession.updatedAt = currentSession.archivedAt;
-
-                    this.sessionIndices.delete(currentSession.uuid);
-                    this.sessions.delete(idx.id);
-
-                    expiredSessionsToArchive.push(currentSession);
-                    hasIndexChanges = true;
-                    this.logger?.info(`[SessionManager] Auto-archived expired session: ${idx.id} → ${oldId}`);
-                });
+                        this.logger?.info(`[SessionManager] Auto-archived expired session: ${idx.id} → ${oldId}`);
+                    });
+                } catch (err) {
+                    this.logger?.error(`[SessionManager] Failed to auto-archive session ${idx.id}:`, err);
+                }
             }
         }
 

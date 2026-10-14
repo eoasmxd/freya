@@ -32,14 +32,14 @@ export class FreyaSessionPersistence {
     /**
      * 读取索引文件 sessions.json。
      * Read index file sessions.json.
-     * 返回已解析的活跃索引列表。
-     * Returns parsed active index list.
+     * 返回已解析的索引列表（剔除临时会话）。
+     * Returns parsed index list without ephemerals.
      */
     async loadIndex(): Promise<SessionIndex[]> {
         try {
             const data = await fs.readFile(INDEX_FILE, 'utf-8');
             const list: SessionIndex[] = JSON.parse(data);
-            return list.filter((item) => !item.archived && !item.ephemeral);
+            return list.filter((item) => !item.ephemeral);
         } catch (err: any) {
             if (err.code !== 'ENOENT') {
                 this.logger?.error('Failed to load session index sessions.json:', err);
