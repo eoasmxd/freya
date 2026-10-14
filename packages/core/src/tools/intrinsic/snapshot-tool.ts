@@ -34,7 +34,7 @@ export class ReadSnapshotTool implements FreyaTool {
       if (!sessionId) {
         return '❌ Parameter error: Please provide a valid session ID.';
       }
-      const idx = this.sessionManager.findLatestIndexById(sessionId);
+      const idx = this.sessionManager.findIndexById(sessionId);
       if (!idx) {
         return `❌ Session not found: ${sessionId}`;
       }

@@ -29,7 +29,9 @@ Freya 严格遵循“代码与运行态隔离”、“包内默认 -> 本地覆�
 │   └── plugins.json             # 运行时已扫描并合并元数据的插件启用列表配置
 ├── data/                        # 运行时持久化数据目录
 │   ├── sessions/                # 本地持久化缓存的各个会话历史详细文件 (.json)
-│   ├── sessions.json            # 本地持久化缓存的全局会话元数据索引文件
+│   ├── sessions.json            # 本地持久化缓存的全局活跃会话元数据索引文件
+│   ├── archived-sessions.jsonl  # 本地持久化追加记录的已归档历史会话索引 (JSONL)
+│   ├── ephemeral-sessions.jsonl # 本地持久化追加记录的临时子会话索引 (JSONL)
 │   ├── memories.json            # 主动长期记忆索引物理文件 (plugin-tool-memory 持有)
 │   └── memories/                # 主动长期记忆物理日期文件存仓 (plugin-tool-memory 持有)
 ├── skills/                      # 运行时用户自定义技能卡目录 (系统启动时与内置技能双通道合并加载)

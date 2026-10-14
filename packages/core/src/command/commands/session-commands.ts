@@ -41,18 +41,20 @@ export function registerSessionCommands(deps: SessionCommandDeps): void {
 
     const handleReset = async (sessionId: string, connectionId?: string): Promise<string | undefined> => {
         if (!connectionId) return undefined;
-        let newSessionId = sessionId;
-        let previousSessionId = sessionId;
 
-        if (sessionId === 'main') {
-            const { oldId } = await sessionManager.archiveAndRecreate('main');
-            previousSessionId = oldId;
-            newSessionId = 'main';
-        } else {
-            const { oldId } = await sessionManager.archiveAndRecreate(sessionId);
-            previousSessionId = oldId;
-            newSessionId = sessionId;
+        const { oldId, archived } = await sessionManager.archiveAndRecreate(sessionId);
+
+        if (!archived) {
+            eventBus.emit('session:reply:text', {
+                sessionId,
+                content: i18n.t('cmd.session.reset.noHistory', 'ℹ️ Current session has no message history, reset skipped.')
+            });
+            eventBus.emit('session:reply:completed', { sessionId });
+            return undefined;
         }
+
+        const previousSessionId = oldId;
+        const newSessionId = sessionId;
 
         eventBus.emit('connection:rebind', { connectionId, sessionId: newSessionId });
 
@@ -123,13 +125,10 @@ export function registerSessionCommands(deps: SessionCommandDeps): void {
 
     const handleSwitch = async (targetId: string, sessionId: string, connectionId?: string): Promise<string | undefined> => {
         if (!connectionId) return undefined;
-        const session = await sessionManager.getOrCreate(targetId);
-        if (!session) {
+        if (!sessionManager.has(targetId)) {
             return i18n.t('cmd.session.switch.notFound', '❌ Session `{id}` does not exist. Use `/session new` to create one.', { id: targetId });
         }
-        if (session.archived) {
-            return i18n.t('cmd.session.switch.archived', '❌ Session `{id}` is archived and cannot be switched to. Use `/session list archived` to view archived sessions.', { id: targetId });
-        }
+        const session = await sessionManager.getOrCreate(targetId);
 
         eventBus.emit('connection:rebind', { connectionId, sessionId: targetId });
 
@@ -151,19 +150,9 @@ export function registerSessionCommands(deps: SessionCommandDeps): void {
         return undefined;
     };
 
-    const handleList = async (filter: string, currentSessionId: string): Promise<string> => {
-        let indices;
-        let title;
-        if (filter === 'archived') {
-            indices = sessionManager.listSessions({ archived: true });
-            title = i18n.t('cmd.session.list.titleArchived', '📦 Archived Sessions');
-        } else if (filter === 'all') {
-            indices = sessionManager.listSessions();
-            title = i18n.t('cmd.session.list.titleAll', '📋 All Sessions');
-        } else {
-            indices = sessionManager.listSessions({ archived: false });
-            title = i18n.t('cmd.session.list.titleActive', '📋 Active Sessions');
-        }
+    const handleList = async (currentSessionId: string): Promise<string> => {
+        const indices = sessionManager.listSessions();
+        const title = i18n.t('cmd.session.list.title', '📋 Sessions');
 
         if (indices.length === 0) {
             return i18n.t('cmd.session.list.empty', 'ℹ️ {title}: none.', { title });
@@ -176,10 +165,7 @@ export function registerSessionCommands(deps: SessionCommandDeps): void {
             const type = idx.parentId
                 ? i18n.t('cmd.session.list.typeBranch', 'branch')
                 : i18n.t('cmd.session.list.typeMain', 'main');
-            const archivedTag = idx.archived
-                ? i18n.t('cmd.session.list.archivedTag', ' *(archived on {date})*', { date: idx.archivedAt?.slice(0, 10) })
-                : '';
-            return `- \`${idx.id}\` *(${type})*${archivedTag}${marker}`;
+            return `- \`${idx.id}\` *(${type})*${marker}`;
         });
 
         return `### ${title}\n\n${lines.join('\n')}`;
@@ -194,7 +180,7 @@ export function registerSessionCommands(deps: SessionCommandDeps): void {
             { name: 'new', description: i18n.all('cmd.session.sub.new', 'Create a branch sub-session'), usage: '/session new [name]' },
             { name: 'main', description: i18n.all('cmd.session.sub.main', 'Return to main session') },
             { name: 'switch', description: i18n.all('cmd.session.sub.switch', 'Switch to a specified session'), usage: '/session switch <ID>' },
-            { name: 'list', description: i18n.all('cmd.session.sub.list', 'List sessions'), usage: '/session list [archived|all]' },
+            { name: 'list', description: i18n.all('cmd.session.sub.list', 'List active sessions'), usage: '/session list' },
         ],
         execute: async (args, sessionId, _ctx, connectionId) => {
             const sub = (args[0] || 'info').toLowerCase();
@@ -226,8 +212,7 @@ export function registerSessionCommands(deps: SessionCommandDeps): void {
                 }
 
                 case 'list': {
-                    const filter = (args[1] || '').toLowerCase();
-                    return await handleList(filter, sessionId);
+                    return await handleList(sessionId);
                 }
 
                 default:
