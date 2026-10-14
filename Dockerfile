@@ -1,6 +1,22 @@
-FROM node:22-bookworm-slim
+FROM node:22-bookworm-slim AS builder
 
-ARG FREYA_VERSION=latest
+WORKDIR /repo
+
+ENV PNPM_HOME="/pnpm"
+ENV PATH="$PNPM_HOME:$PATH"
+RUN corepack enable
+
+COPY . .
+
+RUN pnpm install --frozen-lockfile
+RUN pnpm build:release
+
+WORKDIR /repo/dist
+RUN npm pack --pack-destination /app-dist
+
+
+# 阶段 2：轻量生产运行时
+FROM node:22-bookworm-slim
 
 WORKDIR /app
 
@@ -10,7 +26,8 @@ ENV NODE_ENV=production \
 
 RUN mkdir -p /data
 
-RUN npm install -g @eoasmxd/freya@${FREYA_VERSION} --no-audit --no-fund
+COPY --from=builder /app-dist/*.tgz /tmp/freya.tgz
+RUN npm install -g /tmp/freya.tgz --no-audit --no-fund && rm -f /tmp/freya.tgz
 
 COPY docker/config/schema.json /app/config/schema.json
 
