@@ -89,11 +89,11 @@ export class HomeAssistantIntegrationDeployer {
       const message = isInitialInstall
         ? this.i18n.t(
             'notification.install.message',
-            'Freya integration has been automatically installed to `custom_components/freya`. Please **restart Home Assistant** to activate it.'
+            'Freya integration has been automatically installed to `custom_components/freya`. Please [**restart Home Assistant**](/config/system) to activate it.'
           )
         : this.i18n.t(
             'notification.update.message',
-            `Freya integration has been updated to v${version}. Please **restart Home Assistant** to apply updates.`,
+            `Freya integration has been updated to v${version}. Please [**restart Home Assistant**](/config/system) to apply updates.`,
             { version }
           );
 
