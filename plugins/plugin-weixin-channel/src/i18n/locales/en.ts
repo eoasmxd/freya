@@ -18,5 +18,5 @@ export default {
   'cmd.weixin.login.qrGenerated': '⚠️ **Login QR code generated successfully for WeChat account [{accountId}]!**\n\n**[WeChat Scan] Please scan the QR code below to bind account [{accountId}]**:\n\n',
   'cmd.weixin.login.qrFallbackHint': '*(Tip: If character QR code does not display properly, click [Open WeChat QR Page]({scanUrl}) to scan)*',
   'cmd.weixin.login.fail': '❌ Failed to fetch WeChat login QR code: {message}',
-  'cmd.weixin.unknown': '❌ Unknown subcommand. Supported subcommands: `list` and `login`. Usage examples:\n- `/weixin list`\n- `/weixin login my_weixin`',
+  'cmd.weixin.unknown': '❌ Unknown subcommand. Supported subcommands: `list` and `login`. Usage examples:\n- `/weixin list`\n- `/weixin login my_weixin`'
 };

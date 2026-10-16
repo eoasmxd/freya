@@ -18,5 +18,5 @@ export default {
   'cmd.weixin.login.qrGenerated': '⚠️ **微信账号 [{accountId}] 登录二维码已成功生成！**\n\n**[微信扫码] 请使用微信扫描下方二维码绑定账号 [{accountId}]**：\n\n',
   'cmd.weixin.login.qrFallbackHint': '*(提示：若字符二维码未能正常显示或无法扫描，您可以直接点击 [打开微信二维码网页]({scanUrl}) 扫码绑定)*',
   'cmd.weixin.login.fail': '❌ 拉取微信登录二维码失败: {message}',
-  'cmd.weixin.unknown': '❌ 未知子命令：支持的子命令有 `list` 和 `login`。用法示例：\n- `/weixin list`\n- `/weixin login my_weixin`',
+  'cmd.weixin.unknown': '❌ 未知子命令：支持的子命令有 `list` 和 `login`。用法示例：\n- `/weixin list`\n- `/weixin login my_weixin`'
 };
