@@ -15,6 +15,7 @@ export class WeixinConnectionManager implements WeixinMessageSender {
   private context!: FreyaContext;
   private activeAccounts = new Map<string, WeixinAccountState>();
   private contextTokens = new Map<string, string>();
+  private replyListener?: (payload: { connectionId: string; content: string }) => Promise<void>;
 
   constructor(private i18n: I18n) { }
 
@@ -25,7 +26,7 @@ export class WeixinConnectionManager implements WeixinMessageSender {
   setup(ctx: FreyaContext): void {
     this.context = ctx;
 
-    ctx.eventBus.on("connection:reply", async (payload: { connectionId: string; content: string }) => {
+    this.replyListener = async (payload: { connectionId: string; content: string }) => {
       const prefix = "weixin:";
       if (payload.connectionId.startsWith(prefix)) {
         const parts = payload.connectionId.slice(prefix.length).split(":");
@@ -35,7 +36,8 @@ export class WeixinConnectionManager implements WeixinMessageSender {
           await this.sendWeixinMessage(botId, chatId, payload.content);
         }
       }
-    });
+    };
+    ctx.eventBus.on("connection:reply", this.replyListener);
 
     this.context.logger.debug("WeChat channel connection manager initialized, waiting for session cache restore.");
   }
@@ -62,6 +64,11 @@ export class WeixinConnectionManager implements WeixinMessageSender {
    * Gracefully stop and disconnect all active account connections
    */
   async stop(): Promise<void> {
+    if (this.replyListener && this.context) {
+      this.context.eventBus.off("connection:reply", this.replyListener);
+      this.replyListener = undefined;
+    }
+
     for (const [accountId, state] of this.activeAccounts) {
       this.context.logger.debug(`Deactivating and removing WeChat account [${accountId}]...`);
       state.running = false;
@@ -547,11 +554,15 @@ export class WeixinConnectionManager implements WeixinMessageSender {
           break;
         } else {
           await new Promise((resolve, reject) => {
-            const timer = setTimeout(resolve, 3000);
-            state.abortController.signal.addEventListener("abort", () => {
+            const onAbort = () => {
               clearTimeout(timer);
               reject(new DOMException("Aborted", "AbortError"));
-            });
+            };
+            const timer = setTimeout(() => {
+              state.abortController.signal.removeEventListener("abort", onAbort);
+              resolve(undefined);
+            }, 3000);
+            state.abortController.signal.addEventListener("abort", onAbort, { once: true });
           });
         }
       } catch (err: any) {
