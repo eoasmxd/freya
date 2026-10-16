@@ -4,14 +4,13 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import QRCode from "qrcode";
 import type { I18n } from "./i18n/index.js";
-import type { WeixinMessageSender } from "./send-message-tool.js";
 import { type WeixinAccountState, type WeixinBotConfig, WEIXIN_MIME_MAP } from "./types.js";
 
 /**
  * 微信智能硬件 (iLink 协议) 长连接与通信管理器
  * WeChat smart device (iLink protocol) persistent connection and communication manager
  */
-export class WeixinConnectionManager implements WeixinMessageSender {
+export class WeixinConnectionManager {
   private context!: FreyaContext;
   private activeAccounts = new Map<string, WeixinAccountState>();
   private contextTokens = new Map<string, string>();
@@ -121,96 +120,6 @@ export class WeixinConnectionManager implements WeixinMessageSender {
     return await this.triggerWeixinQrLogin(this.context, accountId, state.config);
   }
 
-  /**
-   * 国际化文案翻译辅助方法
-   * Internationalization message translation helper method
-   */
-  translate(key: string, fallback: string, params?: Record<string, any>): string {
-    return this.i18n.t(key, fallback, params);
-  }
-
-  /**
-   * 主动向指定微信实例绑定的会话推送消息
-   * Proactively dispatch message to the bound conversation of specified WeChat instance
-   */
-  async sendMessage(
-    accountId: string,
-    content: string
-  ): Promise<{ success: boolean; chunks: number }> {
-    const state = this.activeAccounts.get(accountId);
-    if (!state || !state.isLoggedIn || !state.token || !state.baseUrl) {
-      throw new Error(
-        this.i18n.t(
-          "tool.weixin.send.accountNotFound",
-          `WeChat account [${accountId}] is not found or not logged in.`,
-          { accountId }
-        )
-      );
-    }
-
-    const targetChatId = state.chatId;
-    if (!targetChatId) {
-      throw new Error(
-        this.i18n.t(
-          "tool.weixin.send.notBound",
-          `WeChat account [${accountId}] has not established conversation binding yet.`,
-          { accountId }
-        )
-      );
-    }
-
-    const connectionId = this.getWeixinConnectionId(accountId, targetChatId);
-    const contextToken = this.contextTokens.get(connectionId);
-
-    const maxChunkSize = 1000;
-    const chunks: string[] = [];
-    for (let i = 0; i < content.length; i += maxChunkSize) {
-      chunks.push(content.slice(i, i + maxChunkSize));
-    }
-
-    try {
-      for (const chunk of chunks) {
-        const payload = {
-          msg: {
-            from_user_id: "",
-            to_user_id: targetChatId,
-            client_id: `freya-${crypto.randomUUID()}`,
-            message_type: 2,
-            message_state: 2,
-            context_token: contextToken,
-            item_list: [
-              {
-                type: 1,
-                text_item: { text: chunk }
-              }
-            ]
-          }
-        };
-
-        const res = await this.callWeixinApi(
-          state.config,
-          "ilink/bot/sendmessage",
-          payload,
-          undefined,
-          state.baseUrl,
-          state.token
-        );
-        const hasError = (res.errcode !== undefined && res.errcode !== 0) || (res.ret !== undefined && res.ret !== 0);
-        if (hasError) {
-          throw new Error(`WeChat gateway rejected delivery: errcode=${res.errcode}, errmsg=${res.errmsg}`);
-        }
-      }
-    } catch (err: any) {
-      this.contextTokens.delete(connectionId);
-      throw err;
-    }
-
-    return {
-      success: true,
-      chunks: chunks.length
-    };
-  }
-
   private getWeixinConnectionId(botId: string, chatId: string): string {
     return `weixin:${botId}:${chatId}`;
   }
@@ -295,8 +204,7 @@ export class WeixinConnectionManager implements WeixinMessageSender {
       isLoggedIn: true,
       token: session.token,
       baseUrl: session.baseUrl,
-      botId: session.botId || "bot_default",
-      chatId: session.chatId
+      botId: session.botId || "bot_default"
     };
     this.activeAccounts.set(accountId, state);
 
@@ -367,10 +275,6 @@ export class WeixinConnectionManager implements WeixinMessageSender {
               if (!userId) continue;
 
               const connectionId = this.getWeixinConnectionId(accountId, userId);
-              if (state.chatId !== userId) {
-                state.chatId = userId;
-                this.updateSessionChatId(accountId, userId).catch(() => { });
-              }
               if (weixinMsg.context_token) {
                 this.contextTokens.set(connectionId, weixinMsg.context_token);
               }
@@ -535,8 +439,7 @@ export class WeixinConnectionManager implements WeixinMessageSender {
             appId: config.appId,
             token: res.bot_token,
             baseUrl: finalBaseUrl,
-            botId: finalBotId,
-            chatId: state.chatId
+            botId: finalBotId
           };
           await this.saveWeixinSessions(ctx, sessions);
 
@@ -573,22 +476,9 @@ export class WeixinConnectionManager implements WeixinMessageSender {
     }
   }
 
-  private async updateSessionChatId(accountId: string, chatId: string): Promise<void> {
-    const sessions = await this.loadWeixinSessions(this.context);
-    if (sessions[accountId] && sessions[accountId].chatId !== chatId) {
-      sessions[accountId].chatId = chatId;
-      await this.saveWeixinSessions(this.context, sessions);
-    }
-  }
-
   private async sendWeixinMessage(botId: string, chatId: string, content: string): Promise<void> {
     const state = this.activeAccounts.get(botId);
     if (!state || !state.isLoggedIn || !state.token || !state.baseUrl) return;
-
-    if (state.chatId !== chatId) {
-      state.chatId = chatId;
-      this.updateSessionChatId(botId, chatId).catch(() => { });
-    }
 
     const connectionId = this.getWeixinConnectionId(botId, chatId);
     const contextToken = this.contextTokens.get(connectionId);

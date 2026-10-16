@@ -20,7 +20,6 @@ export interface WeixinAccountState {
   token?: string;
   baseUrl?: string;
   botId?: string;
-  chatId?: string;
 }
 
 /**
