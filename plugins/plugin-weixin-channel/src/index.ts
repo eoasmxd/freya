@@ -15,8 +15,8 @@ export default class FreyaWeixinChannelPlugin implements ChannelPlugin, ToolPlug
 
   private i18n = new I18n({ zh, en });
   private connectionManager = new WeixinConnectionManager(this.i18n);
-  private tools: FreyaTool[] = [];
-  commands: FreyaCommand[] = [];
+  private tools: FreyaTool[] = [new WeixinSendMessageTool(this.connectionManager)];
+  commands: FreyaCommand[] = createWeixinCommands(this.connectionManager, this.i18n);
 
   /**
    * 初始化微信通道与工具插件
@@ -25,8 +25,6 @@ export default class FreyaWeixinChannelPlugin implements ChannelPlugin, ToolPlug
   async setup(ctx: FreyaContext): Promise<void> {
     this.i18n.setContext(ctx);
     this.connectionManager.setup(ctx);
-    this.tools = [new WeixinSendMessageTool(this.connectionManager)];
-    this.commands = createWeixinCommands(this.connectionManager, this.i18n);
   }
 
   /**

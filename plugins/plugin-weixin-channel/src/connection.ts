@@ -161,36 +161,41 @@ export class WeixinConnectionManager implements WeixinMessageSender {
       chunks.push(content.slice(i, i + maxChunkSize));
     }
 
-    for (const chunk of chunks) {
-      const payload = {
-        msg: {
-          from_user_id: "",
-          to_user_id: targetChatId,
-          client_id: `freya-${crypto.randomUUID()}`,
-          message_type: 2,
-          message_state: 2,
-          context_token: contextToken,
-          item_list: [
-            {
-              type: 1,
-              text_item: { text: chunk }
-            }
-          ]
-        }
-      };
+    try {
+      for (const chunk of chunks) {
+        const payload = {
+          msg: {
+            from_user_id: "",
+            to_user_id: targetChatId,
+            client_id: `freya-${crypto.randomUUID()}`,
+            message_type: 2,
+            message_state: 2,
+            context_token: contextToken,
+            item_list: [
+              {
+                type: 1,
+                text_item: { text: chunk }
+              }
+            ]
+          }
+        };
 
-      const res = await this.callWeixinApi(
-        state.config,
-        "ilink/bot/sendmessage",
-        payload,
-        undefined,
-        state.baseUrl,
-        state.token
-      );
-      const hasError = (res.errcode !== undefined && res.errcode !== 0) || (res.ret !== undefined && res.ret !== 0);
-      if (hasError) {
-        throw new Error(`WeChat gateway rejected delivery: errcode=${res.errcode}, errmsg=${res.errmsg}`);
+        const res = await this.callWeixinApi(
+          state.config,
+          "ilink/bot/sendmessage",
+          payload,
+          undefined,
+          state.baseUrl,
+          state.token
+        );
+        const hasError = (res.errcode !== undefined && res.errcode !== 0) || (res.ret !== undefined && res.ret !== 0);
+        if (hasError) {
+          throw new Error(`WeChat gateway rejected delivery: errcode=${res.errcode}, errmsg=${res.errmsg}`);
+        }
       }
+    } catch (err: any) {
+      this.contextTokens.delete(connectionId);
+      throw err;
     }
 
     return {

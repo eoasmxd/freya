@@ -21,8 +21,8 @@ export default {
   'cmd.weixin.unknown': '❌ 未知子命令：支持的子命令有 `list` 和 `login`。用法示例：\n- `/weixin list`\n- `/weixin login my_weixin`',
   'tool.weixin.send.accountRequired': '❌ 缺少必要参数 accountId：必须指定微信账号标识。',
   'tool.weixin.send.contentRequired': '❌ 缺少必要参数 content：发送的消息内容不能为空。',
-  'tool.weixin.send.accountNotFound': '❌ 微信账号 [{accountId}] 不存在或尚未登录。请先通过 `/weixin login {accountId}` 扫码上线。',
-  'tool.weixin.send.notBound': '❌ 微信账号 [{accountId}] 尚未建立会话绑定，请先使用绑定的微信号向该机器人发送一条初始消息。',
+  'tool.weixin.send.accountNotFound': '微信账号 [{accountId}] 不存在或尚未登录。请先通过 `/weixin login {accountId}` 扫码上线。',
+  'tool.weixin.send.notBound': '微信账号 [{accountId}] 尚未建立会话绑定，请先使用绑定的微信号向该机器人发送一条初始消息。',
   'tool.weixin.send.success': '✅ 消息已成功投递至微信账号 [{accountId}]（共 {chunks} 个消息分片）。',
   'tool.weixin.send.failed': '❌ 向微信账号 [{accountId}] 发送消息失败: {message}'
 };
