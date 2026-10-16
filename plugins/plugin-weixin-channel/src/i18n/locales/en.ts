@@ -19,4 +19,10 @@ export default {
   'cmd.weixin.login.qrFallbackHint': '*(Tip: If character QR code does not display properly, click [Open WeChat QR Page]({scanUrl}) to scan)*',
   'cmd.weixin.login.fail': '❌ Failed to fetch WeChat login QR code: {message}',
   'cmd.weixin.unknown': '❌ Unknown subcommand. Supported subcommands: `list` and `login`. Usage examples:\n- `/weixin list`\n- `/weixin login my_weixin`',
+  'tool.weixin.send.accountRequired': '❌ Missing required parameter accountId: WeChat account instance identifier must be specified.',
+  'tool.weixin.send.contentRequired': '❌ Missing required parameter content: message content to send must not be empty.',
+  'tool.weixin.send.accountNotFound': '❌ WeChat account [{accountId}] not found or not logged in. Please run `/weixin login {accountId}` to scan QR code first.',
+  'tool.weixin.send.notBound': '❌ WeChat account [{accountId}] has not established conversation binding yet. Please send an initial message from the bound WeChat account first.',
+  'tool.weixin.send.success': '✅ Message delivered successfully to WeChat account [{accountId}] ({chunks} chunk(s)).',
+  'tool.weixin.send.failed': '❌ Failed to send message to WeChat account [{accountId}]: {message}'
 };

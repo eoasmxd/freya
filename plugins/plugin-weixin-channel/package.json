@@ -1,6 +1,6 @@
 {
   "name": "@eoasmxd/freya-plugin-weixin-channel",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "private": false,
   "license": "MIT",
   "publishConfig": {
@@ -16,7 +16,10 @@
       "zh": "Freya 微信智能硬件 iLink 频道插件，通过长轮询 getUpdates 连接微信 iLink 平台",
       "en": "Freya WeChat smart device iLink channel plugin connecting to WeChat iLink via getUpdates long polling"
     },
-    "defaultEnabled": false
+    "defaultEnabled": false,
+    "prompts": [
+      "plugin.prompt.weixin.md"
+    ]
   },
   "type": "module",
   "main": "./dist/index.js",
