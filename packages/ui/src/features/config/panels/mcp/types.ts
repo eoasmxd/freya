@@ -44,7 +44,6 @@ export interface McpServerStatusItem {
   enabled: boolean;
   status: McpServerState;
   lastError?: string;
-  toolsCount: number;
-  toolCount?: number;
+  toolCount: number;
   tools: McpToolItem[];
 }

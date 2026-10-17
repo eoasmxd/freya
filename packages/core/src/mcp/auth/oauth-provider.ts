@@ -379,9 +379,11 @@ export class McpOAuthProvider {
     await this.resolveEndpoints();
     if (this.registrationEndpoint) {
       try {
+        const fallbackRedirect = redirectUri || 'http://localhost/callback';
         const payload: Record<string, any> = {
           client_name: 'freya-mcp-client',
           token_endpoint_auth_method: 'none',
+          redirect_uris: [fallbackRedirect],
           grant_types: [
             'authorization_code',
             'refresh_token',
@@ -389,33 +391,34 @@ export class McpOAuthProvider {
           ],
           response_types: ['code']
         };
-        if (redirectUri) {
-          payload.redirect_uris = [redirectUri];
-        }
 
         const res = await fetch(this.registrationEndpoint, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload)
         });
-        if (res.ok) {
-          const data: any = await res.json();
-          if (data.client_id) {
-            const resolvedId = String(data.client_id);
-            this.registeredClientId = resolvedId;
-            if (data.client_secret) {
-              this.registeredClientSecret = String(data.client_secret);
-            }
-            await this.tokenStore.saveClientInfo(this.serverId, {
-              clientId: resolvedId,
-              clientSecret: this.registeredClientSecret,
-              registeredAt: Date.now()
-            });
-            return resolvedId;
+        if (!res.ok) {
+          const errText = await res.text().catch(() => '');
+          throw new Error(`[McpOAuth] Dynamic client registration rejected (${res.status}): ${errText.slice(0, 300)}`);
+        }
+
+        const data: any = await res.json();
+        if (data.client_id) {
+          const resolvedId = String(data.client_id);
+          this.registeredClientId = resolvedId;
+          if (data.client_secret) {
+            this.registeredClientSecret = String(data.client_secret);
           }
+          await this.tokenStore.saveClientInfo(this.serverId, {
+            clientId: resolvedId,
+            clientSecret: this.registeredClientSecret,
+            registeredAt: Date.now()
+          });
+          return resolvedId;
         }
       } catch (err: any) {
         this.context?.logger.warn(`[McpOAuth] RFC 7591 Dynamic client registration failed: ${err.message}`);
+        throw err;
       }
     }
 

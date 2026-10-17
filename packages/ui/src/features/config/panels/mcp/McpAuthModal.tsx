@@ -157,110 +157,133 @@ export const McpAuthModal: React.FC<McpAuthModalProps> = ({
   };
 
   return (
-    <div className="confirm-modal-overlay" onClick={onClose}>
-      <div className="confirm-modal-card mcp-auth-card" onClick={(e) => e.stopPropagation()}>
-        <div className="confirm-modal-title">
-          <span>{t('mcp.authModalTitle', 'MCP Server [{id}] Authentication', { id: serverId })}</span>
+    <div className="confirm-modal-overlay" onClick={(e) => e.stopPropagation()}>
+      <div className="mcp-auth-dialog" onClick={(e) => e.stopPropagation()}>
+        <div className="mcp-auth-dialog-header">
+          <div className="mcp-auth-dialog-title-group">
+            <span className="mcp-auth-dialog-icon">🔑</span>
+            <h3 className="mcp-auth-dialog-title">
+              {t('mcp.authModalTitle', 'MCP Server [{id}] Authentication', { id: serverId })}
+            </h3>
+            <span className="mcp-auth-badge">OAuth 2.1</span>
+          </div>
+          <button className="modal-close" onClick={onClose} title={t('common.close', 'Close')}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="18" y1="6" x2="6" y2="18"></line>
+              <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
+          </button>
         </div>
 
-        {loading ? (
-          <div style={{ padding: '1.5rem 0', textAlign: 'center', color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
-            {t('mcp.loading', 'Loading MCP server configuration...')}
-          </div>
-        ) : errorMsg ? (
-          <div style={{ margin: '1rem 0' }}>
-            <div style={{ padding: '0.75rem', borderRadius: '8px', background: 'rgba(239, 68, 68, 0.1)', color: '#f87171', fontSize: '0.85rem' }}>
-              {errorMsg}
+        <div className="mcp-auth-dialog-body">
+          {loading ? (
+            <div style={{ padding: '3rem 0', textAlign: 'center', color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
+              {t('mcp.loading', 'Loading MCP server configuration...')}
             </div>
-            <div className="confirm-modal-actions" style={{ marginTop: '1.2rem' }}>
-              <button className="btn-secondary" onClick={onClose}>
-                {t('common.close', 'Close')}
-              </button>
+          ) : errorMsg ? (
+            <div className="mcp-auth-step-card" style={{ border: '1px solid rgba(239, 68, 68, 0.3)', background: 'rgba(239, 68, 68, 0.08)' }}>
+              <div style={{ color: '#f87171', fontSize: '0.9rem', lineHeight: '1.5' }}>
+                ⚠️ {errorMsg}
+              </div>
             </div>
-          </div>
-        ) : authMode === 'device_flow' ? (
-          <div className="mcp-auth-content">
-            <div className="mcp-auth-step">
-              <span className="mcp-step-label">{t('mcp.deviceStep1', '1. Open authorization URL in your browser:')}</span>
-              <a
-                href={verificationUri}
-                target="_blank"
-                rel="noreferrer"
-                className="btn-primary mcp-auth-link-btn"
-              >
-                {t('mcp.deviceOpenPage', 'Go to Device Auth Page ↗')}
-              </a>
-            </div>
+          ) : authMode === 'device_flow' ? (
+            <div className="mcp-auth-content">
+              <div className="mcp-auth-step-card">
+                <div className="mcp-step-card-header">
+                  <span className="mcp-step-num">01</span>
+                  <span className="mcp-step-heading">{t('mcp.deviceStep2', '2. Enter the device user code below:')}</span>
+                </div>
+                <div className="mcp-user-code-box">
+                  <span className="mcp-user-code">{userCode}</span>
+                  <button
+                    type="button"
+                    className="btn-secondary"
+                    onClick={handleCopyCode}
+                    style={{ padding: '0.4rem 0.95rem', fontSize: '0.82rem' }}
+                  >
+                    {copied ? t('common.copied', 'Copied') : t('common.copy', 'Copy')}
+                  </button>
+                </div>
+              </div>
 
-            <div className="mcp-auth-step">
-              <span className="mcp-step-label">{t('mcp.deviceStep2', '2. Enter the device user code below:')}</span>
-              <div className="mcp-user-code-box">
-                <span className="mcp-user-code">{userCode}</span>
-                <button
-                  type="button"
-                  className="btn-secondary"
+              <div className="mcp-auth-step-card">
+                <div className="mcp-step-card-header">
+                  <span className="mcp-step-num">02</span>
+                  <span className="mcp-step-heading">{t('mcp.deviceStep1', '1. Open authorization URL in your browser:')}</span>
+                </div>
+                <a
+                  href={verificationUri}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="mcp-auth-link-btn"
                   onClick={handleCopyCode}
-                  style={{ padding: '0.3rem 0.75rem', fontSize: '0.8rem' }}
                 >
-                  {copied ? t('common.copied', 'Copied') : t('common.copy', 'Copy')}
+                  {t('mcp.deviceOpenPage', 'Go to Device Auth Page ↗')}
+                </a>
+              </div>
+
+              <div className="mcp-auth-notice-banner">
+                <span style={{ fontSize: '1.1rem', marginRight: '8px' }}>⚠️</span>
+                <span>{t('mcp.deviceKeepOpenNotice', 'Please keep this window open: freya is actively polling for authorization and will connect automatically.')}</span>
+              </div>
+
+              <div className="mcp-auth-polling-status">
+                <span className="mcp-polling-pulse"></span>
+                <span>{t('mcp.devicePollingActive', 'Listening for authorization confirmation in browser...')}</span>
+              </div>
+            </div>
+          ) : (
+            <div className="mcp-auth-content">
+              <div className="mcp-auth-step-card">
+                <div className="mcp-step-card-header">
+                  <span className="mcp-step-num">01</span>
+                  <span className="mcp-step-heading">{t('mcp.oauthStep1', 'Click the link below to login and authorize in a new window:')}</span>
+                </div>
+                <a
+                  href={authUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="mcp-auth-link-btn"
+                >
+                  {t('mcp.oauthClickAuth', 'Go to Authorization Page ↗')}
+                </a>
+              </div>
+
+              <div className="mcp-auth-step-card">
+                <div className="mcp-step-card-header">
+                  <span className="mcp-step-num">02</span>
+                  <span className="mcp-step-heading">
+                    {t('mcp.oauthManualInput', 'If callback connection failed, paste the full URL from your browser address bar here:')}
+                  </span>
+                </div>
+                <input
+                  type="text"
+                  className="config-input"
+                  style={{ width: '100%', boxSizing: 'border-box' }}
+                  placeholder={t('mcp.oauthManualPlaceholder', 'Paste full callback URL (e.g. {example}) or authorization code', {
+                    example: `${typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000'}/api/mcp/oauth/callback?code=...`
+                  })}
+                  value={callbackInput}
+                  onChange={(e) => setCallbackInput(e.target.value)}
+                />
+                <button
+                  className="btn-primary"
+                  onClick={handleSubmitCallback}
+                  disabled={!callbackInput.trim() || isSubmitting}
+                  style={{ marginTop: '0.4rem' }}
+                >
+                  {isSubmitting ? '...' : t('mcp.oauthSubmitCallback', 'Submit Callback URL to Exchange Token')}
                 </button>
               </div>
             </div>
+          )}
+        </div>
 
-            <div className="mcp-auth-waiting">
-              {t('mcp.deviceWaiting', '⏳ Waiting for browser confirmation... It will connect automatically once finished')}
-            </div>
-
-            <div className="confirm-modal-actions" style={{ marginTop: '1.5rem' }}>
-              <button className="btn-secondary" onClick={onClose}>
-                {t('common.cancel', 'Cancel')}
-              </button>
-            </div>
-          </div>
-        ) : (
-          <div className="mcp-auth-content">
-            <div className="mcp-auth-step">
-              <span className="mcp-step-label">{t('mcp.oauthStep1', 'Click the link below to login and authorize in a new window:')}</span>
-              <a
-                href={authUrl}
-                target="_blank"
-                rel="noreferrer"
-                className="btn-primary mcp-auth-link-btn"
-              >
-                {t('mcp.oauthClickAuth', 'Go to Authorization Page ↗')}
-              </a>
-            </div>
-
-            <div className="mcp-auth-step" style={{ marginTop: '1.2rem' }}>
-              <span className="mcp-step-label">
-                {t('mcp.oauthManualInput', 'If callback connection failed, paste the full URL from your browser address bar here:')}
-              </span>
-              <input
-                type="text"
-                className="config-input"
-                style={{ width: '100%', marginTop: '0.4rem', boxSizing: 'border-box' }}
-                placeholder={t('mcp.oauthManualPlaceholder', 'Paste full callback URL (e.g. {example}) or authorization code', {
-                  example: `${typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000'}/api/mcp/oauth/callback?code=...`
-                })}
-                value={callbackInput}
-                onChange={(e) => setCallbackInput(e.target.value)}
-              />
-            </div>
-
-            <div className="confirm-modal-actions" style={{ marginTop: '1.5rem' }}>
-              <button className="btn-secondary" onClick={onClose}>
-                {t('common.cancel', 'Cancel')}
-              </button>
-              <button
-                className="btn-primary"
-                onClick={handleSubmitCallback}
-                disabled={!callbackInput.trim() || isSubmitting}
-              >
-                {isSubmitting ? '...' : t('mcp.oauthSubmitCallback', 'Submit Callback URL to Exchange Token')}
-              </button>
-            </div>
-          </div>
-        )}
+        <div className="mcp-auth-dialog-footer">
+          <button className="btn-secondary" onClick={onClose} style={{ minWidth: '88px' }}>
+            {t('common.cancel', 'Cancel')}
+          </button>
+        </div>
       </div>
     </div>
   );
