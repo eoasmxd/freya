@@ -25,6 +25,7 @@ import { FreyaToolRegistry } from './tools/tool-registry.js';
 import { FreyaWebContainer } from './web/web-container.js';
 import { FreyaConfigApi } from './config/config-api.js';
 import { FREYA_APP } from './utils/paths.js';
+import { FreyaMcpManager } from './mcp/mcp-manager.js';
 
 /**
  * Freya 核心微内核，负责协调各子系统启动与关闭
@@ -42,6 +43,7 @@ export class FreyaKernel {
   private agentService?: FreyaAgentService;
   private connectionManager?: FreyaConnectionManager;
   private channelRegistry?: FreyaChannelRegistry;
+  private mcpManager!: FreyaMcpManager;
 
   async start(): Promise<void> {
     const ctx = this.context;
@@ -103,11 +105,15 @@ export class FreyaKernel {
       skillRegistry
     });
 
+    this.mcpManager = new FreyaMcpManager(ctx, toolRegistry, promptRegistry);
+    await this.mcpManager.init();
+
     CommandBootstrapper.registerBuiltinCommands({
       registry: commandRegistry,
       context: ctx,
       skillRegistry,
-      sessionManager: this.sessionManager
+      sessionManager: this.sessionManager,
+      mcpManager: this.mcpManager
     });
 
     const agentExecutor = new FreyaAgentExecutor(
@@ -131,13 +137,15 @@ export class FreyaKernel {
       this.webContainer = new FreyaWebContainer();
       ctx.http = this.webContainer;
 
-      const configApi = new FreyaConfigApi(configManager, ctx);
+      const configApi = new FreyaConfigApi(configManager, ctx, this.mcpManager);
       this.webContainer.registerApi('/api/config', (req, res) => configApi.handleRequest(req, res), { auth: true });
+      this.webContainer.registerApi('/api/mcp/oauth/callback', this.mcpManager.createOAuthHandler(), { auth: false });
 
       const uiDistPath = this.webContainer.getUiDistPath(FREYA_APP);
       this.webContainer.registerStatic('/', uiDistPath, { spaFallback: true, injectLanguage: true, auth: false });
 
       await this.webContainer.start(ctx);
+      this.mcpManager.setOAuthCallbackPort(this.webContainer.getPort());
     }
 
     if (this.channelRegistry) {
@@ -170,6 +178,7 @@ export class FreyaKernel {
   }
 
   async stop(): Promise<void> {
+    await this.mcpManager?.stop();
     this.sessionManager?.stopAutoArchiveTimer();
     this.connectionManager?.stop();
     await this.pluginManager?.stopAll(this.context);
