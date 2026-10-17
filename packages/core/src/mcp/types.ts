@@ -106,7 +106,11 @@ export interface McpCacheData {
 export type McpServerStatus = 'disabled' | 'ready' | 'connecting' | 'connected' | 'auth_required' | 'error';
 
 export class McpAuthRequiredError extends Error {
-  constructor(message = 'AUTH_REQUIRED') {
+  constructor(
+    message = 'AUTH_REQUIRED',
+    public readonly authHeader?: string,
+    public readonly responseBody?: string
+  ) {
     super(message);
     this.name = 'McpAuthRequiredError';
   }

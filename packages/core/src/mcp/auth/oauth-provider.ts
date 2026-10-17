@@ -16,6 +16,12 @@ import { TokenStore } from './token-store.js';
 export class McpOAuthProvider {
   private refreshPromise?: Promise<string>;
   private activePollingAbort?: AbortController;
+  private authHeaderHint?: string;
+  private responseBodyHint?: string;
+  private discoveredScopes?: string[];
+  private registrationEndpoint?: string;
+  private registeredClientId?: string;
+  private registeredClientSecret?: string;
 
   constructor(
     private readonly serverId: string,
@@ -26,7 +32,16 @@ export class McpOAuthProvider {
   ) {}
 
   /**
-   * 解析或动态探测 OAuth 2.1 规范端点 (RFC 8414 / OIDC Discovery)
+   * 记录来自 401 响应的挑战头与提示响应体
+   * Store challenge header and response body hints from 401 Unauthorized
+   */
+  setAuthHint(authHeader?: string, responseBody?: string): void {
+    this.authHeaderHint = authHeader;
+    this.responseBodyHint = responseBody;
+  }
+
+  /**
+   * 解析或动态探测 OAuth 2.1 规范端点 (RFC 8414 / RFC 9728 / OIDC Discovery / 401 Hints)
    * Discover or resolve standard OAuth 2.1 authorization server endpoints
    */
   async resolveEndpoints(): Promise<{ authorizationUrl?: string; tokenUrl?: string; deviceAuthorizationUrl?: string }> {
@@ -38,25 +53,80 @@ export class McpOAuthProvider {
       return { authorizationUrl: authUrl, tokenUrl, deviceAuthorizationUrl: deviceUrl };
     }
 
+    if (this.responseBodyHint) {
+      try {
+        const bodyData = JSON.parse(this.responseBodyHint);
+        if (!authUrl) authUrl = bodyData.authorization_endpoint || bodyData.authorization_url || bodyData.authUrl || bodyData.loginUrl || bodyData.login_url;
+        if (!tokenUrl) tokenUrl = bodyData.token_endpoint || bodyData.token_url || bodyData.tokenUrl;
+        if (!deviceUrl) deviceUrl = bodyData.device_authorization_endpoint || bodyData.device_url || bodyData.deviceUrl;
+      } catch {}
+    }
+
+    let resourceMetadataUrl: string | undefined;
+    if (this.authHeaderHint) {
+      const authUriMatch = this.authHeaderHint.match(/(?:authorization_uri|auth_url|authorization_endpoint)=["']?([^"',\s]+)["']?/i);
+      if (authUriMatch && !authUrl) {
+        authUrl = authUriMatch[1];
+      }
+      const tokenUriMatch = this.authHeaderHint.match(/(?:token_uri|token_url|token_endpoint)=["']?([^"',\s]+)["']?/i);
+      if (tokenUriMatch && !tokenUrl) {
+        tokenUrl = tokenUriMatch[1];
+      }
+      const resourceMetaMatch = this.authHeaderHint.match(/resource_metadata=["']?([^"',\s]+)["']?/i);
+      if (resourceMetaMatch) {
+        resourceMetadataUrl = resourceMetaMatch[1];
+      }
+    }
+
+    if (authUrl && tokenUrl) {
+      return { authorizationUrl: authUrl, tokenUrl, deviceAuthorizationUrl: deviceUrl };
+    }
+
     const candidateUrl = this.serverUrl || this.config.authorizationUrl || this.config.tokenUrl;
     if (candidateUrl) {
       try {
         const parsed = new URL(candidateUrl);
-        const metadataUrls = [
-          `${parsed.origin}/.well-known/oauth-authorization-server`,
-          `${parsed.origin}/.well-known/openid-configuration`
-        ];
+        const path = parsed.pathname.replace(/\/+$/, '');
+        const probeQueue: string[] = [];
 
-        for (const metaUrl of metadataUrls) {
+        if (resourceMetadataUrl) {
+          probeQueue.push(resourceMetadataUrl);
+        }
+
+        if (path && path !== '') {
+          probeQueue.push(`${parsed.origin}/.well-known/oauth-protected-resource${path}`);
+          probeQueue.push(`${parsed.origin}/.well-known/oauth-authorization-server${path}`);
+          probeQueue.push(`${candidateUrl}/.well-known/openid-configuration`);
+        }
+
+        probeQueue.push(`${parsed.origin}/.well-known/oauth-protected-resource`);
+        probeQueue.push(`${parsed.origin}/.well-known/oauth-authorization-server`);
+        probeQueue.push(`${parsed.origin}/.well-known/openid-configuration`);
+
+        const probeEndpoints = async (url: string) => {
+          const res = await fetch(url, { signal: AbortSignal.timeout(3000) });
+          if (!res.ok) return;
+          const data: any = await res.json();
+          if (Array.isArray(data.scopes_supported) && data.scopes_supported.length > 0) {
+            this.discoveredScopes = data.scopes_supported;
+          }
+          if (Array.isArray(data.authorization_servers) && data.authorization_servers.length > 0) {
+            const authServer = data.authorization_servers[0];
+            await probeEndpoints(`${authServer.replace(/\/+$/, '')}/.well-known/oauth-authorization-server`);
+            await probeEndpoints(`${authServer.replace(/\/+$/, '')}/.well-known/openid-configuration`);
+          }
+          if (!authUrl) authUrl = data.authorization_endpoint || data.authorization_url;
+          if (!tokenUrl) tokenUrl = data.token_endpoint || data.token_url;
+          if (!deviceUrl) deviceUrl = data.device_authorization_endpoint || data.device_url;
+          if (!this.registrationEndpoint && data.registration_endpoint) {
+            this.registrationEndpoint = data.registration_endpoint;
+          }
+        };
+
+        for (const metaUrl of probeQueue) {
           try {
-            const res = await fetch(metaUrl, { signal: AbortSignal.timeout(3000) });
-            if (res.ok) {
-              const data: any = await res.json();
-              if (!authUrl && data.authorization_endpoint) authUrl = data.authorization_endpoint;
-              if (!tokenUrl && data.token_endpoint) tokenUrl = data.token_endpoint;
-              if (!deviceUrl && data.device_authorization_endpoint) deviceUrl = data.device_authorization_endpoint;
-              if (authUrl && tokenUrl) break;
-            }
+            await probeEndpoints(metaUrl);
+            if (authUrl && tokenUrl) break;
           } catch {}
         }
       } catch {}
@@ -86,7 +156,7 @@ export class McpOAuthProvider {
     const endpoints = await this.resolveEndpoints();
     const authUrl = endpoints.authorizationUrl;
     const tokenUrl = endpoints.tokenUrl;
-    const clientId = this.config.clientId || 'freya-client';
+    const clientId = await this.ensureClientId(callbackUrl);
 
     if (!authUrl || !tokenUrl) {
       throw new Error(`[McpOAuth] Failed to resolve authorizationUrl or tokenUrl for server '${this.serverId}'.`);
@@ -146,8 +216,9 @@ export class McpOAuthProvider {
       code_verifier: pending.codeVerifier
     });
 
-    if (this.config.clientSecret) {
-      body.set('client_secret', this.config.clientSecret);
+    const clientSecret = this.getClientSecret();
+    if (clientSecret) {
+      body.set('client_secret', clientSecret);
     }
 
     const res = await fetch(pending.tokenUrl, {
@@ -220,8 +291,9 @@ export class McpOAuthProvider {
       client_id: this.config.clientId || 'freya-client'
     });
 
-    if (this.config.clientSecret) {
-      body.set('client_secret', this.config.clientSecret);
+    const clientSecret = this.getClientSecret();
+    if (clientSecret) {
+      body.set('client_secret', clientSecret);
     }
 
     const res = await fetch(tokenUrl, {
@@ -254,24 +326,87 @@ export class McpOAuthProvider {
   }
 
   /**
+   * 统一获取客户端密钥（优先使用显式配置，其次使用 RFC 7591 动态注册结果）
+   * Get client secret prioritizing explicit config with fallback to RFC 7591 dynamic result
+   */
+  private getClientSecret(): string | undefined {
+    return this.config.clientSecret || this.registeredClientSecret;
+  }
+
+  /**
+   * 依据 RFC 7591 执行动态客户端注册以获取合法 client_id
+   * Dynamically register client via RFC 7591 to obtain client_id
+   */
+  async ensureClientId(redirectUri?: string): Promise<string> {
+    if (this.config.clientId) {
+      return this.config.clientId;
+    }
+    if (this.registeredClientId) {
+      return this.registeredClientId;
+    }
+
+    await this.resolveEndpoints();
+    if (this.registrationEndpoint) {
+      try {
+        const payload: Record<string, any> = {
+          client_name: 'freya-mcp-client',
+          token_endpoint_auth_method: 'none',
+          grant_types: [
+            'authorization_code',
+            'refresh_token',
+            'urn:ietf:params:oauth:grant-type:device_code'
+          ],
+          response_types: ['code']
+        };
+        if (redirectUri) {
+          payload.redirect_uris = [redirectUri];
+        }
+
+        const res = await fetch(this.registrationEndpoint, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        if (res.ok) {
+          const data: any = await res.json();
+          if (data.client_id) {
+            const resolvedId = String(data.client_id);
+            this.registeredClientId = resolvedId;
+            if (data.client_secret) {
+              this.registeredClientSecret = String(data.client_secret);
+            }
+            return resolvedId;
+          }
+        }
+      } catch (err: any) {
+        this.context?.logger.warn(`[McpOAuth] RFC 7591 Dynamic client registration failed: ${err.message}`);
+      }
+    }
+
+    return 'freya-mcp-client';
+  }
+
+  /**
    * 启动设备码流程并在后台自动轮询换票
    * Start RFC 8628 device flow and start background token polling
    */
   async startDeviceAuth(onSuccess?: (serverId: string) => Promise<void>): Promise<McpDeviceAuthInfo> {
-    const deviceUrl = await this.resolveDeviceAuthUrl();
-    const tokenUrl = this.config.tokenUrl;
+    const endpoints = await this.resolveEndpoints();
+    const deviceUrl = endpoints.deviceAuthorizationUrl;
+    const tokenUrl = endpoints.tokenUrl || this.config.tokenUrl;
 
     if (!deviceUrl || !tokenUrl) {
       throw new Error(`[McpOAuth] Server '${this.serverId}' does not support device flow (missing deviceUrl or tokenUrl).`);
     }
 
-    const clientId = this.config.clientId || 'freya-client';
+    const clientId = await this.ensureClientId();
     const body = new URLSearchParams({
       client_id: clientId
     });
 
-    if (this.config.scopes && this.config.scopes.length > 0) {
-      body.set('scope', this.config.scopes.join(' '));
+    const scopes = this.config.scopes?.length ? this.config.scopes : this.discoveredScopes;
+    if (scopes && scopes.length > 0) {
+      body.set('scope', scopes.join(' '));
     }
 
     const res = await fetch(deviceUrl, {
@@ -346,14 +481,16 @@ export class McpOAuthProvider {
       });
       if (signal.aborted) return;
 
+      const clientId = await this.ensureClientId();
       const body = new URLSearchParams({
         grant_type: 'urn:ietf:params:oauth:grant-type:device_code',
         device_code: deviceCode,
-        client_id: this.config.clientId || 'freya-client'
+        client_id: clientId
       });
 
-      if (this.config.clientSecret) {
-        body.set('client_secret', this.config.clientSecret);
+      const clientSecret = this.getClientSecret();
+      if (clientSecret) {
+        body.set('client_secret', clientSecret);
       }
 
       try {

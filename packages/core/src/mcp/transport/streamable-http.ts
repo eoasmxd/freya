@@ -63,7 +63,9 @@ export class StreamableHttpTransport {
       }
 
       if (res.status === 401) {
-        throw new McpAuthRequiredError(`HTTP 401 Unauthorized from ${this.url}`);
+        const authHeader = res.headers.get('www-authenticate') || undefined;
+        const responseBody = await res.text().catch(() => undefined);
+        throw new McpAuthRequiredError(`HTTP 401 Unauthorized from ${this.url}`, authHeader, responseBody);
       }
 
       if (res.status === 404 && this.sessionId) {

@@ -54,13 +54,15 @@ export const McpAuthModal: React.FC<McpAuthModalProps> = ({
 
         if (data.success && data.data) {
           const authData = data.data;
-          setAuthMode(authData.mode);
-          if (authData.mode === 'device_flow') {
-            setUserCode(authData.userCode || '');
-            setVerificationUri(authData.verificationUri || authData.verification_uri || '');
+          const isDevice = authData.type === 'device' || authData.mode === 'device_flow';
+          setAuthMode(isDevice ? 'device_flow' : 'browser');
+          if (isDevice) {
+            const info = authData.info || authData;
+            setUserCode(info.userCode || info.user_code || '');
+            setVerificationUri(info.verificationUriComplete || info.verification_uri_complete || info.verificationUri || info.verification_uri || '');
             startDevicePolling();
           } else {
-            setAuthUrl(authData.authUrl || '');
+            setAuthUrl(authData.authorizationUrl || authData.authUrl || '');
           }
         } else {
           setErrorMsg(data.message || data.error || 'Failed to initiate authorization');

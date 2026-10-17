@@ -71,6 +71,10 @@ export class FreyaMcpManager {
     return await this.authManager.startAuth(serverId, callbackUrl);
   }
 
+  getServerStatus(serverId: string): McpServerStatus {
+    return this.statuses.get(serverId) || 'disabled';
+  }
+
   /**
    * 设置 OAuth 回调地址使用的实际 Web 服务端口
    * Set actual Web server port used for OAuth redirect URI
@@ -282,6 +286,10 @@ export class FreyaMcpManager {
     } catch (err: any) {
       if (err instanceof McpAuthRequiredError || err.name === 'McpAuthRequiredError') {
         this.statuses.set(serverId, 'auth_required');
+        const provider = this.authManager.getProvider(serverId);
+        if (provider && (err.authHeader || err.responseBody)) {
+          provider.setAuthHint(err.authHeader, err.responseBody);
+        }
       } else {
         this.statuses.set(serverId, 'error');
       }
@@ -344,6 +352,10 @@ export class FreyaMcpManager {
     if (err instanceof McpAuthRequiredError || err.name === 'McpAuthRequiredError') {
       this.context.logger.warn(`[FreyaMcpManager] Server '${serverId}' authentication required or expired.`);
       this.statuses.set(serverId, 'auth_required');
+      const provider = this.authManager.getProvider(serverId);
+      if (provider && ((err as any).authHeader || (err as any).responseBody)) {
+        provider.setAuthHint((err as any).authHeader, (err as any).responseBody);
+      }
       this.unmountToolbox(serverId);
     } else if (err instanceof McpConnectionError || err.name === 'McpConnectionError') {
       const failures = (this.connectionFailureCounts.get(serverId) || 0) + 1;

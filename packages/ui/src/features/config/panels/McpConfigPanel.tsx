@@ -61,6 +61,17 @@ export const McpConfigPanel: React.FC<McpConfigPanelProps> = ({ getApiUrl }) => 
     loadServers();
   }, [loadServers]);
 
+  useEffect(() => {
+    const hasConnecting = servers.some(s => s.status === 'connecting');
+    if (!hasConnecting) return;
+
+    const timer = setTimeout(() => {
+      loadServers();
+    }, 2000);
+
+    return () => clearTimeout(timer);
+  }, [servers, loadServers]);
+
   const handleToggle = async (serverId: string, enabled: boolean) => {
     try {
       const res = await fetch(getApiUrl('/api/config/mcp/toggle'), {

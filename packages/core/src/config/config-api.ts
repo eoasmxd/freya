@@ -422,10 +422,17 @@ export class FreyaConfigApi {
           res.end(JSON.stringify({ success: false, error: this.i18n.t('api.error.mcpNotInit', 'MCP Manager is not initialized', undefined, defaultLang) }));
           return true;
         }
-        const { serverId, callbackUrl } = await this.getBody(req);
+        const { serverId, callbackUrl, action } = await this.getBody(req);
         if (!serverId) {
           res.writeHead(200, this.headers);
           res.end(JSON.stringify({ success: false, error: this.i18n.t('api.error.missingMcpServerId', 'Missing required parameter: serverId', undefined, defaultLang) }));
+          return true;
+        }
+        if (action === 'poll') {
+          const status = this.mcpManager.getServerStatus(serverId);
+          const isSuccess = status === 'ready';
+          res.writeHead(200, this.headers);
+          res.end(JSON.stringify({ success: true, data: { status: isSuccess ? 'success' : status === 'error' ? 'error' : 'pending' } }));
           return true;
         }
         const authResult = await this.mcpManager.startAuth(serverId, callbackUrl);
