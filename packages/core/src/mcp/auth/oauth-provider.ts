@@ -23,6 +23,7 @@ export class McpOAuthProvider {
   private registrationEndpoint?: string;
   private registeredClientId?: string;
   private registeredClientSecret?: string;
+  private supportsOfflineAccess = false;
 
   constructor(
     private readonly serverId: string,
@@ -109,10 +110,18 @@ export class McpOAuthProvider {
           if (!res.ok) return;
           const data: any = await res.json();
           if (Array.isArray(data.scopes_supported) && data.scopes_supported.length > 0) {
-            this.discoveredScopes = data.scopes_supported;
+            const validBusinessScopes = data.scopes_supported.filter((s: string) => s.toLowerCase() !== 'openid');
+            if (validBusinessScopes.length > 0) {
+              this.discoveredScopes = validBusinessScopes;
+            }
+          }
+          if (Array.isArray(data.scopes_supported) && data.scopes_supported.includes('offline_access')) {
+            this.supportsOfflineAccess = true;
           }
           if (data.resource && typeof data.resource === 'string') {
             this.discoveredResource = data.resource;
+          } else if (Array.isArray(data.protected_resources) && data.protected_resources.length > 0 && !this.discoveredResource) {
+            this.discoveredResource = data.protected_resources[0];
           }
           if (Array.isArray(data.authorization_servers) && data.authorization_servers.length > 0) {
             const authServer = data.authorization_servers[0];
@@ -137,6 +146,26 @@ export class McpOAuthProvider {
     }
 
     return { authorizationUrl: authUrl, tokenUrl, deviceAuthorizationUrl: deviceUrl };
+  }
+
+  /**
+   * 依据 MCP 规范裁决最终生效的 Scope 参数
+   * Determine effective scope matching MCP SDK priority
+   */
+  private determineScope(): string | undefined {
+    let effectiveScope: string | undefined;
+
+    if (this.config.scopes && this.config.scopes.length > 0) {
+      effectiveScope = this.config.scopes.join(' ');
+    } else if (this.discoveredScopes && this.discoveredScopes.length > 0) {
+      effectiveScope = this.discoveredScopes.join(' ');
+    }
+
+    if (effectiveScope && this.supportsOfflineAccess && !effectiveScope.split(' ').includes('offline_access')) {
+      effectiveScope = `${effectiveScope} offline_access`;
+    }
+
+    return effectiveScope;
   }
 
   /**
@@ -189,8 +218,9 @@ export class McpOAuthProvider {
     url.searchParams.set('code_challenge_method', 'S256');
     url.searchParams.set('state', state);
 
-    if (this.config.scopes && this.config.scopes.length > 0) {
-      url.searchParams.set('scope', this.config.scopes.join(' '));
+    const scope = this.determineScope();
+    if (scope) {
+      url.searchParams.set('scope', scope);
     }
     if (this.discoveredResource) {
       url.searchParams.set('resource', this.discoveredResource);
@@ -460,9 +490,9 @@ export class McpOAuthProvider {
       client_id: clientId
     });
 
-    const scopes = this.config.scopes?.length ? this.config.scopes : this.discoveredScopes;
-    if (scopes && scopes.length > 0) {
-      body.set('scope', scopes.join(' '));
+    const scope = this.determineScope();
+    if (scope) {
+      body.set('scope', scope);
     }
     if (this.discoveredResource) {
       body.set('resource', this.discoveredResource);
