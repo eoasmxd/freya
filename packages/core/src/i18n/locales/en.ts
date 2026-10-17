@@ -165,6 +165,7 @@ export const en: Record<string, string> = {
   'schema.core.commands.auth.enabled.desc': 'Enable sensitive operation approval commands (/approve and /reject)',
   'schema.core.commands.session.enabled.desc': 'Enable session management commands (/session and subcommands)',
   'schema.core.commands.model.enabled.desc': 'Enable model switching commands (/model and subcommands)',
+  'schema.core.commands.mcp.enabled.desc': 'Enable MCP service inspection and authorization commands (/mcp and subcommands)',
 
   'schema.core.log.console.error.desc': 'Console ERROR logs output (red)',
   'schema.core.log.console.warn.desc': 'Console WARN logs output (yellow)',

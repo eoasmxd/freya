@@ -165,6 +165,7 @@ export const zh: Record<string, string> = {
   'schema.core.commands.auth.enabled.desc': '是否启用敏感操作授权审批指令（/approve 与 /reject）',
   'schema.core.commands.session.enabled.desc': '是否启用会话管理与路由指令（/session 及其子命令）',
   'schema.core.commands.model.enabled.desc': '是否启用模型查看与切换指令（/model 及其子命令）',
+  'schema.core.commands.mcp.enabled.desc': '是否启用 MCP 服务查看与认证指令（/mcp 及其子命令）',
 
   'schema.core.log.console.error.desc': '控制台输出 ERROR 日志（红色）',
   'schema.core.log.console.warn.desc': '控制台输出 WARN 日志（黄色）',
