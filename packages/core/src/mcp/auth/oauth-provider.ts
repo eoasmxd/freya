@@ -447,14 +447,16 @@ export class McpOAuthProvider {
     if (scopes && scopes.length > 0) {
       body.set('scope', scopes.join(' '));
     }
-    const targetResource = this.discoveredResource || this.serverUrl;
-    if (targetResource) {
-      body.set('resource', targetResource);
+    if (this.discoveredResource) {
+      body.set('resource', this.discoveredResource);
     }
 
     const res = await fetch(deviceUrl, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'Accept': 'application/json'
+      },
       body
     });
 
@@ -539,7 +541,10 @@ export class McpOAuthProvider {
       try {
         const res = await fetch(tokenUrl, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'Accept': 'application/json'
+          },
           body,
           signal
         });

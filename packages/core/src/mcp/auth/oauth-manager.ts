@@ -79,12 +79,18 @@ export class McpOAuthManager {
 
     const deviceUrl = await provider.resolveDeviceAuthUrl().catch(() => undefined);
     if (deviceUrl) {
-      const info = await provider.startDeviceAuth(this.onAuthSuccess);
-      return {
-        type: 'device',
-        serverId,
-        info
-      };
+      try {
+        const info = await provider.startDeviceAuth(this.onAuthSuccess);
+        return {
+          type: 'device',
+          serverId,
+          info
+        };
+      } catch (err: any) {
+        this.context?.logger.warn(
+          `[McpOAuthManager] Device flow failed for '${serverId}' (${err.message}), falling back to authorization code flow.`
+        );
+      }
     }
 
     const redirectUri = callbackUrl || this.getDefaultRedirectUri();
