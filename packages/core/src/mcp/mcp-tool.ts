@@ -21,6 +21,10 @@ export class McpBridgedTool implements FreyaTool {
     private readonly executor: McpToolExecutor
   ) {}
 
+  getOriginalName(): string {
+    return this.originalName;
+  }
+
   getDefinition(): ToolDefinition {
     const rawSchema = (this.schema.inputSchema && typeof this.schema.inputSchema === 'object')
       ? this.schema.inputSchema

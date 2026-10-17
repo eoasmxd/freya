@@ -137,7 +137,7 @@ export class FreyaKernel {
       this.webContainer = new FreyaWebContainer();
       ctx.http = this.webContainer;
 
-      const configApi = new FreyaConfigApi(configManager, ctx);
+      const configApi = new FreyaConfigApi(configManager, ctx, this.mcpManager);
       this.webContainer.registerApi('/api/config', (req, res) => configApi.handleRequest(req, res), { auth: true });
       this.webContainer.registerApi('/api/mcp/oauth/callback', this.mcpManager.createOAuthHandler(), { auth: false });
 

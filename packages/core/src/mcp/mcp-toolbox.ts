@@ -41,6 +41,10 @@ export class McpToolbox implements FreyaToolbox {
     this.description = desc;
   }
 
+  getDescription(): string | undefined {
+    return this.description;
+  }
+
   setInstructions(instructions?: string): void {
     this.instructions = instructions;
   }

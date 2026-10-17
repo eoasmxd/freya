@@ -304,5 +304,15 @@ export const en: Record<string, string> = {
   'api.error.missingSkillId': 'Missing required parameter: skillId',
   'api.error.notSupported': 'Unsupported API method or path: {method} {pathname}',
   'api.error.internal': 'Internal API processing error',
+  'api.error.mcpNotInit': 'MCP Manager is not initialized',
+  'api.error.missingMcpServerParams': 'Missing required parameters: serverId and config',
+  'api.error.missingMcpConfig': 'Missing required parameter: config',
+  'api.error.missingMcpServerId': 'Missing required parameter: serverId',
+  'api.error.missingMcpToggleParams': 'Missing required parameters: serverId and enabled',
+  'api.mcp.saved': 'MCP server \'{serverId}\' saved successfully.',
+  'api.mcp.updated': 'MCP server \'{serverId}\' updated successfully.',
+  'api.mcp.removed': 'MCP server \'{serverId}\' removed successfully.',
+  'api.mcp.statusUpdated': 'MCP server \'{serverId}\' status updated.',
+  'api.mcp.reconnected': 'MCP server \'{serverId}\' reconnected successfully.',
 };
 

@@ -35,6 +35,7 @@ export class FreyaMcpManager {
   private toolboxes = new Map<string, McpToolbox>();
   private statuses = new Map<string, McpServerStatus>();
   private connectionFailureCounts = new Map<string, number>();
+  private launchServerIds = new Set<string>();
 
   private readonly cacheManager = new McpCacheManager();
   private readonly authManager: McpOAuthManager;
@@ -189,9 +190,11 @@ export class FreyaMcpManager {
     };
 
     const launchConfig = await tryRead(launchPath);
+    this.launchServerIds.clear();
     if (launchConfig?.mcpServers) {
       for (const [k, v] of Object.entries(launchConfig.mcpServers)) {
         merged[k] = { ...v, enabled: v.enabled ?? false };
+        this.launchServerIds.add(k);
       }
     }
 
@@ -441,6 +444,199 @@ export class FreyaMcpManager {
       };
     }
     return result;
+  }
+
+  /**
+   * 获取运行时持久化配置 (FREYA_HOME/config/mcp.json)
+   * Read runtime persistent config
+   */
+  private async readHomeConfig(): Promise<Record<string, McpServerConfig>> {
+    const homePath = path.join(FREYA_HOME, 'config', 'mcp.json');
+    try {
+      const raw = await fs.readFile(homePath, 'utf-8');
+      const data = JSON.parse(raw) as McpConfigFile;
+      return data?.mcpServers || {};
+    } catch {
+      return {};
+    }
+  }
+
+  /**
+   * 原子化写入运行时持久化配置 (FREYA_HOME/config/mcp.json)
+   * Atomically save runtime persistent config
+   */
+  private async writeHomeConfig(mcpServers: Record<string, McpServerConfig>): Promise<void> {
+    const homeConfigDir = path.join(FREYA_HOME, 'config');
+    await fs.mkdir(homeConfigDir, { recursive: true });
+    const homePath = path.join(homeConfigDir, 'mcp.json');
+    const tempPath = `${homePath}.tmp.${Date.now()}`;
+    const payload: McpConfigFile = { mcpServers };
+
+    await fs.writeFile(tempPath, JSON.stringify(payload, null, 2), 'utf-8');
+    try {
+      await fs.rename(tempPath, homePath);
+    } catch {
+      await fs.copyFile(tempPath, homePath);
+      await fs.unlink(tempPath).catch(() => {});
+    }
+  }
+
+  /**
+   * 获取所有 MCP 服务完整清单及其实时运行状态
+   * List all MCP servers with their runtime statuses and registered tools
+   */
+  async listServers(): Promise<any[]> {
+    const result: any[] = [];
+    for (const [id, config] of this.servers.entries()) {
+      const toolbox = this.toolboxes.get(id);
+      const isLaunch = this.launchServerIds.has(id);
+      result.push({
+        id,
+        toolboxId: McpNaming.getToolboxId(id),
+        url: config.url,
+        description: config.description || toolbox?.getDescription() || '',
+        enabled: config.enabled !== false,
+        source: isLaunch ? 'launch' : 'runtime',
+        status: this.statuses.get(id) || 'disabled',
+        toolCount: toolbox ? toolbox.getTools().length : 0,
+        auth: config.auth,
+        toolFilter: config.toolFilter,
+        timeoutMs: config.timeoutMs,
+        idleTimeoutMs: config.idleTimeoutMs,
+        tools: toolbox ? toolbox.getTools().map(t => {
+          const def = t.getDefinition();
+          return {
+            name: (t as any).getOriginalName?.() || def.name,
+            exposedName: def.name,
+            description: def.description,
+            parameters: def.parameters
+          };
+        }) : []
+      });
+    }
+    return result;
+  }
+
+  /**
+   * 热新增或更新单个 MCP 服务配置
+   * Upsert MCP server configuration and apply changes dynamically
+   */
+  async saveServer(serverId: string, config: McpServerConfig): Promise<void> {
+    const cleanId = serverId.trim();
+    if (!/^[a-zA-Z0-9_-]+$/.test(cleanId)) {
+      throw new Error(`Invalid serverId: '${cleanId}'. Only alphanumeric characters, dashes, and underscores are allowed.`);
+    }
+    if (!config?.url || !/^https?:\/\//i.test(config.url)) {
+      throw new Error(`Invalid server URL: '${config?.url}'. Must be a valid HTTP/HTTPS endpoint.`);
+    }
+
+    const homeServers = await this.readHomeConfig();
+    homeServers[cleanId] = config;
+    await this.writeHomeConfig(homeServers);
+
+    const oldSession = this.sessions.get(cleanId);
+    if (oldSession) {
+      await oldSession.disconnect().catch(() => {});
+    }
+
+    this.servers.set(cleanId, config);
+
+    if (config.auth?.type === 'oauth') {
+      this.authManager.registerServer(cleanId, config.auth);
+    }
+
+    if (config.enabled !== false) {
+      const session = new McpClientSession(
+        config,
+        () => this.buildAuthHeaders(cleanId, config)
+      );
+      this.sessions.set(cleanId, session);
+      this.statuses.set(cleanId, 'connecting');
+
+      this.probeServer(cleanId, config, { force: true }).catch((err) => {
+        this.context.logger.warn(`[FreyaMcpManager] Hot apply probe failed for '${cleanId}': ${err.message}`);
+      });
+    } else {
+      this.unmountToolbox(cleanId);
+      this.statuses.set(cleanId, 'disabled');
+    }
+  }
+
+  /**
+   * 热删除指定 MCP 服务（保留本地 Token 凭据与缓存历史数据）
+   * Remove MCP server dynamically while preserving historical tokens and cache
+   */
+  async removeServer(serverId: string): Promise<void> {
+    const oldSession = this.sessions.get(serverId);
+    if (oldSession) {
+      await oldSession.disconnect().catch(() => {});
+    }
+
+    this.unmountToolbox(serverId);
+    this.servers.delete(serverId);
+    this.sessions.delete(serverId);
+    this.statuses.delete(serverId);
+    this.connectionFailureCounts.delete(serverId);
+
+    const homeServers = await this.readHomeConfig();
+    if (serverId in homeServers) {
+      delete homeServers[serverId];
+      await this.writeHomeConfig(homeServers);
+    }
+  }
+
+  /**
+   * 热切换指定 MCP 服务的启用/禁用状态
+   * Toggle MCP server enabled state dynamically
+   */
+  async toggleServer(serverId: string, enabled: boolean): Promise<void> {
+    const config = this.servers.get(serverId);
+    if (!config) {
+      throw new Error(`Server '${serverId}' not found.`);
+    }
+
+    const updatedConfig: McpServerConfig = { ...config, enabled };
+    this.servers.set(serverId, updatedConfig);
+
+    const homeServers = await this.readHomeConfig();
+    homeServers[serverId] = { ...(homeServers[serverId] || {}), ...updatedConfig };
+    await this.writeHomeConfig(homeServers);
+
+    if (!enabled) {
+      const oldSession = this.sessions.get(serverId);
+      if (oldSession) {
+        await oldSession.disconnect().catch(() => {});
+      }
+      this.unmountToolbox(serverId);
+      this.statuses.set(serverId, 'disabled');
+    } else {
+      let session = this.sessions.get(serverId);
+      if (!session) {
+        session = new McpClientSession(
+          updatedConfig,
+          () => this.buildAuthHeaders(serverId, updatedConfig)
+        );
+        this.sessions.set(serverId, session);
+      }
+
+      const cached = await this.cacheManager.loadCache(serverId);
+      if (cached && cached.tools && cached.tools.length > 0) {
+        const toolboxId = McpNaming.getToolboxId(serverId);
+        const toolbox = new McpToolbox(serverId, toolboxId);
+        toolbox.setDescription(cached.description || updatedConfig.description || this.getFallbackDescription(serverId));
+        toolbox.setInstructions(cached.instructions);
+        this.mountToolsToBox(serverId, toolbox, cached.tools, session);
+        this.toolboxes.set(serverId, toolbox);
+        this.toolRegistry.registerToolbox(toolbox);
+        this.statuses.set(serverId, 'ready');
+      } else {
+        this.statuses.set(serverId, 'connecting');
+      }
+
+      this.probeServer(serverId, updatedConfig).catch((err) => {
+        this.context.logger.warn(`[FreyaMcpManager] Toggle probe failed for '${serverId}': ${err.message}`);
+      });
+    }
   }
 
   /**

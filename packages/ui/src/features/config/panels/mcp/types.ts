@@ -1,0 +1,43 @@
+/**
+ * MCP 前端数据结构与状态类型定义
+ * Type definitions for MCP remote services in UI
+ */
+
+export interface McpToolItem {
+  name: string;
+  originalName: string;
+  description: string;
+  parameters: any;
+}
+
+export interface McpServerConfig {
+  url: string;
+  description?: string;
+  headers?: Record<string, string>;
+  oauth?: {
+    clientId: string;
+    clientSecret?: string;
+    authUrl: string;
+    tokenUrl: string;
+    deviceUrl?: string;
+    scopes?: string[];
+  };
+  toolFilter?: {
+    include?: string[];
+    exclude?: string[];
+  };
+  timeoutMs?: number;
+  idleTimeoutMs?: number;
+}
+
+export type McpServerState = 'ready' | 'connecting' | 'auth_required' | 'error' | 'disabled';
+
+export interface McpServerStatusItem {
+  id: string;
+  config: McpServerConfig;
+  enabled: boolean;
+  status: McpServerState;
+  lastError?: string;
+  toolsCount: number;
+  tools: McpToolItem[];
+}

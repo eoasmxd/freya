@@ -4,6 +4,7 @@ import { ProviderConfigPanel } from './panels/ProviderConfigPanel.jsx';
 import { PromptConfigPanel } from './panels/PromptConfigPanel.jsx';
 import { PluginConfigPanel } from './panels/PluginConfigPanel.jsx';
 import { SkillConfigPanel } from './panels/SkillConfigPanel.jsx';
+import { McpConfigPanel } from './panels/McpConfigPanel.jsx';
 import { useI18n } from '../../i18n/index.js';
 
 interface ConfigModalProps {
@@ -16,7 +17,7 @@ export const ConfigModal: React.FC<ConfigModalProps> = ({
   getApiUrl
 }) => {
   const { t } = useI18n();
-  const [activeTab, setActiveTab] = useState<'global' | 'providers' | 'prompts' | 'plugins' | 'skills'>('global');
+  const [activeTab, setActiveTab] = useState<'global' | 'providers' | 'prompts' | 'plugins' | 'skills' | 'mcp'>('global');
 
   const getTabTitle = () => {
     if (activeTab === 'global') return t('config.tabTitleGlobal', 'Global Settings');
@@ -24,6 +25,7 @@ export const ConfigModal: React.FC<ConfigModalProps> = ({
     if (activeTab === 'prompts') return t('config.tabTitlePrompts', 'System Prompts Management');
     if (activeTab === 'plugins') return t('config.tabTitlePlugins', 'Plugins Management');
     if (activeTab === 'skills') return t('config.tabTitleSkills', 'Skills Management');
+    if (activeTab === 'mcp') return t('config.tabTitleMcp', 'MCP Remote Services Management');
     return '';
   };
 
@@ -65,6 +67,12 @@ export const ConfigModal: React.FC<ConfigModalProps> = ({
             >
               {t('config.tabSkills', 'Skills')}
             </button>
+            <button
+              className={`tab-btn ${activeTab === 'mcp' ? 'active' : ''}`}
+              onClick={() => setActiveTab('mcp')}
+            >
+              {t('config.tabMcp', 'MCP Services')}
+            </button>
           </div>
         </div>
 
@@ -98,6 +106,10 @@ export const ConfigModal: React.FC<ConfigModalProps> = ({
 
             {activeTab === 'skills' && (
               <SkillConfigPanel getApiUrl={getApiUrl} />
+            )}
+
+            {activeTab === 'mcp' && (
+              <McpConfigPanel getApiUrl={getApiUrl} />
             )}
           </div>
         </div>
