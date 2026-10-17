@@ -19,8 +19,13 @@ export function registerMcpCommands(deps: {
 
   const handleStatus = (): string => {
     const statuses = mcpManager.getServerStatuses();
+    const entries = Object.entries(statuses);
+    if (entries.length === 0) {
+      return i18n.t('cmd.mcp.status.empty', 'ℹ️ No MCP servers are configured yet. You can add services in the Web MCP settings page.');
+    }
+
     const lines: string[] = [i18n.t('cmd.mcp.status.title', '📡 **MCP Server Statuses**:')];
-    for (const [id, info] of Object.entries(statuses)) {
+    for (const [id, info] of entries) {
       lines.push(i18n.t('cmd.mcp.status.item', '- **{id}**: status: `{status}`, tools: {tools}, url: {url}', {
         id,
         status: info.status,

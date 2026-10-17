@@ -125,6 +125,7 @@ export const zh: Record<string, string> = {
   'cmd.mcp.sub.retry': '重试连接并重新探测指定的 MCP 远程服务',
   'cmd.mcp.sub.auth': '发起 MCP 服务的 OAuth/设备码鉴权或输入回调地址完成换票',
   'cmd.mcp.status.title': '📡 **MCP 服务状态清单**：',
+  'cmd.mcp.status.empty': 'ℹ️ 当前未配置任何 MCP 远程服务。可前往 Web 管理界面的 MCP 配置页面添加服务。',
   'cmd.mcp.status.item': '- **{id}**：状态: `{status}`，工具数: {tools}，服务地址: {url}',
   'cmd.mcp.auth.missingServerId': '❌ 请指定目标 MCP 服务 ID：`/mcp auth <serverId> [redirectUrl]`',
   'cmd.mcp.auth.missingParams': '❌ 提供的回调地址中缺少 "code" 或 "state" 查询参数。',

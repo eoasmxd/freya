@@ -125,6 +125,7 @@ export const en: Record<string, string> = {
   'cmd.mcp.sub.retry': 'Retry connection and re-probe specified remote MCP server',
   'cmd.mcp.sub.auth': 'Initiate OAuth/device authorization or exchange tokens with callback URL',
   'cmd.mcp.status.title': '📡 **MCP Server Statuses**:',
+  'cmd.mcp.status.empty': 'ℹ️ No MCP servers are configured yet. You can add services in the Web MCP settings page.',
   'cmd.mcp.status.item': '- **{id}**: status: `{status}`, tools: {tools}, url: {url}',
   'cmd.mcp.auth.missingServerId': '❌ Please specify the target MCP server ID: `/mcp auth <serverId> [redirectUrl]`',
   'cmd.mcp.auth.missingParams': '❌ The provided URL is missing "code" or "state" query parameters.',
