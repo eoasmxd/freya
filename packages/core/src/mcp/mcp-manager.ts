@@ -256,7 +256,7 @@ export class FreyaMcpManager {
         await session.ensureConnected();
         this.statuses.set(serverId, 'ready');
         this.connectionFailureCounts.delete(serverId);
-        await session.disconnect().catch(() => {});
+        await session.disconnect().catch(() => { });
         return;
       }
 
@@ -502,7 +502,7 @@ export class FreyaMcpManager {
       await fs.rename(tempPath, homePath);
     } catch {
       await fs.copyFile(tempPath, homePath);
-      await fs.unlink(tempPath).catch(() => {});
+      await fs.unlink(tempPath).catch(() => { });
     }
   }
 
@@ -566,7 +566,7 @@ export class FreyaMcpManager {
 
     const oldSession = this.sessions.get(cleanId);
     if (oldSession) {
-      await oldSession.disconnect().catch(() => {});
+      await oldSession.disconnect().catch(() => { });
     }
 
     this.servers.set(cleanId, config);
@@ -602,7 +602,7 @@ export class FreyaMcpManager {
   async removeServer(serverId: string): Promise<void> {
     const oldSession = this.sessions.get(serverId);
     if (oldSession) {
-      await oldSession.disconnect().catch(() => {});
+      await oldSession.disconnect().catch(() => { });
     }
 
     this.unmountToolbox(serverId);
@@ -638,7 +638,7 @@ export class FreyaMcpManager {
     if (!enabled) {
       const oldSession = this.sessions.get(serverId);
       if (oldSession) {
-        await oldSession.disconnect().catch(() => {});
+        await oldSession.disconnect().catch(() => { });
       }
       this.unmountToolbox(serverId);
       this.statuses.set(serverId, 'disabled');
