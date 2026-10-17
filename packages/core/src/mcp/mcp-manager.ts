@@ -34,8 +34,6 @@ export class FreyaMcpManager {
   private toolboxes = new Map<string, McpToolbox>();
   private statuses = new Map<string, McpServerStatus>();
   private connectionFailureCounts = new Map<string, number>();
-  private launchServerIds = new Set<string>();
-
   private readonly cacheManager = new McpCacheManager();
   private readonly authManager: McpOAuthManager;
 
@@ -186,8 +184,6 @@ export class FreyaMcpManager {
     const launchPath = path.join(FREYA_LAUNCH, 'config', 'mcp.json');
     const appPath = path.join(FREYA_APP, 'config', 'mcp.json');
 
-    const merged: Record<string, McpServerConfig> = {};
-
     const tryRead = async (filePath: string): Promise<McpConfigFile | null> => {
       try {
         const raw = await fs.readFile(filePath, 'utf-8');
@@ -200,34 +196,37 @@ export class FreyaMcpManager {
       }
     };
 
-    this.launchServerIds.clear();
+    this.servers.clear();
     const homeConfig = await tryRead(homePath);
 
     if (homeConfig) {
       if (homeConfig.mcpServers) {
         for (const [k, v] of Object.entries(homeConfig.mcpServers)) {
-          merged[k] = v;
+          if (v.url) {
+            this.servers.set(k, v);
+          }
         }
       }
-    } else {
-      const appConfig = await tryRead(appPath);
-      if (appConfig?.mcpServers) {
-        for (const [k, v] of Object.entries(appConfig.mcpServers)) {
-          merged[k] = { ...v, enabled: v.enabled ?? false };
-        }
-      }
-
-      const launchConfig = await tryRead(launchPath);
-      if (launchConfig?.mcpServers) {
-        for (const [k, v] of Object.entries(launchConfig.mcpServers)) {
-          merged[k] = { ...(merged[k] || {}), ...v, enabled: v.enabled ?? false };
-          this.launchServerIds.add(k);
-        }
-      }
-      await this.writeHomeConfig(merged);
+      return;
     }
 
-    this.servers.clear();
+    const merged: Record<string, McpServerConfig> = {};
+    const appConfig = await tryRead(appPath);
+    if (appConfig?.mcpServers) {
+      for (const [k, v] of Object.entries(appConfig.mcpServers)) {
+        merged[k] = { ...v, enabled: v.enabled ?? false };
+      }
+    }
+
+    const launchConfig = await tryRead(launchPath);
+    if (launchConfig?.mcpServers) {
+      for (const [k, v] of Object.entries(launchConfig.mcpServers)) {
+        merged[k] = { ...(merged[k] || {}), ...v, enabled: v.enabled ?? false };
+      }
+    }
+
+    await this.writeHomeConfig(merged);
+
     for (const [k, v] of Object.entries(merged)) {
       if (v.url) {
         this.servers.set(k, v);
@@ -483,18 +482,15 @@ export class FreyaMcpManager {
   }
 
   /**
-   * 获取运行时持久化配置 (FREYA_HOME/config/mcp.json)
-   * Read runtime persistent config
+   * 持久化当前服务配置到 FREYA_HOME/config/mcp.json
+   * Persist current server configurations to FREYA_HOME/config/mcp.json
    */
-  private async readHomeConfig(): Promise<Record<string, McpServerConfig>> {
-    const homePath = path.join(FREYA_HOME, 'config', 'mcp.json');
-    try {
-      const raw = await fs.readFile(homePath, 'utf-8');
-      const data = JSON.parse(raw) as McpConfigFile;
-      return data?.mcpServers || {};
-    } catch {
-      return {};
+  private async persistServers(): Promise<void> {
+    const mcpServers: Record<string, McpServerConfig> = {};
+    for (const [id, cfg] of this.servers.entries()) {
+      mcpServers[id] = cfg;
     }
+    await this.writeHomeConfig(mcpServers);
   }
 
   /**
@@ -525,7 +521,6 @@ export class FreyaMcpManager {
     const result: any[] = [];
     for (const [id, config] of this.servers.entries()) {
       const toolbox = this.toolboxes.get(id);
-      const isLaunch = this.launchServerIds.has(id);
       const cached = await this.cacheManager.loadCache(id);
       result.push({
         id,
@@ -535,7 +530,6 @@ export class FreyaMcpManager {
         instructions: cached?.instructions,
         serverInfo: cached?.serverInfo,
         enabled: config.enabled !== false,
-        source: isLaunch ? 'launch' : 'runtime',
         status: this.statuses.get(id) || 'disabled',
         toolCount: toolbox ? toolbox.getTools().length : 0,
         headers: config.headers,
@@ -572,16 +566,13 @@ export class FreyaMcpManager {
       throw new Error(`Invalid server URL: '${config?.url}'. Must be a valid HTTP/HTTPS endpoint.`);
     }
 
-    const homeServers = await this.readHomeConfig();
-    homeServers[cleanId] = config;
-    await this.writeHomeConfig(homeServers);
+    this.servers.set(cleanId, config);
+    await this.persistServers();
 
     const oldSession = this.sessions.get(cleanId);
     if (oldSession) {
       await oldSession.disconnect().catch(() => { });
     }
-
-    this.servers.set(cleanId, config);
 
     if (config.auth?.type === 'oauth') {
       this.authManager.registerServer(cleanId, config.auth, config.url);
@@ -623,11 +614,7 @@ export class FreyaMcpManager {
     this.statuses.delete(serverId);
     this.connectionFailureCounts.delete(serverId);
 
-    const homeServers = await this.readHomeConfig();
-    if (serverId in homeServers) {
-      delete homeServers[serverId];
-      await this.writeHomeConfig(homeServers);
-    }
+    await this.persistServers();
   }
 
   /**
@@ -643,9 +630,7 @@ export class FreyaMcpManager {
     const updatedConfig: McpServerConfig = { ...config, enabled };
     this.servers.set(serverId, updatedConfig);
 
-    const homeServers = await this.readHomeConfig();
-    homeServers[serverId] = { ...(homeServers[serverId] || {}), ...updatedConfig };
-    await this.writeHomeConfig(homeServers);
+    await this.persistServers();
 
     if (!enabled) {
       const oldSession = this.sessions.get(serverId);
