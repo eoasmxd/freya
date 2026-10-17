@@ -139,7 +139,7 @@ export const McpConfigPanel: React.FC<McpConfigPanelProps> = ({ getApiUrl }) => 
     <div className="mcp-config-panel">
       <div className="mcp-panel-toolbar">
         <div className="mcp-toolbar-summary">
-          {t('provider.associatedCount', 'Configured {count} services', { count: servers.length })}
+          {t('mcp.serversCount', 'Configured {count} services', { count: servers.length })}
         </div>
         <button
           type="button"

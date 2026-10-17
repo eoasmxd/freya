@@ -27,34 +27,34 @@ export const McpServerModal: React.FC<McpServerModalProps> = ({
   const { t } = useI18n();
   const isEditing = !!initialServer;
 
+  const rawConfig = initialServer?.config || (initialServer as any);
+  const rawAuth = rawConfig?.auth;
+
   const [serverId, setServerId] = useState(initialServer?.id || '');
-  const [url, setUrl] = useState(initialServer?.config?.url || '');
-  const [description, setDescription] = useState(initialServer?.config?.description || '');
+  const [url, setUrl] = useState(rawConfig?.url || '');
+  const [description, setDescription] = useState(rawConfig?.description || '');
 
-  const initialAuthType = initialServer?.config?.oauth
-    ? 'oauth'
-    : (initialServer?.config?.headers && Object.keys(initialServer.config.headers).length > 0)
-    ? 'headers'
-    : 'none';
-  const [authType, setAuthType] = useState<'none' | 'headers' | 'oauth'>(initialAuthType);
-
-  const initialHeaders: HeaderRow[] = initialServer?.config?.headers
-    ? Object.entries(initialServer.config.headers).map(([k, v]) => ({ key: k, value: String(v) }))
+  const serverHeaders = rawConfig?.headers || (rawAuth?.type === 'headers' ? rawAuth.headers : undefined);
+  const initialHeaders: HeaderRow[] = serverHeaders
+    ? Object.entries(serverHeaders).map(([k, v]) => ({ key: k, value: String(v) }))
     : [];
   const [headers, setHeaders] = useState<HeaderRow[]>(initialHeaders);
 
-  const [oauthClientId, setOauthClientId] = useState(initialServer?.config?.oauth?.clientId || '');
-  const [oauthClientSecret, setOauthClientSecret] = useState(initialServer?.config?.oauth?.clientSecret || '');
-  const [oauthAuthUrl, setOauthAuthUrl] = useState(initialServer?.config?.oauth?.authUrl || '');
-  const [oauthTokenUrl, setOauthTokenUrl] = useState(initialServer?.config?.oauth?.tokenUrl || '');
-  const [oauthDeviceUrl, setOauthDeviceUrl] = useState(initialServer?.config?.oauth?.deviceUrl || '');
-  const [oauthScopes, setOauthScopes] = useState(initialServer?.config?.oauth?.scopes?.join(' ') || '');
+  const oauthConfig = rawAuth?.type === 'oauth' ? rawAuth : rawConfig?.oauth;
+  const [oauthClientId, setOauthClientId] = useState(oauthConfig?.clientId || '');
+  const [oauthClientSecret, setOauthClientSecret] = useState(oauthConfig?.clientSecret || '');
+  const [oauthAuthUrl, setOauthAuthUrl] = useState(oauthConfig?.authorizationUrl || oauthConfig?.authUrl || '');
+  const [oauthTokenUrl, setOauthTokenUrl] = useState(oauthConfig?.tokenUrl || '');
+  const [oauthDeviceUrl, setOauthDeviceUrl] = useState(oauthConfig?.deviceAuthorizationUrl || oauthConfig?.deviceUrl || '');
+  const [oauthScopes, setOauthScopes] = useState(oauthConfig?.scopes?.join(' ') || '');
 
-  const [showAdvanced, setShowAdvanced] = useState(false);
-  const [filterInclude, setFilterInclude] = useState(initialServer?.config?.toolFilter?.include?.join(', ') || '');
-  const [filterExclude, setFilterExclude] = useState(initialServer?.config?.toolFilter?.exclude?.join(', ') || '');
-  const [timeoutMs, setTimeoutMs] = useState(initialServer?.config?.timeoutMs ? String(initialServer.config.timeoutMs) : '');
-  const [idleTimeoutMs, setIdleTimeoutMs] = useState(initialServer?.config?.idleTimeoutMs ? String(initialServer.config.idleTimeoutMs) : '');
+  const [showAdvanced, setShowAdvanced] = useState(
+    !!(oauthConfig || rawConfig?.toolFilter || rawConfig?.timeoutMs)
+  );
+  const [filterInclude, setFilterInclude] = useState(rawConfig?.toolFilter?.include?.join(', ') || '');
+  const [filterExclude, setFilterExclude] = useState(rawConfig?.toolFilter?.exclude?.join(', ') || '');
+  const [timeoutMs, setTimeoutMs] = useState(rawConfig?.timeoutMs ? String(rawConfig.timeoutMs) : '');
+  const [idleTimeoutMs, setIdleTimeoutMs] = useState(rawConfig?.idleTimeoutMs ? String(rawConfig.idleTimeoutMs) : '');
 
   const [saving, setSaving] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
@@ -98,33 +98,31 @@ export const McpServerModal: React.FC<McpServerModalProps> = ({
       description: description.trim() || undefined
     };
 
-    if (authType === 'headers') {
-      const headerMap: Record<string, string> = {};
-      for (const h of headers) {
-        if (h.key.trim()) {
-          headerMap[h.key.trim()] = h.value;
-        }
+    const headerMap: Record<string, string> = {};
+    for (const h of headers) {
+      if (h.key.trim()) {
+        headerMap[h.key.trim()] = h.value;
       }
-      if (Object.keys(headerMap).length > 0) {
-        config.headers = headerMap;
-      }
-    } else if (authType === 'oauth') {
-      if (!oauthClientId.trim() || !oauthAuthUrl.trim() || !oauthTokenUrl.trim()) {
-        setErrorMsg('Please complete required OAuth fields (Client ID, Auth URL, Token URL)');
-        return;
-      }
-      config.oauth = {
-        clientId: oauthClientId.trim(),
+    }
+    if (Object.keys(headerMap).length > 0) {
+      config.headers = headerMap;
+    }
+
+    const hasCustomOAuth = oauthClientId.trim() || oauthClientSecret.trim() || oauthAuthUrl.trim() || oauthTokenUrl.trim() || oauthDeviceUrl.trim() || oauthScopes.trim();
+    if (hasCustomOAuth) {
+      config.auth = {
+        type: 'oauth',
+        clientId: oauthClientId.trim() || undefined,
         clientSecret: oauthClientSecret.trim() || undefined,
-        authUrl: oauthAuthUrl.trim(),
-        tokenUrl: oauthTokenUrl.trim(),
-        deviceUrl: oauthDeviceUrl.trim() || undefined,
-        scopes: oauthScopes.split(/[,\s]+/).map(s => s.trim()).filter(Boolean)
+        authorizationUrl: oauthAuthUrl.trim() || undefined,
+        tokenUrl: oauthTokenUrl.trim() || undefined,
+        deviceAuthorizationUrl: oauthDeviceUrl.trim() || undefined,
+        scopes: oauthScopes.split(/[,\s]+/).map((s: string) => s.trim()).filter(Boolean)
       };
     }
 
-    const includes = filterInclude.split(',').map(s => s.trim()).filter(Boolean);
-    const excludes = filterExclude.split(',').map(s => s.trim()).filter(Boolean);
+    const includes = filterInclude.split(',').map((s: string) => s.trim()).filter(Boolean);
+    const excludes = filterExclude.split(',').map((s: string) => s.trim()).filter(Boolean);
     if (includes.length > 0 || excludes.length > 0) {
       config.toolFilter = {
         include: includes.length > 0 ? includes : undefined,
@@ -231,151 +229,51 @@ export const McpServerModal: React.FC<McpServerModalProps> = ({
             />
           </div>
 
-          <div className="config-group">
-            <label className="config-label">{t('mcp.fieldAuthType', 'Auth Type')}</label>
-            <div style={{ display: 'flex', gap: '1rem', marginTop: '0.2rem' }}>
-              <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.85rem', cursor: 'pointer' }}>
-                <input
-                  type="radio"
-                  name="authType"
-                  value="none"
-                  checked={authType === 'none'}
-                  onChange={() => setAuthType('none')}
-                />
-                {t('mcp.authNone', 'None')}
-              </label>
-              <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.85rem', cursor: 'pointer' }}>
-                <input
-                  type="radio"
-                  name="authType"
-                  value="headers"
-                  checked={authType === 'headers'}
-                  onChange={() => setAuthType('headers')}
-                />
-                {t('mcp.authHeaders', 'Custom Headers')}
-              </label>
-              <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.85rem', cursor: 'pointer' }}>
-                <input
-                  type="radio"
-                  name="authType"
-                  value="oauth"
-                  checked={authType === 'oauth'}
-                  onChange={() => setAuthType('oauth')}
-                />
-                {t('mcp.authOAuth', 'OAuth 2.1 (OAuth / Device Flow)')}
-              </label>
+          <div className="mcp-section-box">
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.4rem' }}>
+              <div>
+                <span style={{ fontSize: '0.85rem', fontWeight: 600 }}>{t('mcp.headersTitle', 'Custom Headers (Optional)')}</span>
+                <p style={{ margin: '0.2rem 0 0 0', fontSize: '0.74rem', color: 'var(--text-secondary)' }}>
+                  {t('mcp.headersDesc', 'Supplemental static headers (e.g. Authorization: Bearer xxx) for legacy/custom services. Standard OAuth is handled automatically.')}
+                </p>
+              </div>
+              <button type="button" className="btn-secondary" onClick={handleAddHeader} style={{ padding: '0.25rem 0.6rem', fontSize: '0.78rem' }}>
+                {t('mcp.addHeader', '+ Add Header')}
+              </button>
             </div>
+            {headers.length > 0 && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginTop: '0.5rem' }}>
+                {headers.map((row, idx) => (
+                  <div key={idx} style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                    <input
+                      type="text"
+                      className="config-input"
+                      style={{ flex: 1 }}
+                      placeholder={t('mcp.headerKey', 'Header Key')}
+                      value={row.key}
+                      onChange={(e) => handleHeaderChange(idx, 'key', e.target.value)}
+                    />
+                    <input
+                      type="text"
+                      className="config-input"
+                      style={{ flex: 2 }}
+                      placeholder={t('mcp.headerValue', 'Header Value')}
+                      value={row.value}
+                      onChange={(e) => handleHeaderChange(idx, 'value', e.target.value)}
+                    />
+                    <button
+                      type="button"
+                      className="btn-secondary"
+                      onClick={() => handleRemoveHeader(idx)}
+                      style={{ padding: '0.4rem 0.6rem', color: '#f87171' }}
+                    >
+                      ✕
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
-
-          {authType === 'headers' && (
-            <div className="mcp-section-box">
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
-                <span style={{ fontSize: '0.82rem', fontWeight: 600 }}>{t('mcp.authHeaders', 'Custom Headers')}</span>
-                <button type="button" className="btn-secondary" onClick={handleAddHeader} style={{ padding: '0.25rem 0.6rem', fontSize: '0.78rem' }}>
-                  {t('mcp.addHeader', '+ Add Header')}
-                </button>
-              </div>
-              {headers.length === 0 ? (
-                <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
-                  {t('global.emptyChildList', 'List is empty. Click "+ Add Header" to create one.')}
-                </div>
-              ) : (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                  {headers.map((row, idx) => (
-                    <div key={idx} style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-                      <input
-                        type="text"
-                        className="config-input"
-                        style={{ flex: 1 }}
-                        placeholder={t('mcp.headerKey', 'Header Key')}
-                        value={row.key}
-                        onChange={(e) => handleHeaderChange(idx, 'key', e.target.value)}
-                      />
-                      <input
-                        type="text"
-                        className="config-input"
-                        style={{ flex: 2 }}
-                        placeholder={t('mcp.headerValue', 'Header Value')}
-                        value={row.value}
-                        onChange={(e) => handleHeaderChange(idx, 'value', e.target.value)}
-                      />
-                      <button
-                        type="button"
-                        className="btn-secondary"
-                        onClick={() => handleRemoveHeader(idx)}
-                        style={{ padding: '0.4rem 0.6rem', color: '#f87171' }}
-                      >
-                        ✕
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
-
-          {authType === 'oauth' && (
-            <div className="mcp-section-box" style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-              <div className="config-group">
-                <label className="config-label">{t('mcp.oauthClientId', 'Client ID')} *</label>
-                <input
-                  type="text"
-                  className="config-input"
-                  value={oauthClientId}
-                  onChange={(e) => setOauthClientId(e.target.value)}
-                />
-              </div>
-              <div className="config-group">
-                <label className="config-label">{t('mcp.oauthClientSecret', 'Client Secret (Optional)')}</label>
-                <input
-                  type="password"
-                  className="config-input"
-                  value={oauthClientSecret}
-                  onChange={(e) => setOauthClientSecret(e.target.value)}
-                />
-              </div>
-              <div className="config-group">
-                <label className="config-label">{t('mcp.oauthAuthUrl', 'Authorization URL')} *</label>
-                <input
-                  type="url"
-                  className="config-input"
-                  value={oauthAuthUrl}
-                  placeholder="https://oauth.example.com/authorize"
-                  onChange={(e) => setOauthAuthUrl(e.target.value)}
-                />
-              </div>
-              <div className="config-group">
-                <label className="config-label">{t('mcp.oauthTokenUrl', 'Token URL')} *</label>
-                <input
-                  type="url"
-                  className="config-input"
-                  value={oauthTokenUrl}
-                  placeholder="https://oauth.example.com/token"
-                  onChange={(e) => setOauthTokenUrl(e.target.value)}
-                />
-              </div>
-              <div className="config-group">
-                <label className="config-label">{t('mcp.oauthDeviceUrl', 'Device Auth URL (Optional)')}</label>
-                <input
-                  type="url"
-                  className="config-input"
-                  value={oauthDeviceUrl}
-                  placeholder="https://oauth.example.com/device/code"
-                  onChange={(e) => setOauthDeviceUrl(e.target.value)}
-                />
-              </div>
-              <div className="config-group">
-                <label className="config-label">{t('mcp.oauthScopes', 'Scopes (space or comma separated)')}</label>
-                <input
-                  type="text"
-                  className="config-input"
-                  value={oauthScopes}
-                  placeholder="repo read:user"
-                  onChange={(e) => setOauthScopes(e.target.value)}
-                />
-              </div>
-            </div>
-          )}
 
           <div>
             <button
@@ -430,6 +328,73 @@ export const McpServerModal: React.FC<McpServerModalProps> = ({
                     value={idleTimeoutMs}
                     onChange={(e) => setIdleTimeoutMs(e.target.value)}
                   />
+                </div>
+              </div>
+
+              <div style={{ borderTop: '1px solid rgba(255, 255, 255, 0.06)', paddingTop: '0.75rem', marginTop: '0.25rem' }}>
+                <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)' }}>
+                  {t('mcp.oauthAdvancedOverrides', 'Custom OAuth Overrides (Optional)')}
+                </span>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem', marginTop: '0.5rem' }}>
+                  <div className="config-group">
+                    <label className="config-label">{t('mcp.oauthClientId', 'Client ID (Optional)')}</label>
+                    <input
+                      type="text"
+                      className="config-input"
+                      value={oauthClientId}
+                      placeholder="e.g. custom-client-id"
+                      onChange={(e) => setOauthClientId(e.target.value)}
+                    />
+                  </div>
+                  <div className="config-group">
+                    <label className="config-label">{t('mcp.oauthClientSecret', 'Client Secret (Optional)')}</label>
+                    <input
+                      type="password"
+                      className="config-input"
+                      value={oauthClientSecret}
+                      onChange={(e) => setOauthClientSecret(e.target.value)}
+                    />
+                  </div>
+                  <div className="config-group">
+                    <label className="config-label">{t('mcp.oauthAuthUrl', 'Authorization URL (Optional)')}</label>
+                    <input
+                      type="url"
+                      className="config-input"
+                      value={oauthAuthUrl}
+                      placeholder="https://oauth.example.com/authorize"
+                      onChange={(e) => setOauthAuthUrl(e.target.value)}
+                    />
+                  </div>
+                  <div className="config-group">
+                    <label className="config-label">{t('mcp.oauthTokenUrl', 'Token URL (Optional)')}</label>
+                    <input
+                      type="url"
+                      className="config-input"
+                      value={oauthTokenUrl}
+                      placeholder="https://oauth.example.com/token"
+                      onChange={(e) => setOauthTokenUrl(e.target.value)}
+                    />
+                  </div>
+                  <div className="config-group">
+                    <label className="config-label">{t('mcp.oauthDeviceUrl', 'Device Auth URL (Optional)')}</label>
+                    <input
+                      type="url"
+                      className="config-input"
+                      value={oauthDeviceUrl}
+                      placeholder="https://oauth.example.com/device/code"
+                      onChange={(e) => setOauthDeviceUrl(e.target.value)}
+                    />
+                  </div>
+                  <div className="config-group">
+                    <label className="config-label">{t('mcp.oauthScopes', 'Scopes (space or comma separated)')}</label>
+                    <input
+                      type="text"
+                      className="config-input"
+                      value={oauthScopes}
+                      placeholder="repo read:user"
+                      onChange={(e) => setOauthScopes(e.target.value)}
+                    />
+                  </div>
                 </div>
               </div>
             </div>

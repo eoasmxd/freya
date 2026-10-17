@@ -21,8 +21,49 @@ export class McpOAuthProvider {
     private readonly serverId: string,
     private readonly config: McpAuthOAuth,
     private readonly tokenStore: TokenStore,
-    private readonly context?: FreyaContext
+    private readonly context?: FreyaContext,
+    private readonly serverUrl?: string
   ) {}
+
+  /**
+   * 解析或动态探测 OAuth 2.1 规范端点 (RFC 8414 / OIDC Discovery)
+   * Discover or resolve standard OAuth 2.1 authorization server endpoints
+   */
+  async resolveEndpoints(): Promise<{ authorizationUrl?: string; tokenUrl?: string; deviceAuthorizationUrl?: string }> {
+    let authUrl = this.config.authorizationUrl;
+    let tokenUrl = this.config.tokenUrl;
+    let deviceUrl = this.config.deviceAuthorizationUrl;
+
+    if (authUrl && tokenUrl && deviceUrl) {
+      return { authorizationUrl: authUrl, tokenUrl, deviceAuthorizationUrl: deviceUrl };
+    }
+
+    const candidateUrl = this.serverUrl || this.config.authorizationUrl || this.config.tokenUrl;
+    if (candidateUrl) {
+      try {
+        const parsed = new URL(candidateUrl);
+        const metadataUrls = [
+          `${parsed.origin}/.well-known/oauth-authorization-server`,
+          `${parsed.origin}/.well-known/openid-configuration`
+        ];
+
+        for (const metaUrl of metadataUrls) {
+          try {
+            const res = await fetch(metaUrl, { signal: AbortSignal.timeout(3000) });
+            if (res.ok) {
+              const data: any = await res.json();
+              if (!authUrl && data.authorization_endpoint) authUrl = data.authorization_endpoint;
+              if (!tokenUrl && data.token_endpoint) tokenUrl = data.token_endpoint;
+              if (!deviceUrl && data.device_authorization_endpoint) deviceUrl = data.device_authorization_endpoint;
+              if (authUrl && tokenUrl) break;
+            }
+          } catch {}
+        }
+      } catch {}
+    }
+
+    return { authorizationUrl: authUrl, tokenUrl, deviceAuthorizationUrl: deviceUrl };
+  }
 
   /**
    * 生成 PKCE Code Verifier 与 Code Challenge
@@ -42,12 +83,13 @@ export class McpOAuthProvider {
    * Start OAuth flow, generate authorization redirect URL and save pending state
    */
   async startAuth(callbackUrl: string): Promise<string> {
-    const authUrl = this.config.authorizationUrl;
-    const tokenUrl = this.config.tokenUrl;
+    const endpoints = await this.resolveEndpoints();
+    const authUrl = endpoints.authorizationUrl;
+    const tokenUrl = endpoints.tokenUrl;
     const clientId = this.config.clientId || 'freya-client';
 
     if (!authUrl || !tokenUrl) {
-      throw new Error(`[McpOAuth] Server '${this.serverId}' is missing authorizationUrl or tokenUrl.`);
+      throw new Error(`[McpOAuth] Failed to resolve authorizationUrl or tokenUrl for server '${this.serverId}'.`);
     }
 
     const { verifier, challenge } = this.generatePkce();
@@ -206,41 +248,9 @@ export class McpOAuthProvider {
     return newToken.accessToken;
   }
 
-  /**
-   * 探测并解析 RFC 8628 设备授权端点
-   * Resolve or discover RFC 8628 device authorization endpoint
-   */
   async resolveDeviceAuthUrl(): Promise<string | undefined> {
-    if (this.config.deviceAuthorizationUrl) {
-      return this.config.deviceAuthorizationUrl;
-    }
-
-    const baseCandidate = this.config.authorizationUrl || this.config.tokenUrl;
-    if (!baseCandidate) {
-      return undefined;
-    }
-
-    try {
-      const parsed = new URL(baseCandidate);
-      const metadataUrls = [
-        `${parsed.origin}/.well-known/oauth-authorization-server`,
-        `${parsed.origin}/.well-known/openid-configuration`
-      ];
-
-      for (const metaUrl of metadataUrls) {
-        try {
-          const res = await fetch(metaUrl, { signal: AbortSignal.timeout(3000) });
-          if (res.ok) {
-            const data: any = await res.json();
-            if (data.device_authorization_endpoint) {
-              return data.device_authorization_endpoint;
-            }
-          }
-        } catch {}
-      }
-    } catch {}
-
-    return undefined;
+    const endpoints = await this.resolveEndpoints();
+    return endpoints.deviceAuthorizationUrl;
   }
 
   /**

@@ -69,7 +69,8 @@ export const McpServerCard: React.FC<McpServerCardProps> = ({
   };
 
   const badgeMeta = getStatusBadgeMeta(server.status);
-  const displayDesc = server.config.description || t('mcp.fieldDescriptionPlaceholder', 'No description provided');
+  const config = server.config || (server as any);
+  const displayDesc = config?.description || t('mcp.fieldDescriptionPlaceholder', 'No description provided');
 
   return (
     <div className={`mcp-server-card ${server.enabled ? 'is-enabled' : 'is-disabled'}`}>
@@ -88,8 +89,8 @@ export const McpServerCard: React.FC<McpServerCardProps> = ({
               {badgeMeta.label}
             </span>
           </div>
-          <span className="mcp-server-url" title={server.config.url}>
-            {server.config.url}
+          <span className="mcp-server-url" title={config?.url}>
+            {config?.url}
           </span>
         </div>
 

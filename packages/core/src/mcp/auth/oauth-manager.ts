@@ -12,12 +12,17 @@ export class McpOAuthManager {
   private onAuthSuccess?: (serverId: string) => Promise<void>;
   private readonly tokenStore: TokenStore;
   private callbackPort?: number;
+  private serverUrlResolver?: (serverId: string) => string | undefined;
 
   constructor(
     tokenStore?: TokenStore,
     private readonly context?: FreyaContext
   ) {
     this.tokenStore = tokenStore || new TokenStore();
+  }
+
+  setServerUrlResolver(resolver: (serverId: string) => string | undefined): void {
+    this.serverUrlResolver = resolver;
   }
 
   /**
@@ -40,17 +45,26 @@ export class McpOAuthManager {
    * 注册服务的 OAuth 配置
    * Register OAuth configuration for specified server
    */
-  registerServer(serverId: string, config: McpAuthOAuth): void {
-    const provider = new McpOAuthProvider(serverId, config, this.tokenStore, this.context);
+  registerServer(serverId: string, config: McpAuthOAuth, serverUrl?: string): void {
+    const url = serverUrl || this.serverUrlResolver?.(serverId);
+    const provider = new McpOAuthProvider(serverId, config, this.tokenStore, this.context, url);
     this.providers.set(serverId, provider);
   }
 
   /**
-   * 获取指定服务的 OAuth 提供者
-   * Get OAuth provider for specified server
+   * 获取指定服务的 OAuth 提供者（支持按需根据服务端点自动创建）
+   * Get OAuth provider for specified server with on-demand fallback
    */
   getProvider(serverId: string): McpOAuthProvider | undefined {
-    return this.providers.get(serverId);
+    let provider = this.providers.get(serverId);
+    if (!provider) {
+      const url = this.serverUrlResolver?.(serverId);
+      if (url) {
+        provider = new McpOAuthProvider(serverId, { type: 'oauth' }, this.tokenStore, this.context, url);
+        this.providers.set(serverId, provider);
+      }
+    }
+    return provider;
   }
 
   /**
@@ -58,7 +72,7 @@ export class McpOAuthManager {
    * Start OAuth flow, prioritizing Device Authorization Grant (RFC 8628) with fallback
    */
   async startAuth(serverId: string, callbackUrl?: string): Promise<McpAuthStartResult> {
-    const provider = this.providers.get(serverId);
+    const provider = this.getProvider(serverId);
     if (!provider) {
       throw new Error(`Server '${serverId}' does not support OAuth authentication.`);
     }

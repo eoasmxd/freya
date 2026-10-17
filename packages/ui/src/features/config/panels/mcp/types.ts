@@ -14,12 +14,14 @@ export interface McpServerConfig {
   url: string;
   description?: string;
   headers?: Record<string, string>;
-  oauth?: {
-    clientId: string;
+  auth?: {
+    type: 'headers' | 'oauth' | 'none';
+    headers?: Record<string, string>;
+    clientId?: string;
     clientSecret?: string;
-    authUrl: string;
-    tokenUrl: string;
-    deviceUrl?: string;
+    authorizationUrl?: string;
+    tokenUrl?: string;
+    deviceAuthorizationUrl?: string;
     scopes?: string[];
   };
   toolFilter?: {
@@ -34,10 +36,15 @@ export type McpServerState = 'ready' | 'connecting' | 'auth_required' | 'error' 
 
 export interface McpServerStatusItem {
   id: string;
-  config: McpServerConfig;
+  url?: string;
+  description?: string;
+  headers?: Record<string, string>;
+  auth?: any;
+  config?: McpServerConfig;
   enabled: boolean;
   status: McpServerState;
   lastError?: string;
   toolsCount: number;
+  toolCount?: number;
   tools: McpToolItem[];
 }

@@ -47,6 +47,7 @@ export interface McpServerConfig {
   url: string;
   description?: string;
   enabled?: boolean;
+  headers?: Record<string, string>;
   auth?: McpAuthConfig;
   toolFilter?: {
     include?: string[];

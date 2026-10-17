@@ -46,6 +46,7 @@ export class FreyaMcpManager {
     private readonly promptRegistry: FreyaPromptRegistry
   ) {
     this.authManager = new McpOAuthManager(undefined, this.context);
+    this.authManager.setServerUrlResolver((serverId) => this.servers.get(serverId)?.url);
     this.authManager.setOnAuthSuccess(async (serverId) => {
       const cfg = this.servers.get(serverId);
       if (cfg) {
@@ -92,13 +93,18 @@ export class FreyaMcpManager {
    */
   private async buildAuthHeaders(serverId: string, config: McpServerConfig): Promise<Record<string, string>> {
     const headers: Record<string, string> = {};
+    if (config.headers) {
+      Object.assign(headers, config.headers);
+    }
     if (config.auth?.type === 'headers') {
       Object.assign(headers, config.auth.headers);
-    } else if (config.auth?.type === 'oauth') {
+    } else if (config.auth?.type === 'oauth' || !config.auth) {
       const provider = this.authManager.getProvider(serverId);
       if (provider) {
-        const token = await provider.getValidToken();
-        headers['Authorization'] = `Bearer ${token}`;
+        const token = await provider.getValidToken().catch(() => null);
+        if (token) {
+          headers['Authorization'] = `Bearer ${token}`;
+        }
       }
     }
     return headers;
@@ -499,7 +505,9 @@ export class FreyaMcpManager {
         source: isLaunch ? 'launch' : 'runtime',
         status: this.statuses.get(id) || 'disabled',
         toolCount: toolbox ? toolbox.getTools().length : 0,
+        headers: config.headers,
         auth: config.auth,
+        config,
         toolFilter: config.toolFilter,
         timeoutMs: config.timeoutMs,
         idleTimeoutMs: config.idleTimeoutMs,
@@ -542,7 +550,9 @@ export class FreyaMcpManager {
     this.servers.set(cleanId, config);
 
     if (config.auth?.type === 'oauth') {
-      this.authManager.registerServer(cleanId, config.auth);
+      this.authManager.registerServer(cleanId, config.auth, config.url);
+    } else {
+      this.authManager.registerServer(cleanId, { type: 'oauth' }, config.url);
     }
 
     if (config.enabled !== false) {
