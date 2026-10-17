@@ -1002,9 +1002,32 @@ input:checked+.slider:before {
 }
 
 .mcp-server-name {
-  font-size: 1rem;
+  font-size: 1.02rem;
   font-weight: 700;
   color: #ffffff;
+}
+
+.mcp-server-logo {
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  object-fit: contain;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.mcp-server-id-tag {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  font-family: 'Fira Code', monospace;
+}
+
+.mcp-server-version-tag {
+  font-size: 0.7rem;
+  padding: 0.1rem 0.4rem;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.06);
+  color: #94a3b8;
   font-family: 'Fira Code', monospace;
 }
 
@@ -1023,6 +1046,29 @@ input:checked+.slider:before {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.mcp-card-tools-container {
+  margin-top: 0.85rem;
+  padding-top: 0.85rem;
+  border-top: 1px dashed rgba(255, 255, 255, 0.06);
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  animation: fadeIn 0.2s ease forwards;
+}
+
+.mcp-card-tools-search {
+  width: 100%;
+}
+
+.mcp-card-tools-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  max-height: 480px;
+  overflow-y: auto;
+  padding-right: 4px;
 }
 
 .mcp-server-header-actions {

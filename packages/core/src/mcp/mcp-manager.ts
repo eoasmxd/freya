@@ -509,11 +509,14 @@ export class FreyaMcpManager {
     for (const [id, config] of this.servers.entries()) {
       const toolbox = this.toolboxes.get(id);
       const isLaunch = this.launchServerIds.has(id);
+      const cached = await this.cacheManager.loadCache(id);
       result.push({
         id,
         toolboxId: McpNaming.getToolboxId(id),
         url: config.url,
-        description: config.description || toolbox?.getDescription() || '',
+        description: config.description || cached?.description || '',
+        instructions: cached?.instructions,
+        serverInfo: cached?.serverInfo,
         enabled: config.enabled !== false,
         source: isLaunch ? 'launch' : 'runtime',
         status: this.statuses.get(id) || 'disabled',

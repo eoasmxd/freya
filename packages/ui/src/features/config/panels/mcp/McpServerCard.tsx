@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useI18n } from '../../../../i18n/index.js';
 import type { McpServerState, McpServerStatusItem } from './types.js';
 
@@ -7,14 +7,14 @@ interface McpServerCardProps {
   onToggle: (serverId: string, enabled: boolean) => void;
   onRetry: (serverId: string) => void;
   onOpenAuth: (serverId: string) => void;
-  onOpenTools: (server: McpServerStatusItem) => void;
+  onOpenTools?: (server: McpServerStatusItem) => void;
   onEdit: (server: McpServerStatusItem) => void;
   onDelete: (serverId: string) => void;
 }
 
 /**
  * MCP 服务卡片组件
- * Card component for displaying a single MCP remote service with state badges and actions
+ * Card component for displaying a single MCP remote service with state badges and inline tools expansion
  */
 export const McpServerCard: React.FC<McpServerCardProps> = ({
   server,
@@ -26,6 +26,9 @@ export const McpServerCard: React.FC<McpServerCardProps> = ({
   onDelete
 }) => {
   const { t } = useI18n();
+  const [isToolsExpanded, setIsToolsExpanded] = useState(false);
+  const [filterKeyword, setFilterKeyword] = useState('');
+  const [expandedSchemaTool, setExpandedSchemaTool] = useState<string | null>(null);
 
   const getStatusBadgeMeta = (status: McpServerState) => {
     switch (status) {
@@ -70,14 +73,40 @@ export const McpServerCard: React.FC<McpServerCardProps> = ({
 
   const badgeMeta = getStatusBadgeMeta(server.status);
   const config = server.config || (server as any);
-  const displayDesc = config?.description || t('mcp.fieldDescriptionPlaceholder', 'No description provided');
+  const serverInfo = server.serverInfo;
+  const iconUrl = serverInfo?.icons?.[0]?.src;
+  const displayTitle = serverInfo?.title || serverInfo?.name || server.id;
+  const displayDesc = server.description || config?.description || t('mcp.noDescription', 'No description provided');
+
+  const filteredTools = (server.tools || []).filter(tool => {
+    if (!filterKeyword.trim()) return true;
+    const kw = filterKeyword.toLowerCase();
+    const name = (tool.name || '').toLowerCase();
+    const orig = (tool.originalName || '').toLowerCase();
+    const desc = (tool.description || '').toLowerCase();
+    return name.includes(kw) || orig.includes(kw) || desc.includes(kw);
+  });
 
   return (
     <div className={`mcp-server-card ${server.enabled ? 'is-enabled' : 'is-disabled'}`}>
       <div className="mcp-server-card-header">
         <div className="mcp-server-header-left">
           <div className="mcp-server-title-row">
-            <span className="mcp-server-name">{server.id}</span>
+            {iconUrl && (
+              <img
+                src={iconUrl}
+                alt={displayTitle}
+                className="mcp-server-logo"
+                onError={(e) => { (e.target as HTMLElement).style.display = 'none'; }}
+              />
+            )}
+            <span className="mcp-server-name">{displayTitle}</span>
+            {displayTitle !== server.id && (
+              <span className="mcp-server-id-tag" title={server.id}>#{server.id}</span>
+            )}
+            {serverInfo?.version && (
+              <span className="mcp-server-version-tag">v{serverInfo.version}</span>
+            )}
             <span
               className="mcp-status-badge"
               style={{
@@ -122,13 +151,16 @@ export const McpServerCard: React.FC<McpServerCardProps> = ({
           {server.enabled && server.status === 'ready' && (
             <button
               type="button"
-              className="btn-plugin-config"
-              onClick={() => onOpenTools(server)}
+              className={`btn-plugin-config ${isToolsExpanded ? 'active' : ''}`}
+              onClick={() => setIsToolsExpanded(!isToolsExpanded)}
             >
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ marginRight: '4px' }}>
                 <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"></path>
               </svg>
-              {t('mcp.toolsCount', '{count} tools available', { count: server.toolCount })}
+              {isToolsExpanded
+                ? t('mcp.foldTools', '▲ Fold Tools List')
+                : t('mcp.toolsCount', '{count} tools available', { count: server.toolCount })
+              }
             </button>
           )}
 
@@ -174,6 +206,72 @@ export const McpServerCard: React.FC<McpServerCardProps> = ({
           </button>
         </div>
       </div>
+
+      {isToolsExpanded && server.status === 'ready' && (
+        <div className="mcp-card-tools-container">
+          <div className="mcp-card-tools-search">
+            <input
+              type="text"
+              className="config-input"
+              style={{ width: '100%', fontSize: '0.82rem', padding: '0.45rem 0.75rem' }}
+              placeholder={t('common.search', 'Search tools by name or description...')}
+              value={filterKeyword}
+              onChange={(e) => setFilterKeyword(e.target.value)}
+            />
+          </div>
+
+          <div className="mcp-card-tools-list">
+            {(!server.tools || server.tools.length === 0) ? (
+              <div className="mcp-drawer-empty" style={{ padding: '1.5rem 1rem' }}>
+                {t('mcp.toolsDrawerEmpty', 'No tools mounted for this server.')}
+              </div>
+            ) : filteredTools.length === 0 ? (
+              <div className="mcp-drawer-empty" style={{ padding: '1.5rem 1rem' }}>
+                {t('common.noResults', 'No matching tools found.')}
+              </div>
+            ) : (
+              filteredTools.map((tool) => {
+                const isSchemaOpen = expandedSchemaTool === tool.name;
+                return (
+                  <div key={tool.name} className="mcp-tool-card">
+                    <div className="mcp-tool-header">
+                      <div className="mcp-tool-names">
+                        <span className="mcp-tool-name">{tool.name}</span>
+                        {tool.originalName && tool.originalName !== tool.name && (
+                          <span className="mcp-tool-original" title="Original remote tool name">
+                            ({tool.originalName})
+                          </span>
+                        )}
+                      </div>
+                      <button
+                        type="button"
+                        className="btn-plugin-config"
+                        style={{ padding: '0.2rem 0.5rem', fontSize: '0.75rem' }}
+                        onClick={() => setExpandedSchemaTool(isSchemaOpen ? null : tool.name)}
+                      >
+                        {isSchemaOpen ? t('chat.fold', '▲ Fold') : t('chat.expand', '▼ Expand')} Schema
+                      </button>
+                    </div>
+
+                    <div className="mcp-tool-desc">
+                      {tool.description || t('skill.noDesc', 'No description provided')}
+                    </div>
+
+                    {isSchemaOpen && (
+                      <div className="mcp-tool-schema">
+                        <pre className="mcp-schema-code">
+                          {JSON.stringify(tool.parameters, null, 2)}
+                        </pre>
+                      </div>
+                    )}
+                  </div>
+                );
+              })
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 };
+

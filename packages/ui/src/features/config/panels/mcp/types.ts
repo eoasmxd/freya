@@ -34,10 +34,19 @@ export interface McpServerConfig {
 
 export type McpServerState = 'ready' | 'connecting' | 'auth_required' | 'error' | 'disabled';
 
+export interface McpServerInfo {
+  name?: string;
+  version?: string;
+  title?: string;
+  icons?: Array<{ src: string; mimeType?: string; sizes?: string[] }>;
+}
+
 export interface McpServerStatusItem {
   id: string;
   url?: string;
   description?: string;
+  instructions?: string;
+  serverInfo?: McpServerInfo;
   headers?: Record<string, string>;
   auth?: any;
   config?: McpServerConfig;

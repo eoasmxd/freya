@@ -99,6 +99,8 @@ export const en: Record<string, string> = {
   'mcp.statusError': 'Error',
   'mcp.statusDisabled': 'Disabled',
   'mcp.toolsCount': '{count} tools available',
+  'mcp.foldTools': 'Fold Tools List',
+  'mcp.noDescription': 'No description provided',
   'mcp.serversCount': 'Configured {count} services',
   'mcp.viewTools': 'View Tools',
   'mcp.btnRetry': 'Retry',

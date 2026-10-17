@@ -99,6 +99,8 @@ export const zh: Record<string, string> = {
   'mcp.statusError': '异常',
   'mcp.statusDisabled': '已停用',
   'mcp.toolsCount': '{count} 个可用工具',
+  'mcp.foldTools': '收起工具清单',
+  'mcp.noDescription': '暂无描述',
   'mcp.serversCount': '已配置 {count} 个服务',
   'mcp.viewTools': '查看工具清单',
   'mcp.btnRetry': '重试连接',

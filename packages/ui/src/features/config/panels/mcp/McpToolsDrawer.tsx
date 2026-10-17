@@ -19,11 +19,10 @@ export const McpToolsDrawer: React.FC<McpToolsDrawerProps> = ({ server, onClose 
   const filteredTools = server.tools.filter(tool => {
     if (!filterKeyword.trim()) return true;
     const kw = filterKeyword.toLowerCase();
-    return (
-      tool.name.toLowerCase().includes(kw) ||
-      tool.originalName.toLowerCase().includes(kw) ||
-      tool.description.toLowerCase().includes(kw)
-    );
+    const name = (tool.name || '').toLowerCase();
+    const orig = (tool.originalName || '').toLowerCase();
+    const desc = (tool.description || '').toLowerCase();
+    return name.includes(kw) || orig.includes(kw) || desc.includes(kw);
   });
 
   return (
