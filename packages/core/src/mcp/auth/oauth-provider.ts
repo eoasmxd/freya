@@ -233,9 +233,9 @@ export class McpOAuthProvider {
    * 使用授权码换取 Token
    * Exchange authorization code for access token
    */
-  async exchangeCode(code: string, state: string): Promise<void> {
+  async exchangeCode(code: string, state?: string): Promise<void> {
     const pending = await this.tokenStore.loadPendingAuth(this.serverId);
-    if (!pending || pending.state !== state) {
+    if (!pending || (state && pending.state !== state)) {
       throw new Error(`[McpOAuth] Invalid state parameter or expired auth session.`);
     }
 
@@ -347,10 +347,11 @@ export class McpOAuthProvider {
       throw new McpAuthRequiredError(`Missing tokenUrl for refresh on server '${this.serverId}'`);
     }
 
+    const clientId = await this.ensureClientId();
     const body = new URLSearchParams({
       grant_type: 'refresh_token',
       refresh_token: refreshToken,
-      client_id: this.config.clientId || 'freya-client'
+      client_id: clientId
     });
 
     const clientSecret = this.getClientSecret();

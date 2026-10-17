@@ -422,7 +422,7 @@ export class FreyaConfigApi {
           res.end(JSON.stringify({ success: false, error: this.i18n.t('api.error.mcpNotInit', 'MCP Manager is not initialized', undefined, defaultLang) }));
           return true;
         }
-        const { serverId, callbackUrl, action } = await this.getBody(req);
+        const { serverId, callbackUrl, action, code, state } = await this.getBody(req);
         if (!serverId) {
           res.writeHead(200, this.headers);
           res.end(JSON.stringify({ success: false, error: this.i18n.t('api.error.missingMcpServerId', 'Missing required parameter: serverId', undefined, defaultLang) }));
@@ -433,6 +433,17 @@ export class FreyaConfigApi {
           const isSuccess = status === 'ready';
           res.writeHead(200, this.headers);
           res.end(JSON.stringify({ success: true, data: { status: isSuccess ? 'success' : status === 'error' ? 'error' : 'pending' } }));
+          return true;
+        }
+        if (action === 'callback') {
+          if (!code) {
+            res.writeHead(200, this.headers);
+            res.end(JSON.stringify({ success: false, error: this.i18n.t('api.error.missingMcpAuthCode', 'Missing required parameter: code', undefined, defaultLang) }));
+            return true;
+          }
+          await this.mcpManager.handleAuthCallback(code, state || '', serverId);
+          res.writeHead(200, this.headers);
+          res.end(JSON.stringify({ success: true, message: this.i18n.t('api.mcp.authSuccess', "Successfully authenticated server '{serverId}'", { serverId }, defaultLang) }));
           return true;
         }
         const authResult = await this.mcpManager.startAuth(serverId, callbackUrl);

@@ -222,12 +222,18 @@ export class StreamableHttpTransport {
                 }
                 if (parsed.error) {
                   rpcError = new Error(`RPC Error [${parsed.error.code}]: ${parsed.error.message}`);
+                  break;
                 } else if (parsed.result !== undefined) {
                   lastResult = parsed.result;
+                  break;
                 }
               } catch {}
             }
           }
+        }
+        if (rpcError || lastResult !== undefined) {
+          await reader.cancel().catch(() => {});
+          break;
         }
       }
     } finally {

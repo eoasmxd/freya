@@ -1,11 +1,10 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import crypto from 'node:crypto';
-import type { FreyaContext } from '@eoasmxd/freya-sdk';
+import type { FreyaContext, HttpRouteHandler } from '@eoasmxd/freya-sdk';
 import type { FreyaToolRegistry } from '../tools/tool-registry.js';
 import type { FreyaPromptRegistry } from '../prompt/prompt-registry.js';
-import type { HttpRouteHandler } from '@eoasmxd/freya-sdk';
-import { FREYA_HOME, FREYA_LAUNCH } from '../utils/paths.js';
+import { FREYA_APP, FREYA_HOME, FREYA_LAUNCH } from '../utils/paths.js';
 import type {
   McpAuthStartResult,
   McpConfigFile,
@@ -179,12 +178,13 @@ export class FreyaMcpManager {
   }
 
   /**
-   * 读取 mcp.json 配置（支持 LAUNCH 与 HOME 双层合并）
-   * Read and merge mcp.json configuration from LAUNCH and HOME tiers
+   * 读取 mcp.json 配置（HOME 存在则直接使用 HOME，不存在时再合并 APP 与 LAUNCH）
+   * Read mcp.json configuration (use HOME directly if exists, otherwise fallback to merging APP and LAUNCH)
    */
   private async loadConfig(): Promise<void> {
-    const launchPath = path.join(FREYA_LAUNCH, 'config', 'mcp.json');
     const homePath = path.join(FREYA_HOME, 'config', 'mcp.json');
+    const launchPath = path.join(FREYA_LAUNCH, 'config', 'mcp.json');
+    const appPath = path.join(FREYA_APP, 'config', 'mcp.json');
 
     const merged: Record<string, McpServerConfig> = {};
 
@@ -200,20 +200,31 @@ export class FreyaMcpManager {
       }
     };
 
-    const launchConfig = await tryRead(launchPath);
     this.launchServerIds.clear();
-    if (launchConfig?.mcpServers) {
-      for (const [k, v] of Object.entries(launchConfig.mcpServers)) {
-        merged[k] = { ...v, enabled: v.enabled ?? false };
-        this.launchServerIds.add(k);
-      }
-    }
-
     const homeConfig = await tryRead(homePath);
-    if (homeConfig?.mcpServers) {
-      for (const [k, v] of Object.entries(homeConfig.mcpServers)) {
-        merged[k] = { ...(merged[k] || {}), ...v };
+
+    if (homeConfig) {
+      if (homeConfig.mcpServers) {
+        for (const [k, v] of Object.entries(homeConfig.mcpServers)) {
+          merged[k] = v;
+        }
       }
+    } else {
+      const appConfig = await tryRead(appPath);
+      if (appConfig?.mcpServers) {
+        for (const [k, v] of Object.entries(appConfig.mcpServers)) {
+          merged[k] = { ...v, enabled: v.enabled ?? false };
+        }
+      }
+
+      const launchConfig = await tryRead(launchPath);
+      if (launchConfig?.mcpServers) {
+        for (const [k, v] of Object.entries(launchConfig.mcpServers)) {
+          merged[k] = { ...(merged[k] || {}), ...v, enabled: v.enabled ?? false };
+          this.launchServerIds.add(k);
+        }
+      }
+      await this.writeHomeConfig(merged);
     }
 
     this.servers.clear();
@@ -536,7 +547,8 @@ export class FreyaMcpManager {
         tools: toolbox ? toolbox.getTools().map(t => {
           const def = t.getDefinition();
           return {
-            name: (t as any).getOriginalName?.() || def.name,
+            name: def.name,
+            originalName: (t as any).getOriginalName?.() || def.name,
             exposedName: def.name,
             description: def.description,
             parameters: def.parameters

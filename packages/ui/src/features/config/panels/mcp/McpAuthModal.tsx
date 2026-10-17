@@ -122,13 +122,16 @@ export const McpAuthModal: React.FC<McpAuthModalProps> = ({
       setErrorMsg('');
 
       let code = callbackInput.trim();
+      let state: string | undefined;
       let redirectUri: string | undefined;
 
       try {
         const urlObj = new URL(code);
         const queryCode = urlObj.searchParams.get('code');
+        const queryState = urlObj.searchParams.get('state');
         if (queryCode) {
           code = queryCode;
+          state = queryState || undefined;
           redirectUri = `${urlObj.origin}${urlObj.pathname}`;
         }
       } catch {
@@ -141,6 +144,7 @@ export const McpAuthModal: React.FC<McpAuthModalProps> = ({
           serverId,
           action: 'callback',
           code,
+          state,
           redirectUri
         })
       });

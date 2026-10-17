@@ -44,7 +44,7 @@ export class McpBridgedTool implements FreyaTool {
   }
 
   async execute(args: Record<string, any>): Promise<string | FreyaToolResult> {
-    const { __sessionId, ...cleanArgs } = args;
+    const { __sessionId, ...cleanArgs } = args || {};
     try {
       const rawResult = await this.executor.callTool(this.originalName, cleanArgs);
       this.executor.handleExecutionSuccess?.();

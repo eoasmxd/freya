@@ -309,9 +309,11 @@ export const zh: Record<string, string> = {
   'api.error.missingMcpConfig': '缺少必要参数: config',
   'api.error.missingMcpServerId': '缺少必要参数: serverId',
   'api.error.missingMcpToggleParams': '缺少必要参数: serverId 和 enabled',
+  'api.error.missingMcpAuthCode': '缺少必要参数: code',
   'api.mcp.saved': 'MCP 服务 \'{serverId}\' 配置保存成功。',
   'api.mcp.updated': 'MCP 服务 \'{serverId}\' 配置更新成功。',
   'api.mcp.removed': 'MCP 服务 \'{serverId}\' 已成功移除。',
   'api.mcp.statusUpdated': 'MCP 服务 \'{serverId}\' 状态已更新。',
   'api.mcp.reconnected': 'MCP 服务 \'{serverId}\' 重新探测连接成功。',
+  'api.mcp.authSuccess': 'MCP 服务 \'{serverId}\' 授权凭据置换成功。',
 };

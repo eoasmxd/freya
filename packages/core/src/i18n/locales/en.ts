@@ -309,10 +309,12 @@ export const en: Record<string, string> = {
   'api.error.missingMcpConfig': 'Missing required parameter: config',
   'api.error.missingMcpServerId': 'Missing required parameter: serverId',
   'api.error.missingMcpToggleParams': 'Missing required parameters: serverId and enabled',
+  'api.error.missingMcpAuthCode': 'Missing required parameter: code',
   'api.mcp.saved': 'MCP server \'{serverId}\' saved successfully.',
   'api.mcp.updated': 'MCP server \'{serverId}\' updated successfully.',
   'api.mcp.removed': 'MCP server \'{serverId}\' removed successfully.',
   'api.mcp.statusUpdated': 'MCP server \'{serverId}\' status updated.',
   'api.mcp.reconnected': 'MCP server \'{serverId}\' reconnected successfully.',
+  'api.mcp.authSuccess': 'MCP server \'{serverId}\' authenticated successfully.',
 };
 
