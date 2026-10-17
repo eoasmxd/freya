@@ -126,6 +126,7 @@ export const en: Record<string, string> = {
   'cmd.mcp.auth.missingServerId': '❌ Please specify the target MCP server ID: `/mcp auth <serverId> [redirectUrl]`',
   'cmd.mcp.auth.missingParams': '❌ The provided URL is missing "code" or "state" query parameters.',
   'cmd.mcp.auth.success': '✅ Successfully authenticated server **{serverId}**! Tools are now available.',
+  'cmd.mcp.auth.successPendingProbe': '⚠️ Credentials saved for **{serverId}**, but service status is `{status}`. Run `/mcp retry {serverId}` to reconnect.',
   'cmd.mcp.auth.failed': '❌ Failed to complete authentication: {message}',
   'cmd.mcp.auth.deviceTitle': '🔑 **Device Authorization for [{serverId}]**',
   'cmd.mcp.auth.deviceStep1': '1. Open link in browser: 👉 [Open Device Verification Page]({targetUrl})',

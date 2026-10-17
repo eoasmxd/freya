@@ -23,6 +23,7 @@ import { McpOAuthManager } from './auth/oauth-manager.js';
 import { createOAuthCallbackHandler } from './auth/oauth-handler.js';
 
 const MAX_SUMMARIZE_INSTRUCTIONS_LENGTH = 4000;
+const MAX_CONSECUTIVE_CONNECTION_FAILURES = 3;
 
 /**
  * MCP 核心管理器，统筹配置探测、工具箱注册、连接与生命周期调度
@@ -33,6 +34,7 @@ export class FreyaMcpManager {
   private sessions = new Map<string, McpClientSession>();
   private toolboxes = new Map<string, McpToolbox>();
   private statuses = new Map<string, McpServerStatus>();
+  private connectionFailureCounts = new Map<string, number>();
 
   private readonly cacheManager = new McpCacheManager();
   private readonly authManager: McpOAuthManager;
@@ -68,6 +70,14 @@ export class FreyaMcpManager {
   }
 
   /**
+   * 设置 OAuth 回调地址使用的实际 Web 服务端口
+   * Set actual Web server port used for OAuth redirect URI
+   */
+  setOAuthCallbackPort(port: number): void {
+    this.authManager.setCallbackPort(port);
+  }
+
+  /**
    * 处理 OAuth 授权回调换票
    * handle OAuth callback code exchange
    */
@@ -100,17 +110,29 @@ export class FreyaMcpManager {
   async init(): Promise<void> {
     await this.loadConfig();
 
+    const toolboxOwners = new Map<string, string>();
+
     for (const [serverId, config] of this.servers.entries()) {
       if (config.enabled === false) {
         this.statuses.set(serverId, 'disabled');
         continue;
       }
 
+      const toolboxId = McpNaming.getToolboxId(serverId);
+      const existingOwner = toolboxOwners.get(toolboxId);
+      if (existingOwner) {
+        this.context.logger.warn(
+          `[FreyaMcpManager] Server '${serverId}' conflicts with '${existingOwner}' on toolbox ID '${toolboxId}'. Skipped.`
+        );
+        this.statuses.set(serverId, 'error');
+        continue;
+      }
+      toolboxOwners.set(toolboxId, serverId);
+
       if (config.auth?.type === 'oauth') {
         this.authManager.registerServer(serverId, config.auth);
       }
 
-      const toolboxId = `mcp_${serverId}`;
       const session = new McpClientSession(
         config,
         () => this.buildAuthHeaders(serverId, config)
@@ -120,7 +142,7 @@ export class FreyaMcpManager {
       const cached = await this.cacheManager.loadCache(serverId);
       if (cached && cached.tools && cached.tools.length > 0) {
         const toolbox = new McpToolbox(serverId, toolboxId);
-        toolbox.setDescription(cached.description || config.description);
+        toolbox.setDescription(cached.description || config.description || this.getFallbackDescription(serverId));
         toolbox.setInstructions(cached.instructions);
         this.mountToolsToBox(serverId, toolbox, cached.tools, session);
         this.toolboxes.set(serverId, toolbox);
@@ -141,16 +163,7 @@ export class FreyaMcpManager {
    * Create OAuth callback HTTP route handler
    */
   createOAuthHandler(): HttpRouteHandler {
-    return createOAuthCallbackHandler(
-      this.authManager,
-      async (serverId) => {
-        const cfg = this.servers.get(serverId);
-        if (cfg) {
-          await this.probeServer(serverId, cfg, { force: true });
-        }
-      },
-      this.context
-    );
+    return createOAuthCallbackHandler(this.authManager, undefined, this.context);
   }
 
   /**
@@ -167,7 +180,10 @@ export class FreyaMcpManager {
       try {
         const raw = await fs.readFile(filePath, 'utf-8');
         return JSON.parse(raw) as McpConfigFile;
-      } catch {
+      } catch (err: any) {
+        if (err?.code !== 'ENOENT') {
+          this.context.logger.warn(`[FreyaMcpManager] Failed to read or parse configuration file '${filePath}': ${err.message}`);
+        }
         return null;
       }
     };
@@ -220,38 +236,38 @@ export class FreyaMcpManager {
       const cached = await this.cacheManager.loadCache(serverId);
 
       const hasRegisteredToolbox = this.toolboxes.has(serverId);
-      if (!options.force && cached && cached.configHash === configHash && hasRegisteredToolbox) {
+      const hasDescription = Boolean(config.description || cached?.description);
+      if (!options.force && cached && cached.configHash === configHash && hasRegisteredToolbox && hasDescription) {
         return;
       }
 
       this.context.logger.info(`[FreyaMcpManager] Probing remote MCP server '${serverId}'...`);
       const { tools, instructions, serverInfo } = await session.listTools();
 
-      let finalDescription = config.description;
-      if (!finalDescription) {
-        finalDescription = await this.generateDescriptionWithLLM(serverId, tools, instructions);
-      }
+      const resolvedDescription = config.description
+        || await this.generateDescriptionWithLLM(serverId, tools, instructions);
 
       await this.cacheManager.saveCache(serverId, {
         configHash,
         serverInfo,
         instructions,
-        description: finalDescription,
+        description: resolvedDescription,
         tools,
         updatedAt: Date.now()
       });
 
       let toolbox = this.toolboxes.get(serverId);
       if (!toolbox) {
-        toolbox = new McpToolbox(serverId, `mcp_${serverId}`);
+        toolbox = new McpToolbox(serverId, McpNaming.getToolboxId(serverId));
         this.toolboxes.set(serverId, toolbox);
         this.toolRegistry.registerToolbox(toolbox);
       }
 
-      toolbox.setDescription(finalDescription);
+      toolbox.setDescription(resolvedDescription || this.getFallbackDescription(serverId));
       toolbox.setInstructions(instructions);
       this.mountToolsToBox(serverId, toolbox, tools, session);
       this.statuses.set(serverId, 'ready');
+      this.connectionFailureCounts.delete(serverId);
 
       await session.disconnect();
     } catch (err: any) {
@@ -293,6 +309,9 @@ export class FreyaMcpManager {
         callTool: (originalName, args) => session.callTool(originalName, args),
         handleExecutionError: (err) => {
           this.handleToolExecutionFault(serverId, err);
+        },
+        handleExecutionSuccess: () => {
+          this.handleToolExecutionSuccess(serverId);
         }
       });
     });
@@ -301,26 +320,54 @@ export class FreyaMcpManager {
 
   private matchWildcard(pattern: string, text: string): boolean {
     if (pattern === '*') return true;
-    const regex = new RegExp(`^${pattern.replace(/\*/g, '.*')}$`);
-    return regex.test(text);
+    const escapedPattern = pattern
+      .split('*')
+      .map((segment) => segment.replace(/[.+?^${}()|[\]\\]/g, '\\$&'))
+      .join('.*');
+    return new RegExp(`^${escapedPattern}$`).test(text);
   }
 
   /**
-   * 处理工具调用时的服务级致命故障，动态卸载工具箱
-   * Handle fatal service-level tool execution errors and unmount toolbox dynamically
+   * 处理工具调用时的服务级故障：鉴权失效立即卸载，连接故障连续达到阈值后卸载
+   * Handle service-level tool execution faults: unmount on auth failure, or after consecutive connection failures reach threshold
    */
   private handleToolExecutionFault(serverId: string, err: Error): void {
     if (err instanceof McpAuthRequiredError || err.name === 'McpAuthRequiredError') {
       this.context.logger.warn(`[FreyaMcpManager] Server '${serverId}' authentication required or expired.`);
       this.statuses.set(serverId, 'auth_required');
-      this.toolRegistry.unregisterToolbox(`mcp_${serverId}`);
-      this.toolboxes.delete(serverId);
+      this.unmountToolbox(serverId);
     } else if (err instanceof McpConnectionError || err.name === 'McpConnectionError') {
-      this.context.logger.warn(`[FreyaMcpManager] Server '${serverId}' connection lost during execution: ${err.message}`);
+      const failures = (this.connectionFailureCounts.get(serverId) || 0) + 1;
+      this.connectionFailureCounts.set(serverId, failures);
       this.statuses.set(serverId, 'error');
-      this.toolRegistry.unregisterToolbox(`mcp_${serverId}`);
-      this.toolboxes.delete(serverId);
+      this.context.logger.warn(
+        `[FreyaMcpManager] Server '${serverId}' connection error during execution (${failures}/${MAX_CONSECUTIVE_CONNECTION_FAILURES}): ${err.message}`
+      );
+      if (failures >= MAX_CONSECUTIVE_CONNECTION_FAILURES) {
+        this.unmountToolbox(serverId);
+      }
     }
+  }
+
+  /**
+   * 工具调用成功后重置连接失败计数并恢复服务状态
+   * Reset connection failure counter and restore status after successful tool execution
+   */
+  private handleToolExecutionSuccess(serverId: string): void {
+    this.connectionFailureCounts.delete(serverId);
+    if (this.statuses.get(serverId) === 'error') {
+      this.statuses.set(serverId, 'ready');
+    }
+  }
+
+  /**
+   * 卸载指定服务的工具箱
+   * Unmount toolbox of specified server
+   */
+  private unmountToolbox(serverId: string): void {
+    this.toolRegistry.unregisterToolbox(McpNaming.getToolboxId(serverId));
+    this.toolboxes.delete(serverId);
+    this.connectionFailureCounts.delete(serverId);
   }
 
   /**
@@ -332,23 +379,37 @@ export class FreyaMcpManager {
     if (!config) {
       throw new Error(`Server '${serverId}' not found in configuration.`);
     }
+    if (config.enabled === false) {
+      throw new Error(`Server '${serverId}' is disabled in configuration.`);
+    }
+    if (!this.sessions.has(serverId)) {
+      throw new Error(`Server '${serverId}' is not initialized.`);
+    }
     await this.probeServer(serverId, config, { force: true });
   }
 
   /**
-   * 初次探测时调用 LLM 提炼简明概要
-   * Summarize service capabilities via LLM during initial probe
+   * 生成服务描述缺失时的兜底描述
+   * Build fallback description when service description is unavailable
+   */
+  private getFallbackDescription(serverId: string): string {
+    return `Remote MCP tools for ${serverId}`;
+  }
+
+  /**
+   * 初次探测时调用 LLM 提炼简明概要，失败时返回 undefined
+   * Summarize service capabilities via LLM during initial probe, returning undefined on failure
    */
   private async generateDescriptionWithLLM(
     serverId: string,
     tools: McpToolSchema[],
     instructions?: string
-  ): Promise<string> {
+  ): Promise<string | undefined> {
     try {
       const toolSummaries = tools.map((t) => `- ${t.name}: ${t.description || 'No description'}`).join('\n');
       const promptTemplate = this.promptRegistry.get('core.prompt.mcp_summarize') || '';
       if (!promptTemplate) {
-        return `Remote MCP tools for ${serverId}`;
+        return undefined;
       }
 
       const content = `Server: ${serverId}\nInstructions: ${(instructions || '').slice(0, MAX_SUMMARIZE_INSTRUCTIONS_LENGTH)}\nTools:\n${toolSummaries}`;
@@ -358,9 +419,10 @@ export class FreyaMcpManager {
         { role: 'user', content: prompt }
       ]);
 
-      return res.message.content?.trim() || `Provides tools for ${serverId}`;
-    } catch {
-      return `Remote MCP tools for ${serverId}`;
+      return res.message.content?.trim() || undefined;
+    } catch (err: any) {
+      this.context.logger.warn(`[FreyaMcpManager] LLM description generation failed for '${serverId}': ${err?.message}`);
+      return undefined;
     }
   }
 

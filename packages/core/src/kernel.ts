@@ -145,6 +145,7 @@ export class FreyaKernel {
       this.webContainer.registerStatic('/', uiDistPath, { spaFallback: true, injectLanguage: true, auth: false });
 
       await this.webContainer.start(ctx);
+      this.mcpManager.setOAuthCallbackPort(this.webContainer.getPort());
     }
 
     if (this.channelRegistry) {

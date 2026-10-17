@@ -7,6 +7,7 @@ import { McpAuthRequiredError, McpConnectionError } from '../types.js';
 export class StreamableHttpTransport {
   private sessionId?: string;
   private readonly protocolVersion = '2025-06-18';
+  private nextRequestId = 1;
 
   constructor(
     private readonly url: string,
@@ -39,6 +40,7 @@ export class StreamableHttpTransport {
       headers['Mcp-Session-Id'] = this.sessionId;
     }
 
+    const requestId = this.nextRequestId++;
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), this.timeoutMs);
 
@@ -48,7 +50,7 @@ export class StreamableHttpTransport {
         headers,
         body: JSON.stringify({
           jsonrpc: '2.0',
-          id: Date.now(),
+          id: requestId,
           method,
           params
         }),
@@ -66,7 +68,7 @@ export class StreamableHttpTransport {
 
       if (res.status === 404 && this.sessionId) {
         this.sessionId = undefined;
-        throw new Error('Session expired');
+        throw new McpConnectionError(`Session expired or not found on ${this.url}`);
       }
 
       if (!res.ok) {
@@ -76,7 +78,7 @@ export class StreamableHttpTransport {
 
       const contentType = res.headers.get('content-type') || '';
       if (contentType.includes('text/event-stream')) {
-        return await this.parseSseStream(res.body);
+        return await this.parseSseStream(res.body, requestId);
       }
 
       const data: any = await res.json();
@@ -142,7 +144,7 @@ export class StreamableHttpTransport {
       }
       if (res.status === 404 && this.sessionId) {
         this.sessionId = undefined;
-        throw new Error('Session expired');
+        throw new McpConnectionError(`Session expired or not found on ${this.url}`);
       }
     } finally {
       clearTimeout(timer);
@@ -150,10 +152,10 @@ export class StreamableHttpTransport {
   }
 
   /**
-   * 解析 SSE 数据流并提取 JSON-RPC 结果或错误
-   * Parse SSE data stream and extract JSON-RPC result or throw error
+   * 解析 SSE 数据流并提取与请求 id 匹配的 JSON-RPC 结果或错误
+   * Parse SSE data stream and extract JSON-RPC result or error matching the request id
    */
-  private async parseSseStream(body: ReadableStream<Uint8Array> | null): Promise<any> {
+  private async parseSseStream(body: ReadableStream<Uint8Array> | null, requestId: number): Promise<any> {
     if (!body) {
       return undefined;
     }
@@ -180,6 +182,9 @@ export class StreamableHttpTransport {
             if (jsonStr) {
               try {
                 const parsed = JSON.parse(jsonStr);
+                if (parsed?.id !== requestId) {
+                  continue;
+                }
                 if (parsed.error) {
                   rpcError = new Error(`RPC Error [${parsed.error.code}]: ${parsed.error.message}`);
                 } else if (parsed.result !== undefined) {
@@ -199,5 +204,30 @@ export class StreamableHttpTransport {
     }
 
     return lastResult;
+  }
+
+  /**
+   * 关闭连接并通过 HTTP DELETE 释放远端服务端持有的会话
+   * Disconnect transport and release remote server session via HTTP DELETE
+   */
+  async disconnect(): Promise<void> {
+    const activeSessionId = this.sessionId;
+    this.sessionId = undefined;
+    if (!activeSessionId) {
+      return;
+    }
+
+    try {
+      const authHeaders = await this.getHeaders().catch(() => ({}));
+      await fetch(this.url, {
+        method: 'DELETE',
+        headers: {
+          'Mcp-Session-Id': activeSessionId,
+          'MCP-Protocol-Version': this.protocolVersion,
+          ...authHeaders
+        },
+        signal: AbortSignal.timeout(3000)
+      });
+    } catch {}
   }
 }

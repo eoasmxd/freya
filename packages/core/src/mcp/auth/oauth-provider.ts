@@ -90,6 +90,12 @@ export class McpOAuthProvider {
       throw new Error(`[McpOAuth] Invalid state parameter or expired auth session.`);
     }
 
+    const PENDING_AUTH_TTL_MS = 15 * 60 * 1000;
+    if (Date.now() - pending.createdAt > PENDING_AUTH_TTL_MS) {
+      await this.tokenStore.clearPendingAuth(this.serverId);
+      throw new Error(`[McpOAuth] OAuth authentication session expired. Please initiate authorization again.`);
+    }
+
     const body = new URLSearchParams({
       grant_type: 'authorization_code',
       code,
@@ -148,12 +154,12 @@ export class McpOAuthProvider {
       throw new McpAuthRequiredError(`Access token expired and no refresh token for server '${this.serverId}'`);
     }
 
-    this.refreshPromise = this.refreshToken(token.refreshToken);
-    try {
-      return await this.refreshPromise;
-    } finally {
-      this.refreshPromise = undefined;
+    if (!this.refreshPromise) {
+      this.refreshPromise = this.refreshToken(token.refreshToken).finally(() => {
+        this.refreshPromise = undefined;
+      });
     }
+    return await this.refreshPromise;
   }
 
   /**

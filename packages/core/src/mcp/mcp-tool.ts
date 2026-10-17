@@ -5,6 +5,7 @@ import { mapMcpResult } from './mcp-result-mapper.js';
 export interface McpToolExecutor {
   callTool(originalName: string, args: Record<string, any>): Promise<any>;
   handleExecutionError?(error: Error): void;
+  handleExecutionSuccess?(): void;
 }
 
 /**
@@ -21,13 +22,20 @@ export class McpBridgedTool implements FreyaTool {
   ) {}
 
   getDefinition(): ToolDefinition {
-    const rawSchema = this.schema.inputSchema || { type: 'object', properties: {} };
-    const { $schema, ...cleanSchema } = rawSchema;
+    const rawSchema = (this.schema.inputSchema && typeof this.schema.inputSchema === 'object')
+      ? this.schema.inputSchema
+      : { type: 'object', properties: {} };
+
+    const { $schema, $id, $defs, definitions, ...cleanSchema } = rawSchema;
 
     return {
       name: this.exposedName,
       description: this.schema.description || `MCP Tool [${this.originalName}] from service ${this.serverId}`,
-      parameters: cleanSchema
+      parameters: {
+        type: 'object',
+        properties: cleanSchema.properties || {},
+        ...cleanSchema
+      }
     };
   }
 
@@ -35,6 +43,7 @@ export class McpBridgedTool implements FreyaTool {
     const { __sessionId, ...cleanArgs } = args;
     try {
       const rawResult = await this.executor.callTool(this.originalName, cleanArgs);
+      this.executor.handleExecutionSuccess?.();
       return await mapMcpResult(this.serverId, this.originalName, rawResult);
     } catch (err: any) {
       this.executor.handleExecutionError?.(err);

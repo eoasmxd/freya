@@ -2,6 +2,7 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import { FREYA_HOME } from '../utils/paths.js';
 import type { McpCacheData } from './types.js';
+import { McpNaming } from './mcp-naming.js';
 
 /**
  * MCP 元数据与工具定义本地缓存管理器
@@ -14,13 +15,17 @@ export class McpCacheManager {
     await fs.mkdir(this.cacheDir, { recursive: true });
   }
 
+  private resolveFilePath(serverId: string): string {
+    return path.join(this.cacheDir, `${McpNaming.sanitizeServerId(serverId)}.json`);
+  }
+
   /**
    * 加载指定服务的缓存数据
    * Load cached data for specified service
    */
   async loadCache(serverId: string): Promise<McpCacheData | null> {
     try {
-      const filePath = path.join(this.cacheDir, `${serverId}.json`);
+      const filePath = this.resolveFilePath(serverId);
       const raw = await fs.readFile(filePath, 'utf-8');
       return JSON.parse(raw) as McpCacheData;
     } catch {
@@ -34,7 +39,7 @@ export class McpCacheManager {
    */
   async saveCache(serverId: string, cache: McpCacheData): Promise<void> {
     await this.ensureDir();
-    const filePath = path.join(this.cacheDir, `${serverId}.json`);
+    const filePath = this.resolveFilePath(serverId);
     const tempPath = `${filePath}.tmp.${Date.now()}`;
     await fs.writeFile(tempPath, JSON.stringify(cache, null, 2), 'utf-8');
     try {

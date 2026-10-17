@@ -126,6 +126,7 @@ export const zh: Record<string, string> = {
   'cmd.mcp.auth.missingServerId': '❌ 请指定目标 MCP 服务 ID：`/mcp auth <serverId> [redirectUrl]`',
   'cmd.mcp.auth.missingParams': '❌ 提供的回调地址中缺少 "code" 或 "state" 查询参数。',
   'cmd.mcp.auth.success': '✅ 已成功为服务 **{serverId}** 完成授权！相关工具现已就绪。',
+  'cmd.mcp.auth.successPendingProbe': '⚠️ 已成功保存服务 **{serverId}** 的授权凭据，但当前探测状态为 `{status}`。可执行 `/mcp retry {serverId}` 重新探测。',
   'cmd.mcp.auth.failed': '❌ 授权失败：{message}',
   'cmd.mcp.auth.deviceTitle': '🔑 **[{serverId}] 设备码授权**',
   'cmd.mcp.auth.deviceStep1': '1. 在浏览器中打开：👉 [前往设备验证页面]({targetUrl})',

@@ -11,6 +11,7 @@ export class McpOAuthManager {
   private providers = new Map<string, McpOAuthProvider>();
   private onAuthSuccess?: (serverId: string) => Promise<void>;
   private readonly tokenStore: TokenStore;
+  private callbackPort?: number;
 
   constructor(
     tokenStore?: TokenStore,
@@ -25,6 +26,14 @@ export class McpOAuthManager {
    */
   setOnAuthSuccess(callback: (serverId: string) => Promise<void>): void {
     this.onAuthSuccess = callback;
+  }
+
+  /**
+   * 设置 Web 服务实际监听端口，用于生成默认回调地址
+   * Set actual Web server listening port used for default redirect URI
+   */
+  setCallbackPort(port: number): void {
+    this.callbackPort = port;
   }
 
   /**
@@ -82,7 +91,7 @@ export class McpOAuthManager {
    * Dynamically resolve default redirect URI matching WebContainer port
    */
   private getDefaultRedirectUri(): string {
-    const port = (this.context?.config as any)?.server?.port ?? 3000;
+    const port = this.callbackPort ?? (this.context?.config as any)?.server?.port ?? 3000;
     return `http://localhost:${port}/api/mcp/oauth/callback`;
   }
 
@@ -94,8 +103,13 @@ export class McpOAuthManager {
     let targetServerId = serverIdHint;
 
     if (!targetServerId) {
+      const PENDING_AUTH_TTL_MS = 15 * 60 * 1000;
       for (const serverId of this.providers.keys()) {
         const pending = await this.tokenStore.loadPendingAuth(serverId);
+        if (pending && Date.now() - pending.createdAt > PENDING_AUTH_TTL_MS) {
+          await this.tokenStore.clearPendingAuth(serverId);
+          continue;
+        }
         if (pending?.state === state) {
           targetServerId = serverId;
           break;
@@ -114,7 +128,11 @@ export class McpOAuthManager {
 
     await provider.exchangeCode(code, state);
     if (this.onAuthSuccess) {
-      await this.onAuthSuccess(targetServerId);
+      try {
+        await this.onAuthSuccess(targetServerId);
+      } catch (err: any) {
+        this.context?.logger.warn(`[McpOAuthManager] Post-auth probe failed for '${targetServerId}': ${err.message}`);
+      }
     }
     return targetServerId;
   }

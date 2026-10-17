@@ -2,6 +2,7 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import { FREYA_HOME } from '../../utils/paths.js';
 import type { McpOAuthTokenData, McpOAuthPendingAuth } from '../types.js';
+import { McpNaming } from '../mcp-naming.js';
 
 /**
  * OAuth 凭据原子落盘存储管理
@@ -14,13 +15,17 @@ export class TokenStore {
     await fs.mkdir(this.authDir, { recursive: true });
   }
 
+  private resolveFilePath(serverId: string, suffix: 'token' | 'pending'): string {
+    return path.join(this.authDir, `${McpNaming.sanitizeServerId(serverId)}.${suffix}.json`);
+  }
+
   /**
    * 读取服务当前持久化的 Token
    * Load persisted token for specified server
    */
   async loadToken(serverId: string): Promise<McpOAuthTokenData | null> {
     try {
-      const filePath = path.join(this.authDir, `${serverId}.token.json`);
+      const filePath = this.resolveFilePath(serverId, 'token');
       const raw = await fs.readFile(filePath, 'utf-8');
       return JSON.parse(raw) as McpOAuthTokenData;
     } catch {
@@ -34,7 +39,7 @@ export class TokenStore {
    */
   async saveToken(serverId: string, token: McpOAuthTokenData): Promise<void> {
     await this.ensureDir();
-    const filePath = path.join(this.authDir, `${serverId}.token.json`);
+    const filePath = this.resolveFilePath(serverId, 'token');
     const tempPath = `${filePath}.tmp.${Date.now()}`;
 
     await fs.writeFile(tempPath, JSON.stringify(token, null, 2), { mode: 0o600 });
@@ -52,7 +57,7 @@ export class TokenStore {
    */
   async savePendingAuth(serverId: string, pending: McpOAuthPendingAuth): Promise<void> {
     await this.ensureDir();
-    const filePath = path.join(this.authDir, `${serverId}.pending.json`);
+    const filePath = this.resolveFilePath(serverId, 'pending');
     await fs.writeFile(filePath, JSON.stringify(pending, null, 2), { mode: 0o600 });
   }
 
@@ -62,7 +67,7 @@ export class TokenStore {
    */
   async loadPendingAuth(serverId: string): Promise<McpOAuthPendingAuth | null> {
     try {
-      const filePath = path.join(this.authDir, `${serverId}.pending.json`);
+      const filePath = this.resolveFilePath(serverId, 'pending');
       const raw = await fs.readFile(filePath, 'utf-8');
       return JSON.parse(raw) as McpOAuthPendingAuth;
     } catch {
@@ -76,7 +81,7 @@ export class TokenStore {
    */
   async clearPendingAuth(serverId: string): Promise<void> {
     try {
-      const filePath = path.join(this.authDir, `${serverId}.pending.json`);
+      const filePath = this.resolveFilePath(serverId, 'pending');
       await fs.unlink(filePath);
     } catch {}
   }

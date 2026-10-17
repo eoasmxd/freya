@@ -4,12 +4,27 @@
  */
 export class McpNaming {
   /**
+   * 将服务 ID 清洗为小写、仅含字母数字与下划线的标准键（用于工具箱 ID 与本地存储文件名）
+   * Sanitize server ID into lowercase alphanumeric/underscore key for toolbox ID and storage filenames
+   */
+  static sanitizeServerId(serverId: string): string {
+    return serverId.toLowerCase().replace(/[^a-z0-9_]/g, '_').replace(/_+/g, '_');
+  }
+
+  /**
+   * 获取 MCP 服务对应的工具箱 ID（mcp_<cleanServer>）
+   * Get toolbox ID for MCP service (mcp_<cleanServer>)
+   */
+  static getToolboxId(serverId: string): string {
+    return `mcp_${this.sanitizeServerId(serverId)}`;
+  }
+
+  /**
    * 获取 MCP 服务的标准工具调用前缀
    * Get standard tool prefix for MCP service (e.g. mcp_<cleanServer>_)
    */
   static getToolPrefix(serverId: string): string {
-    const cleanServer = serverId.toLowerCase().replace(/[^a-z0-9_]/g, '_').replace(/_+/g, '_');
-    return `mcp_${cleanServer}_`;
+    return `${this.getToolboxId(serverId)}_`;
   }
 
   /**

@@ -9,6 +9,8 @@ export class McpClientSession {
   private transport?: StreamableHttpTransport;
   private idleTimer?: NodeJS.Timeout;
   private isConnecting = false;
+  private serverInstructions?: string;
+  private serverInfo?: any;
 
   constructor(
     private readonly config: McpServerConfig,
@@ -50,7 +52,7 @@ export class McpClientSession {
       const getHeaders = this.headerProvider || (async () => ({}));
       const transport = new StreamableHttpTransport(this.config.url, getHeaders, this.config.timeoutMs);
 
-      await transport.sendJsonRpc('initialize', {
+      const initResult = await transport.sendJsonRpc('initialize', {
         protocolVersion: '2025-06-18',
         capabilities: {},
         clientInfo: {
@@ -58,6 +60,8 @@ export class McpClientSession {
           version: '1.0.0'
         }
       });
+      this.serverInstructions = typeof initResult?.instructions === 'string' ? initResult.instructions : undefined;
+      this.serverInfo = initResult?.serverInfo;
 
       await transport.sendJsonRpcNotification('notifications/initialized').catch(() => {});
 
@@ -79,12 +83,29 @@ export class McpClientSession {
   async listTools(): Promise<{ tools: McpToolSchema[]; instructions?: string; serverInfo?: any }> {
     try {
       const transport = await this.ensureConnected();
-      const result = await transport.sendJsonRpc('tools/list');
+      const tools: McpToolSchema[] = [];
+      const visitedCursors = new Set<string>();
+      let cursor: string | undefined;
+
+      do {
+        const result = await transport.sendJsonRpc('tools/list', cursor ? { cursor } : undefined);
+        if (Array.isArray(result?.tools)) {
+          tools.push(...result.tools);
+        }
+        const nextCursor = typeof result?.nextCursor === 'string' && result.nextCursor ? result.nextCursor : undefined;
+        if (nextCursor && visitedCursors.has(nextCursor)) {
+          break;
+        }
+        if (nextCursor) {
+          visitedCursors.add(nextCursor);
+        }
+        cursor = nextCursor;
+      } while (cursor);
 
       return {
-        tools: Array.isArray(result?.tools) ? result.tools : [],
-        instructions: result?.instructions,
-        serverInfo: result?.serverInfo
+        tools,
+        instructions: this.serverInstructions,
+        serverInfo: this.serverInfo
       };
     } catch (err) {
       await this.disconnect();
@@ -118,6 +139,9 @@ export class McpClientSession {
       clearTimeout(this.idleTimer);
       this.idleTimer = undefined;
     }
-    this.transport = undefined;
+    if (this.transport) {
+      await this.transport.disconnect().catch(() => {});
+      this.transport = undefined;
+    }
   }
 }

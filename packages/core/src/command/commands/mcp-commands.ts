@@ -54,7 +54,15 @@ export function registerMcpCommands(deps: {
             }
 
             await mcpManager.handleAuthCallback(code, state, serverId);
-            return i18n.t('cmd.mcp.auth.success', '✅ Successfully authenticated server **{serverId}**! Tools are now available.', { serverId });
+            const statuses = mcpManager.getServerStatuses();
+            const serverInfo = statuses[serverId];
+            if (serverInfo?.status === 'ready') {
+              return i18n.t('cmd.mcp.auth.success', '✅ Successfully authenticated server **{serverId}**! Tools are now available.', { serverId });
+            }
+            return i18n.t('cmd.mcp.auth.successPendingProbe', '⚠️ Credentials saved for **{serverId}**, but service status is `{status}`. Run `/mcp retry {serverId}` to reconnect.', {
+              serverId,
+              status: serverInfo?.status || 'unknown'
+            });
           } catch (err: any) {
             return i18n.t('cmd.mcp.auth.failed', '❌ Failed to complete authentication: {message}', { message: err.message });
           }
@@ -104,5 +112,9 @@ export function registerMcpCommands(deps: {
     }
   };
 
-  commands.register(mcpCommand);
+  try {
+    commands.register(mcpCommand);
+  } catch (err: any) {
+    context.logger?.warn(`[McpCommands] Failed to register /mcp command: ${err.message}`);
+  }
 }
