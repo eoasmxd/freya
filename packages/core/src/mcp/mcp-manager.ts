@@ -252,6 +252,11 @@ export class FreyaMcpManager {
       const hasRegisteredToolbox = this.toolboxes.has(serverId);
       const hasDescription = Boolean(config.description || cached?.description);
       if (!options.force && cached && cached.configHash === configHash && hasRegisteredToolbox && hasDescription) {
+        this.context.logger.info(`[FreyaMcpManager] Verifying connection and authentication for cached server '${serverId}'...`);
+        await session.ensureConnected();
+        this.statuses.set(serverId, 'ready');
+        this.connectionFailureCounts.delete(serverId);
+        await session.disconnect().catch(() => {});
         return;
       }
 
@@ -291,6 +296,7 @@ export class FreyaMcpManager {
         if (provider && (err.authHeader || err.responseBody)) {
           provider.setAuthHint(err.authHeader, err.responseBody);
         }
+        this.unmountToolbox(serverId);
       } else {
         this.statuses.set(serverId, 'error');
       }
