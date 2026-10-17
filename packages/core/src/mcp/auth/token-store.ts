@@ -38,7 +38,12 @@ export class TokenStore {
     const tempPath = `${filePath}.tmp.${Date.now()}`;
 
     await fs.writeFile(tempPath, JSON.stringify(token, null, 2), { mode: 0o600 });
-    await fs.rename(tempPath, filePath);
+    try {
+      await fs.rename(tempPath, filePath);
+    } catch {
+      await fs.copyFile(tempPath, filePath);
+      await fs.unlink(tempPath).catch(() => {});
+    }
   }
 
   /**

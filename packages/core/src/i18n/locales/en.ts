@@ -120,6 +120,28 @@ export const en: Record<string, string> = {
   'cmd.skill.set.success': '✅ Skill activated: **{name}** `{id}`.',
   'cmd.skill.clear.success': '✅ Skill binding deactivated.',
 
+  'cmd.mcp.description': 'Inspect MCP server statuses, retry connection, or complete OAuth authentication',
+  'cmd.mcp.status.title': '📡 **MCP Server Statuses**:',
+  'cmd.mcp.status.item': '- **{id}**: status: `{status}`, tools: {tools}, url: {url}',
+  'cmd.mcp.auth.missingServerId': '❌ Please specify the target MCP server ID: `/mcp auth <serverId> [redirectUrl]`',
+  'cmd.mcp.auth.missingParams': '❌ The provided URL is missing "code" or "state" query parameters.',
+  'cmd.mcp.auth.success': '✅ Successfully authenticated server **{serverId}**! Tools are now available.',
+  'cmd.mcp.auth.failed': '❌ Failed to complete authentication: {message}',
+  'cmd.mcp.auth.deviceTitle': '🔑 **Device Authorization for [{serverId}]**',
+  'cmd.mcp.auth.deviceStep1': '1. Open link in browser: 👉 [Open Device Verification Page]({targetUrl})',
+  'cmd.mcp.auth.deviceUrl': '   (URL: `{verificationUri}`)',
+  'cmd.mcp.auth.deviceStep2': '2. Enter Code: `{userCode}`',
+  'cmd.mcp.auth.devicePolling': '⏳ Freya is polling in background. Once authorized in your browser, the server will connect automatically.',
+  'cmd.mcp.auth.oauthTitle': '🔑 **OAuth Authorization Required for [{serverId}]**',
+  'cmd.mcp.auth.oauthPrompt': 'Please open the following link in your browser to complete authorization:',
+  'cmd.mcp.auth.oauthLink': '👉 [Click to Authorize]({authorizationUrl})',
+  'cmd.mcp.auth.oauthManualHint': '*(If the browser displays a network error after authorization, please copy the complete address bar URL and run: `/mcp auth {serverId} <copiedURL>`)*',
+  'cmd.mcp.auth.initFailed': '❌ Failed to initiate authorization: {message}',
+  'cmd.mcp.retry.missingServerId': '❌ Please specify the target MCP server ID to retry: `/mcp retry <serverId>`',
+  'cmd.mcp.retry.success': '✅ Successfully reconnected and probed server **{serverId}**! Tools are ready.',
+  'cmd.mcp.retry.failed': '❌ Failed to reconnect to server **{serverId}**: {message}',
+  'cmd.mcp.usage': 'Usage: `/mcp status`, `/mcp retry <serverId>`, or `/mcp auth <serverId> [redirectUrl]`',
+
   // 核心配置 Schema
   // Core Configuration Schema
   'schema.core.category.models': 'Models',

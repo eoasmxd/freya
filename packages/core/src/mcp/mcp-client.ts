@@ -27,6 +27,7 @@ export class McpClientSession {
     this.idleTimer = setTimeout(() => {
       this.disconnect().catch(() => {});
     }, timeout);
+    this.idleTimer.unref?.();
   }
 
   /**
@@ -58,11 +59,14 @@ export class McpClientSession {
         }
       });
 
-      await transport.sendJsonRpc('notifications/initialized').catch(() => {});
+      await transport.sendJsonRpcNotification('notifications/initialized').catch(() => {});
 
       this.transport = transport;
       this.resetIdleTimer();
       return this.transport;
+    } catch (err) {
+      await this.disconnect();
+      throw err;
     } finally {
       this.isConnecting = false;
     }
@@ -73,14 +77,19 @@ export class McpClientSession {
    * Retrieve list of tools from remote server
    */
   async listTools(): Promise<{ tools: McpToolSchema[]; instructions?: string; serverInfo?: any }> {
-    const transport = await this.ensureConnected();
-    const result = await transport.sendJsonRpc('tools/list');
+    try {
+      const transport = await this.ensureConnected();
+      const result = await transport.sendJsonRpc('tools/list');
 
-    return {
-      tools: Array.isArray(result?.tools) ? result.tools : [],
-      instructions: result?.instructions,
-      serverInfo: result?.serverInfo
-    };
+      return {
+        tools: Array.isArray(result?.tools) ? result.tools : [],
+        instructions: result?.instructions,
+        serverInfo: result?.serverInfo
+      };
+    } catch (err) {
+      await this.disconnect();
+      throw err;
+    }
   }
 
   /**
@@ -88,11 +97,16 @@ export class McpClientSession {
    * Call remote tool with arguments
    */
   async callTool(name: string, args: Record<string, any>): Promise<any> {
-    const transport = await this.ensureConnected();
-    return await transport.sendJsonRpc('tools/call', {
-      name,
-      arguments: args
-    });
+    try {
+      const transport = await this.ensureConnected();
+      return await transport.sendJsonRpc('tools/call', {
+        name,
+        arguments: args
+      });
+    } catch (err) {
+      await this.disconnect();
+      throw err;
+    }
   }
 
   /**

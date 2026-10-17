@@ -101,8 +101,57 @@ export class StreamableHttpTransport {
   }
 
   /**
-   * 解析 SSE 数据流并提取 JSON-RPC 结果
-   * Parse SSE data stream and extract JSON-RPC result
+   * 发送 JSON-RPC 2.0 通知（不包含 id 字段）
+   * Send JSON-RPC 2.0 notification without id member
+   */
+  async sendJsonRpcNotification(method: string, params?: any): Promise<void> {
+    const authHeaders = await this.getHeaders();
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+      'Accept': 'application/json, text/event-stream',
+      'MCP-Protocol-Version': this.protocolVersion,
+      ...authHeaders
+    };
+
+    if (this.sessionId) {
+      headers['Mcp-Session-Id'] = this.sessionId;
+    }
+
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), this.timeoutMs);
+
+    try {
+      const res = await fetch(this.url, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          jsonrpc: '2.0',
+          method,
+          params
+        }),
+        signal: controller.signal
+      });
+
+      const newSessionId = res.headers.get('mcp-session-id');
+      if (newSessionId) {
+        this.sessionId = newSessionId;
+      }
+
+      if (res.status === 401) {
+        throw new McpAuthRequiredError(`HTTP 401 Unauthorized from ${this.url}`);
+      }
+      if (res.status === 404 && this.sessionId) {
+        this.sessionId = undefined;
+        throw new Error('Session expired');
+      }
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+
+  /**
+   * 解析 SSE 数据流并提取 JSON-RPC 结果或错误
+   * Parse SSE data stream and extract JSON-RPC result or throw error
    */
   private async parseSseStream(body: ReadableStream<Uint8Array> | null): Promise<any> {
     if (!body) {
@@ -113,6 +162,7 @@ export class StreamableHttpTransport {
     const decoder = new TextDecoder('utf-8');
     let buffer = '';
     let lastResult: any = undefined;
+    let rpcError: Error | undefined;
 
     try {
       while (true) {
@@ -130,7 +180,9 @@ export class StreamableHttpTransport {
             if (jsonStr) {
               try {
                 const parsed = JSON.parse(jsonStr);
-                if (parsed.result !== undefined) {
+                if (parsed.error) {
+                  rpcError = new Error(`RPC Error [${parsed.error.code}]: ${parsed.error.message}`);
+                } else if (parsed.result !== undefined) {
                   lastResult = parsed.result;
                 }
               } catch {}
@@ -140,6 +192,10 @@ export class StreamableHttpTransport {
       }
     } finally {
       reader.releaseLock();
+    }
+
+    if (rpcError) {
+      throw rpcError;
     }
 
     return lastResult;

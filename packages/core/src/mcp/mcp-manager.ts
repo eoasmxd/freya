@@ -46,7 +46,7 @@ export class FreyaMcpManager {
     this.authManager.setOnAuthSuccess(async (serverId) => {
       const cfg = this.servers.get(serverId);
       if (cfg) {
-        await this.probeServer(serverId, cfg);
+        await this.probeServer(serverId, cfg, { force: true });
       }
     });
   }
@@ -146,7 +146,7 @@ export class FreyaMcpManager {
       async (serverId) => {
         const cfg = this.servers.get(serverId);
         if (cfg) {
-          await this.probeServer(serverId, cfg);
+          await this.probeServer(serverId, cfg, { force: true });
         }
       },
       this.context
@@ -211,7 +211,7 @@ export class FreyaMcpManager {
    * 探测单个服务
    * Probe a single remote MCP service
    */
-  async probeServer(serverId: string, config: McpServerConfig): Promise<void> {
+  async probeServer(serverId: string, config: McpServerConfig, options: { force?: boolean } = {}): Promise<void> {
     const session = this.sessions.get(serverId);
     if (!session) return;
 
@@ -219,7 +219,8 @@ export class FreyaMcpManager {
       const configHash = crypto.createHash('md5').update(JSON.stringify(config)).digest('hex');
       const cached = await this.cacheManager.loadCache(serverId);
 
-      if (cached && cached.configHash === configHash) {
+      const hasRegisteredToolbox = this.toolboxes.has(serverId);
+      if (!options.force && cached && cached.configHash === configHash && hasRegisteredToolbox) {
         return;
       }
 
@@ -331,7 +332,7 @@ export class FreyaMcpManager {
     if (!config) {
       throw new Error(`Server '${serverId}' not found in configuration.`);
     }
-    await this.probeServer(serverId, config);
+    await this.probeServer(serverId, config, { force: true });
   }
 
   /**
@@ -345,11 +346,13 @@ export class FreyaMcpManager {
   ): Promise<string> {
     try {
       const toolSummaries = tools.map((t) => `- ${t.name}: ${t.description || 'No description'}`).join('\n');
-      const promptTemplate = this.promptRegistry.get('core.prompt.mcp_summarize') ||
-        'Summarize the following MCP service tools into a 50-100 word concise description:\n{content}';
+      const promptTemplate = this.promptRegistry.get('core.prompt.mcp_summarize') || '';
+      if (!promptTemplate) {
+        return `Remote MCP tools for ${serverId}`;
+      }
 
       const content = `Server: ${serverId}\nInstructions: ${(instructions || '').slice(0, MAX_SUMMARIZE_INSTRUCTIONS_LENGTH)}\nTools:\n${toolSummaries}`;
-      const prompt = promptTemplate.replace('{content}', content);
+      const prompt = promptTemplate.replace('{content}', () => content);
 
       const res = await this.context.llm.chat([
         { role: 'user', content: prompt }
@@ -383,6 +386,7 @@ export class FreyaMcpManager {
    * Disconnect all active client sessions on shutdown
    */
   async stop(): Promise<void> {
+    this.authManager.stop();
     for (const session of this.sessions.values()) {
       await session.disconnect().catch(() => { });
     }

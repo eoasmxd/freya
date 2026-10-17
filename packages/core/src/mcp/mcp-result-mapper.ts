@@ -51,13 +51,15 @@ export async function mapMcpResult(
 
   if (finalContent.length > 15000) {
     try {
-      const downloadDir = path.join(FREYA_HOME, 'workspace', 'download', 'mcp', serverId);
+      const safeServerId = serverId.replace(/[^a-zA-Z0-9_-]/g, '_');
+      const safeToolName = toolName.replace(/[^a-zA-Z0-9_-]/g, '_');
+      const downloadDir = path.join(FREYA_HOME, 'workspace', 'download', 'mcp', safeServerId);
       await fs.mkdir(downloadDir, { recursive: true });
-      const filename = `${toolName}_${Date.now()}.txt`;
+      const filename = `${safeToolName}_${Date.now()}.txt`;
       const fullPath = path.join(downloadDir, filename);
       await fs.writeFile(fullPath, finalContent, 'utf-8');
 
-      finalContent = `${finalContent.slice(0, 1000)}\n\n...[Output truncated due to large size. Complete output saved to workspace: download/mcp/${serverId}/${filename}]`;
+      finalContent = `${finalContent.slice(0, 1000)}\n\n...[Output truncated due to large size. Complete output saved to workspace: download/mcp/${safeServerId}/${filename}]`;
     } catch {}
   }
 

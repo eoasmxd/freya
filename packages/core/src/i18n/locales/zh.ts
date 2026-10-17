@@ -120,6 +120,28 @@ export const zh: Record<string, string> = {
   'cmd.skill.set.success': '✅ 已激活技能: **{name}** `{id}`。',
   'cmd.skill.clear.success': '✅ 已解除技能绑定。',
 
+  'cmd.mcp.description': '查看 MCP 远程服务状态、重试连接或完成 OAuth 鉴权',
+  'cmd.mcp.status.title': '📡 **MCP 服务状态清单**：',
+  'cmd.mcp.status.item': '- **{id}**：状态: `{status}`，工具数: {tools}，服务地址: {url}',
+  'cmd.mcp.auth.missingServerId': '❌ 请指定目标 MCP 服务 ID：`/mcp auth <serverId> [redirectUrl]`',
+  'cmd.mcp.auth.missingParams': '❌ 提供的回调地址中缺少 "code" 或 "state" 查询参数。',
+  'cmd.mcp.auth.success': '✅ 已成功为服务 **{serverId}** 完成授权！相关工具现已就绪。',
+  'cmd.mcp.auth.failed': '❌ 授权失败：{message}',
+  'cmd.mcp.auth.deviceTitle': '🔑 **[{serverId}] 设备码授权**',
+  'cmd.mcp.auth.deviceStep1': '1. 在浏览器中打开：👉 [前往设备验证页面]({targetUrl})',
+  'cmd.mcp.auth.deviceUrl': '   (地址: `{verificationUri}`)',
+  'cmd.mcp.auth.deviceStep2': '2. 输入验证码：`{userCode}`',
+  'cmd.mcp.auth.devicePolling': '⏳ Freya 正在后台自动轮询。在浏览器端完成授权后，服务将自动建立连接。',
+  'cmd.mcp.auth.oauthTitle': '🔑 **[{serverId}] 需要 OAuth 授权**',
+  'cmd.mcp.auth.oauthPrompt': '请在浏览器中打开以下链接完成第三方登录授权：',
+  'cmd.mcp.auth.oauthLink': '👉 [点击前往授权]({authorizationUrl})',
+  'cmd.mcp.auth.oauthManualHint': '*(若授权后浏览器提示网络错误，请复制浏览器地址栏完整 URL 并执行：`/mcp auth {serverId} <复制的URL>`)*',
+  'cmd.mcp.auth.initFailed': '❌ 发起授权流程失败：{message}',
+  'cmd.mcp.retry.missingServerId': '❌ 请指定需要重试连接的 MCP 服务 ID：`/mcp retry <serverId>`',
+  'cmd.mcp.retry.success': '✅ 已成功重新连接并探测服务 **{serverId}**！工具已挂载就绪。',
+  'cmd.mcp.retry.failed': '❌ 重新连接服务 **{serverId}** 失败：{message}',
+  'cmd.mcp.usage': '用法：`/mcp status`、`/mcp retry <serverId>` 或 `/mcp auth <serverId> [redirectUrl]`',
+
   // 核心配置 Schema
   // Core Configuration Schema
   'schema.core.category.models': '模型',

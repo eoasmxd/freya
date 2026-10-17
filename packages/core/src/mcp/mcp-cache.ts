@@ -37,6 +37,11 @@ export class McpCacheManager {
     const filePath = path.join(this.cacheDir, `${serverId}.json`);
     const tempPath = `${filePath}.tmp.${Date.now()}`;
     await fs.writeFile(tempPath, JSON.stringify(cache, null, 2), 'utf-8');
-    await fs.rename(tempPath, filePath);
+    try {
+      await fs.rename(tempPath, filePath);
+    } catch {
+      await fs.copyFile(tempPath, filePath);
+      await fs.unlink(tempPath).catch(() => {});
+    }
   }
 }

@@ -4,18 +4,26 @@
  */
 export class McpNaming {
   /**
+   * 获取 MCP 服务的标准工具调用前缀
+   * Get standard tool prefix for MCP service (e.g. mcp_<cleanServer>_)
+   */
+  static getToolPrefix(serverId: string): string {
+    const cleanServer = serverId.toLowerCase().replace(/[^a-z0-9_]/g, '_').replace(/_+/g, '_');
+    return `mcp_${cleanServer}_`;
+  }
+
+  /**
    * 将服务 ID 与原工具名转换为暴露给模型的标准工具名
-   * Format: mcp_<serverId>_<sanitizedName>
+   * Format: mcp_<cleanServer>_<cleanTool>
    */
   static formatToolName(serverId: string, originalName: string): string {
-    const cleanServer = serverId.toLowerCase().replace(/[^a-z0-9]/g, '');
+    const prefix = this.getToolPrefix(serverId);
     let cleanTool = originalName.replace(/[^a-zA-Z0-9_-]/g, '_');
 
-    const prefix = `mcp_${cleanServer}_`;
     if (prefix.length + cleanTool.length > 64) {
       const hash = this.simpleHash(cleanTool);
-      const allowedToolLen = 64 - prefix.length - 5;
-      cleanTool = `${cleanTool.slice(0, Math.max(1, allowedToolLen))}_${hash}`;
+      const allowedToolLen = Math.max(1, 64 - prefix.length - 5);
+      cleanTool = `${cleanTool.slice(0, allowedToolLen)}_${hash}`;
     }
 
     return `${prefix}${cleanTool}`;

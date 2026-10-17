@@ -299,6 +299,17 @@ export class McpOAuthProvider {
   }
 
   /**
+   * 中止后台设备授权轮询
+   * Abort background device polling
+   */
+  abortPolling(): void {
+    if (this.activePollingAbort) {
+      this.activePollingAbort.abort();
+      this.activePollingAbort = undefined;
+    }
+  }
+
+  /**
    * 后台轮询置换设备授权 Token
    * Poll token endpoint in background until user grants authorization or timeout occurs
    */
@@ -313,7 +324,10 @@ export class McpOAuthProvider {
     let currentInterval = intervalSec;
 
     while (Date.now() < expiresAt && !signal.aborted) {
-      await new Promise((resolve) => setTimeout(resolve, currentInterval * 1000));
+      await new Promise<void>((resolve) => {
+        const timer = setTimeout(resolve, currentInterval * 1000);
+        timer.unref?.();
+      });
       if (signal.aborted) return;
 
       const body = new URLSearchParams({

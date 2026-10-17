@@ -2,6 +2,7 @@ import type { FreyaTool, FreyaToolbox } from '@eoasmxd/freya-sdk';
 import type { Session } from '../session/types.js';
 import type { FreyaPromptRegistry } from '../prompt/prompt-registry.js';
 import type { McpBridgedTool } from './mcp-tool.js';
+import { McpNaming } from './mcp-naming.js';
 
 const MAX_ACTIVE_INSTRUCTIONS_LENGTH = 2000;
 
@@ -50,7 +51,7 @@ export class McpToolbox implements FreyaToolbox {
    */
   getInstructionText(session?: Session, promptRegistry?: FreyaPromptRegistry): string {
     const isActive = session?.activeToolboxIds?.includes(this.toolboxId);
-    const prefix = `mcp_${this.serverId}_`;
+    const prefix = McpNaming.getToolPrefix(this.serverId);
     const desc = this.description || '';
 
     let instructionsBlock = '';
@@ -64,10 +65,10 @@ export class McpToolbox implements FreyaToolbox {
     const template = promptRegistry?.get('core.prompt.mcp_toolbox') || '';
 
     return template
-      .replace('{serverId}', this.serverId)
-      .replace(/{prefix}/g, prefix)
-      .replace('{description}', desc)
-      .replace('{instructionsBlock}', instructionsBlock)
+      .replace('{serverId}', () => this.serverId)
+      .replace(/{prefix}/g, () => prefix)
+      .replace('{description}', () => desc)
+      .replace('{instructionsBlock}', () => instructionsBlock)
       .trim();
   }
 }

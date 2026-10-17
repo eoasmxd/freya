@@ -68,13 +68,22 @@ export class McpOAuthManager {
       this.context?.logger.warn(`[McpOAuthManager] Device flow probe failed for '${serverId}': ${err.message}`);
     }
 
-    const redirectUri = callbackUrl || 'http://localhost:3000/api/mcp/oauth/callback';
+    const redirectUri = callbackUrl || this.getDefaultRedirectUri();
     const authorizationUrl = await provider.startAuth(redirectUri);
     return {
       type: 'code',
       serverId,
       authorizationUrl
     };
+  }
+
+  /**
+   * 动态解析默认重定向 URL（结合当前 Web 配置端口）
+   * Dynamically resolve default redirect URI matching WebContainer port
+   */
+  private getDefaultRedirectUri(): string {
+    const port = (this.context?.config as any)?.server?.port ?? 3000;
+    return `http://localhost:${port}/api/mcp/oauth/callback`;
   }
 
   /**
@@ -108,5 +117,15 @@ export class McpOAuthManager {
       await this.onAuthSuccess(targetServerId);
     }
     return targetServerId;
+  }
+
+  /**
+   * 停止所有后台轮询任务
+   * Stop all active background polling tasks
+   */
+  stop(): void {
+    for (const provider of this.providers.values()) {
+      provider.abortPolling();
+    }
   }
 }
