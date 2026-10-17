@@ -95,7 +95,8 @@ export const McpServerModal: React.FC<McpServerModalProps> = ({
 
     const config: McpServerConfig = {
       url: trimmedUrl,
-      description: description.trim() || undefined
+      description: description.trim() || undefined,
+      enabled: initialServer ? initialServer.enabled : true
     };
 
     const headerMap: Record<string, string> = {};

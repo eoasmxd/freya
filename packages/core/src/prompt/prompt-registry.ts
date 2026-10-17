@@ -280,12 +280,15 @@ export class FreyaPromptRegistry {
       toolBlocks.push(`### Core Meta Capabilities\n${metaPrompt}`);
     }
 
-    const hasToolboxes = availableToolboxes.length > 0 || activeToolboxIds.length > 0;
+    const availableIds = new Set(availableToolboxes.map((tb) => tb.id));
+    const validActiveToolboxIds = (activeToolboxIds || []).filter((id) => availableIds.has(id));
+
+    const hasToolboxes = availableToolboxes.length > 0 || validActiveToolboxIds.length > 0;
     if (hasToolboxes) {
-      const loadedBoxStr = activeToolboxIds.length > 0
-        ? activeToolboxIds.map((id) => `\`${id}\``).join(', ')
+      const loadedBoxStr = validActiveToolboxIds.length > 0
+        ? validActiveToolboxIds.map((id) => `\`${id}\``).join(', ')
         : 'None';
-      const inactiveBoxes = availableToolboxes.filter((tb) => !activeToolboxIds.includes(tb.id));
+      const inactiveBoxes = availableToolboxes.filter((tb) => !validActiveToolboxIds.includes(tb.id));
       const onDemandBoxStr = inactiveBoxes.length > 0
         ? inactiveBoxes.map((tb) => `\`${tb.id}\``).join(', ')
         : 'None';
@@ -297,7 +300,7 @@ export class FreyaPromptRegistry {
 
       for (const tb of availableToolboxes) {
         if (tb.instruction) {
-          const isLoaded = activeToolboxIds.includes(tb.id);
+          const isLoaded = validActiveToolboxIds.includes(tb.id);
           const statusTag = isLoaded
             ? '(Status: Loaded / In-Use)'
             : '(Status: Available On-Demand)';

@@ -13,6 +13,7 @@ export interface McpToolItem {
 export interface McpServerConfig {
   url: string;
   description?: string;
+  enabled?: boolean;
   headers?: Record<string, string>;
   auth?: {
     type: 'headers' | 'oauth' | 'none';
