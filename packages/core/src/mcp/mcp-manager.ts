@@ -151,6 +151,8 @@ export class FreyaMcpManager {
       );
       this.sessions.set(serverId, session);
 
+      this.statuses.set(serverId, 'connecting');
+
       const cached = await this.cacheManager.loadCache(serverId);
       if (cached && cached.tools && cached.tools.length > 0) {
         const toolbox = new McpToolbox(serverId, toolboxId);
@@ -159,10 +161,8 @@ export class FreyaMcpManager {
         this.mountToolsToBox(serverId, toolbox, cached.tools, session);
         this.toolboxes.set(serverId, toolbox);
         this.toolRegistry.registerToolbox(toolbox);
-        this.statuses.set(serverId, 'ready');
-      } else {
-        this.statuses.set(serverId, 'connecting');
       }
+
     }
 
     this.probeAll().catch((err) => {
@@ -653,6 +653,8 @@ export class FreyaMcpManager {
         this.sessions.set(serverId, session);
       }
 
+      this.statuses.set(serverId, 'connecting');
+
       const cached = await this.cacheManager.loadCache(serverId);
       if (cached && cached.tools && cached.tools.length > 0) {
         const toolboxId = McpNaming.getToolboxId(serverId);
@@ -662,12 +664,10 @@ export class FreyaMcpManager {
         this.mountToolsToBox(serverId, toolbox, cached.tools, session);
         this.toolboxes.set(serverId, toolbox);
         this.toolRegistry.registerToolbox(toolbox);
-        this.statuses.set(serverId, 'ready');
-      } else {
-        this.statuses.set(serverId, 'connecting');
       }
 
-      this.probeServer(serverId, updatedConfig).catch((err) => {
+
+      await this.probeServer(serverId, updatedConfig).catch((err) => {
         this.context.logger.warn(`[FreyaMcpManager] Toggle probe failed for '${serverId}': ${err.message}`);
       });
     }
