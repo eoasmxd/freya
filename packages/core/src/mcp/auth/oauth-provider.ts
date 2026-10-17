@@ -19,6 +19,7 @@ export class McpOAuthProvider {
   private authHeaderHint?: string;
   private responseBodyHint?: string;
   private discoveredScopes?: string[];
+  private discoveredResource?: string;
   private registrationEndpoint?: string;
   private registeredClientId?: string;
   private registeredClientSecret?: string;
@@ -110,6 +111,9 @@ export class McpOAuthProvider {
           if (Array.isArray(data.scopes_supported) && data.scopes_supported.length > 0) {
             this.discoveredScopes = data.scopes_supported;
           }
+          if (data.resource && typeof data.resource === 'string') {
+            this.discoveredResource = data.resource;
+          }
           if (Array.isArray(data.authorization_servers) && data.authorization_servers.length > 0) {
             const authServer = data.authorization_servers[0];
             await probeEndpoints(`${authServer.replace(/\/+$/, '')}/.well-known/oauth-authorization-server`);
@@ -126,7 +130,7 @@ export class McpOAuthProvider {
         for (const metaUrl of probeQueue) {
           try {
             await probeEndpoints(metaUrl);
-            if (authUrl && tokenUrl) break;
+            if (authUrl && tokenUrl && deviceUrl) break;
           } catch {}
         }
       } catch {}
@@ -187,6 +191,10 @@ export class McpOAuthProvider {
 
     if (this.config.scopes && this.config.scopes.length > 0) {
       url.searchParams.set('scope', this.config.scopes.join(' '));
+    }
+    const targetResource = this.discoveredResource || this.serverUrl;
+    if (targetResource) {
+      url.searchParams.set('resource', targetResource);
     }
 
     return url.toString();
@@ -276,11 +284,27 @@ export class McpOAuthProvider {
   }
 
   /**
+   * 强制刷新 Access Token
+   * Force refresh access token using stored refresh token
+   */
+  async forceRefreshToken(): Promise<boolean> {
+    const token = await this.tokenStore.loadToken(this.serverId);
+    if (!token?.refreshToken) return false;
+    try {
+      await this.refreshToken(token.refreshToken);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  /**
    * 刷新 Token
    * Refresh access token using refresh token
    */
   private async refreshToken(refreshToken: string): Promise<string> {
-    const tokenUrl = this.config.tokenUrl;
+    const endpoints = await this.resolveEndpoints();
+    const tokenUrl = endpoints.tokenUrl || this.config.tokenUrl;
     if (!tokenUrl) {
       throw new McpAuthRequiredError(`Missing tokenUrl for refresh on server '${this.serverId}'`);
     }
@@ -345,6 +369,13 @@ export class McpOAuthProvider {
       return this.registeredClientId;
     }
 
+    const cachedClient = await this.tokenStore.loadClientInfo(this.serverId);
+    if (cachedClient?.clientId) {
+      this.registeredClientId = cachedClient.clientId;
+      this.registeredClientSecret = cachedClient.clientSecret;
+      return cachedClient.clientId;
+    }
+
     await this.resolveEndpoints();
     if (this.registrationEndpoint) {
       try {
@@ -375,6 +406,11 @@ export class McpOAuthProvider {
             if (data.client_secret) {
               this.registeredClientSecret = String(data.client_secret);
             }
+            await this.tokenStore.saveClientInfo(this.serverId, {
+              clientId: resolvedId,
+              clientSecret: this.registeredClientSecret,
+              registeredAt: Date.now()
+            });
             return resolvedId;
           }
         }
@@ -407,6 +443,10 @@ export class McpOAuthProvider {
     const scopes = this.config.scopes?.length ? this.config.scopes : this.discoveredScopes;
     if (scopes && scopes.length > 0) {
       body.set('scope', scopes.join(' '));
+    }
+    const targetResource = this.discoveredResource || this.serverUrl;
+    if (targetResource) {
+      body.set('resource', targetResource);
     }
 
     const res = await fetch(deviceUrl, {

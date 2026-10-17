@@ -77,18 +77,14 @@ export class McpOAuthManager {
       throw new Error(`Server '${serverId}' does not support OAuth authentication.`);
     }
 
-    try {
-      const deviceUrl = await provider.resolveDeviceAuthUrl();
-      if (deviceUrl) {
-        const info = await provider.startDeviceAuth(this.onAuthSuccess);
-        return {
-          type: 'device',
-          serverId,
-          info
-        };
-      }
-    } catch (err: any) {
-      this.context?.logger.warn(`[McpOAuthManager] Device flow probe failed for '${serverId}': ${err.message}`);
+    const deviceUrl = await provider.resolveDeviceAuthUrl().catch(() => undefined);
+    if (deviceUrl) {
+      const info = await provider.startDeviceAuth(this.onAuthSuccess);
+      return {
+        type: 'device',
+        serverId,
+        info
+      };
     }
 
     const redirectUri = callbackUrl || this.getDefaultRedirectUri();
@@ -149,6 +145,16 @@ export class McpOAuthManager {
       }
     }
     return targetServerId;
+  }
+
+  /**
+   * 尝试强制刷新指定服务的凭据
+   * Attempt to force refresh credentials for specified server
+   */
+  async forceRefreshToken(serverId: string): Promise<boolean> {
+    const provider = this.providers.get(serverId);
+    if (!provider) return false;
+    return await provider.forceRefreshToken();
   }
 
   /**

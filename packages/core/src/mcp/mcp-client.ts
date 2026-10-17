@@ -14,7 +14,8 @@ export class McpClientSession {
 
   constructor(
     private readonly config: McpServerConfig,
-    private readonly headerProvider?: () => Promise<Record<string, string>>
+    private readonly headerProvider?: () => Promise<Record<string, string>>,
+    private readonly refreshProvider?: () => Promise<boolean>
   ) {}
 
   /**
@@ -50,7 +51,7 @@ export class McpClientSession {
     this.isConnecting = true;
     try {
       const getHeaders = this.headerProvider || (async () => ({}));
-      const transport = new StreamableHttpTransport(this.config.url, getHeaders, this.config.timeoutMs);
+      const transport = new StreamableHttpTransport(this.config.url, getHeaders, this.config.timeoutMs, this.refreshProvider);
 
       const initResult = await transport.sendJsonRpc('initialize', {
         protocolVersion: '2025-06-18',

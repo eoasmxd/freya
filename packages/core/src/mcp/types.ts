@@ -69,6 +69,12 @@ export interface McpOAuthTokenData {
   scope?: string;
 }
 
+export interface McpRegisteredClientInfo {
+  clientId: string;
+  clientSecret?: string;
+  registeredAt: number;
+}
+
 export interface McpOAuthPendingAuth {
   state: string;
   codeVerifier: string;

@@ -1,7 +1,7 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { FREYA_HOME } from '../../utils/paths.js';
-import type { McpOAuthTokenData, McpOAuthPendingAuth } from '../types.js';
+import type { McpOAuthTokenData, McpOAuthPendingAuth, McpRegisteredClientInfo } from '../types.js';
 import { McpNaming } from '../mcp-naming.js';
 
 /**
@@ -15,7 +15,7 @@ export class TokenStore {
     await fs.mkdir(this.authDir, { recursive: true });
   }
 
-  private resolveFilePath(serverId: string, suffix: 'token' | 'pending'): string {
+  private resolveFilePath(serverId: string, suffix: 'token' | 'pending' | 'client'): string {
     return path.join(this.authDir, `${McpNaming.sanitizeServerId(serverId)}.${suffix}.json`);
   }
 
@@ -84,5 +84,29 @@ export class TokenStore {
       const filePath = this.resolveFilePath(serverId, 'pending');
       await fs.unlink(filePath);
     } catch {}
+  }
+
+  /**
+   * 读取服务注册的客户端信息 (RFC 7591)
+   * Load registered dynamic client info for specified server
+   */
+  async loadClientInfo(serverId: string): Promise<McpRegisteredClientInfo | null> {
+    try {
+      const filePath = this.resolveFilePath(serverId, 'client');
+      const raw = await fs.readFile(filePath, 'utf-8');
+      return JSON.parse(raw) as McpRegisteredClientInfo;
+    } catch {
+      return null;
+    }
+  }
+
+  /**
+   * 保存服务注册的客户端信息 (RFC 7591)
+   * Save registered dynamic client info for specified server
+   */
+  async saveClientInfo(serverId: string, clientInfo: McpRegisteredClientInfo): Promise<void> {
+    await this.ensureDir();
+    const filePath = this.resolveFilePath(serverId, 'client');
+    await fs.writeFile(filePath, JSON.stringify(clientInfo, null, 2), { mode: 0o600 });
   }
 }

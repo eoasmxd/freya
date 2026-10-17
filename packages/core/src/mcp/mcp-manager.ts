@@ -146,7 +146,8 @@ export class FreyaMcpManager {
 
       const session = new McpClientSession(
         config,
-        () => this.buildAuthHeaders(serverId, config)
+        () => this.buildAuthHeaders(serverId, config),
+        () => this.authManager.forceRefreshToken(serverId)
       );
       this.sessions.set(serverId, session);
 
@@ -570,7 +571,8 @@ export class FreyaMcpManager {
     if (config.enabled !== false) {
       const session = new McpClientSession(
         config,
-        () => this.buildAuthHeaders(cleanId, config)
+        () => this.buildAuthHeaders(cleanId, config),
+        () => this.authManager.forceRefreshToken(cleanId)
       );
       this.sessions.set(cleanId, session);
       this.statuses.set(cleanId, 'connecting');
@@ -636,7 +638,8 @@ export class FreyaMcpManager {
       if (!session) {
         session = new McpClientSession(
           updatedConfig,
-          () => this.buildAuthHeaders(serverId, updatedConfig)
+          () => this.buildAuthHeaders(serverId, updatedConfig),
+          () => this.authManager.forceRefreshToken(serverId)
         );
         this.sessions.set(serverId, session);
       }

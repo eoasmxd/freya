@@ -12,7 +12,8 @@ export class StreamableHttpTransport {
   constructor(
     private readonly url: string,
     private readonly getHeaders: () => Promise<Record<string, string>>,
-    private readonly timeoutMs: number = 30000
+    private readonly timeoutMs: number = 30000,
+    private readonly onUnauthorized?: () => Promise<boolean>
   ) {}
 
   getSessionId(): string | undefined {
@@ -63,6 +64,38 @@ export class StreamableHttpTransport {
       }
 
       if (res.status === 401) {
+        if (this.onUnauthorized) {
+          const refreshed = await this.onUnauthorized().catch(() => false);
+          if (refreshed) {
+            const retryAuthHeaders = await this.getHeaders();
+            const retryHeaders: Record<string, string> = {
+              ...headers,
+              ...retryAuthHeaders
+            };
+            const retryRes = await fetch(this.url, {
+              method: 'POST',
+              headers: retryHeaders,
+              body: JSON.stringify({
+                jsonrpc: '2.0',
+                id: requestId,
+                method,
+                params
+              }),
+              signal: controller.signal
+            });
+            if (retryRes.ok) {
+              const retryContentType = retryRes.headers.get('content-type') || '';
+              if (retryContentType.includes('text/event-stream')) {
+                return await this.parseSseStream(retryRes.body, requestId);
+              }
+              const retryData: any = await retryRes.json();
+              if (retryData.error) {
+                throw new Error(`RPC Error [${retryData.error.code}]: ${retryData.error.message}`);
+              }
+              return retryData.result;
+            }
+          }
+        }
         const authHeader = res.headers.get('www-authenticate') || undefined;
         const responseBody = await res.text().catch(() => undefined);
         throw new McpAuthRequiredError(`HTTP 401 Unauthorized from ${this.url}`, authHeader, responseBody);
