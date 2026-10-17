@@ -192,9 +192,8 @@ export class McpOAuthProvider {
     if (this.config.scopes && this.config.scopes.length > 0) {
       url.searchParams.set('scope', this.config.scopes.join(' '));
     }
-    const targetResource = this.discoveredResource || this.serverUrl;
-    if (targetResource) {
-      url.searchParams.set('resource', targetResource);
+    if (this.discoveredResource) {
+      url.searchParams.set('resource', this.discoveredResource);
     }
 
     return url.toString();
@@ -231,7 +230,10 @@ export class McpOAuthProvider {
 
     const res = await fetch(pending.tokenUrl, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'Accept': 'application/json'
+      },
       body
     });
 
@@ -240,7 +242,13 @@ export class McpOAuthProvider {
       throw new Error(`[McpOAuth] Token exchange failed: ${err.slice(0, 300)}`);
     }
 
-    const data: any = await res.json();
+    const rawText = await res.text();
+    let data: any;
+    try {
+      data = JSON.parse(rawText);
+    } catch {
+      data = Object.fromEntries(new URLSearchParams(rawText));
+    }
     const token: McpOAuthTokenData = {
       accessToken: data.access_token,
       refreshToken: data.refresh_token,
@@ -322,7 +330,10 @@ export class McpOAuthProvider {
 
     const res = await fetch(tokenUrl, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'Accept': 'application/json'
+      },
       body
     });
 
@@ -331,7 +342,13 @@ export class McpOAuthProvider {
       throw new McpAuthRequiredError(`Failed to refresh token for server '${this.serverId}'`);
     }
 
-    const data: any = await res.json();
+    const rawText = await res.text();
+    let data: any;
+    try {
+      data = JSON.parse(rawText);
+    } catch {
+      data = Object.fromEntries(new URLSearchParams(rawText));
+    }
     const newToken: McpOAuthTokenData = {
       accessToken: data.access_token,
       refreshToken: data.refresh_token || refreshToken,

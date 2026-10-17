@@ -60,9 +60,10 @@ export const McpAuthModal: React.FC<McpAuthModalProps> = ({
             const info = authData.info || authData;
             setUserCode(info.userCode || info.user_code || '');
             setVerificationUri(info.verificationUriComplete || info.verification_uri_complete || info.verificationUri || info.verification_uri || '');
-            startDevicePolling();
+            startPolling('device_flow');
           } else {
             setAuthUrl(authData.authorizationUrl || authData.authUrl || '');
+            startPolling('browser');
           }
         } else {
           setErrorMsg(data.message || data.error || 'Failed to initiate authorization');
@@ -83,7 +84,7 @@ export const McpAuthModal: React.FC<McpAuthModalProps> = ({
     };
   }, [serverId]);
 
-  const startDevicePolling = () => {
+  const startPolling = (mode: 'device_flow' | 'browser') => {
     clearPolling();
     pollTimerRef.current = setInterval(async () => {
       try {
@@ -96,13 +97,13 @@ export const McpAuthModal: React.FC<McpAuthModalProps> = ({
         if (data.success && data.data?.status === 'success') {
           clearPolling();
           onSuccess();
-        } else if (data.data?.status === 'error') {
+        } else if (data.data?.status === 'error' && mode === 'device_flow') {
           clearPolling();
           setErrorMsg(data.data.error || 'Device flow authorization failed or expired');
         }
       } catch {
       }
-    }, 3000);
+    }, 2500);
   };
 
   const handleCopyCode = async () => {
@@ -247,6 +248,11 @@ export const McpAuthModal: React.FC<McpAuthModalProps> = ({
                 >
                   {t('mcp.oauthClickAuth', 'Go to Authorization Page ↗')}
                 </a>
+              </div>
+
+              <div className="mcp-auth-polling-status">
+                <span className="mcp-polling-pulse"></span>
+                <span>{t('mcp.devicePollingActive', 'Listening for authorization confirmation in browser...')}</span>
               </div>
 
               <div className="mcp-auth-step-card">
