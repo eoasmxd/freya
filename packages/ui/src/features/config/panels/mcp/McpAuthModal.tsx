@@ -191,7 +191,7 @@ export const McpAuthModal: React.FC<McpAuthModalProps> = ({
               <div className="mcp-auth-step-card">
                 <div className="mcp-step-card-header">
                   <span className="mcp-step-num">01</span>
-                  <span className="mcp-step-heading">{t('mcp.deviceStep2', '2. Enter the device user code below:')}</span>
+                  <span className="mcp-step-heading">{t('mcp.deviceStep1', 'Check and copy the device user code below:')}</span>
                 </div>
                 <div className="mcp-user-code-box">
                   <span className="mcp-user-code">{userCode}</span>
@@ -209,7 +209,7 @@ export const McpAuthModal: React.FC<McpAuthModalProps> = ({
               <div className="mcp-auth-step-card">
                 <div className="mcp-step-card-header">
                   <span className="mcp-step-num">02</span>
-                  <span className="mcp-step-heading">{t('mcp.deviceStep1', '1. Open authorization URL in your browser:')}</span>
+                  <span className="mcp-step-heading">{t('mcp.deviceStep2', 'Open authorization URL in your browser and enter code:')}</span>
                 </div>
                 <a
                   href={verificationUri}
