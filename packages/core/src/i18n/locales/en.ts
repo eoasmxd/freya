@@ -121,6 +121,9 @@ export const en: Record<string, string> = {
   'cmd.skill.clear.success': '✅ Skill binding deactivated.',
 
   'cmd.mcp.description': 'Inspect MCP server statuses, retry connection, or complete OAuth authentication',
+  'cmd.mcp.sub.status': 'Inspect connection statuses and registered tool counts of all MCP servers',
+  'cmd.mcp.sub.retry': 'Retry connection and re-probe specified remote MCP server',
+  'cmd.mcp.sub.auth': 'Initiate OAuth/device authorization or exchange tokens with callback URL',
   'cmd.mcp.status.title': '📡 **MCP Server Statuses**:',
   'cmd.mcp.status.item': '- **{id}**: status: `{status}`, tools: {tools}, url: {url}',
   'cmd.mcp.auth.missingServerId': '❌ Please specify the target MCP server ID: `/mcp auth <serverId> [redirectUrl]`',
@@ -141,7 +144,7 @@ export const en: Record<string, string> = {
   'cmd.mcp.retry.missingServerId': '❌ Please specify the target MCP server ID to retry: `/mcp retry <serverId>`',
   'cmd.mcp.retry.success': '✅ Successfully reconnected and probed server **{serverId}**! Tools are ready.',
   'cmd.mcp.retry.failed': '❌ Failed to reconnect to server **{serverId}**: {message}',
-  'cmd.mcp.usage': 'Usage: `/mcp status`, `/mcp retry <serverId>`, or `/mcp auth <serverId> [redirectUrl]`',
+  'cmd.mcp.unknown': '❌ Unknown subcommand `{sub}`. Available: `status`, `retry`, `auth`.',
 
   // 核心配置 Schema
   // Core Configuration Schema

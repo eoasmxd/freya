@@ -121,6 +121,9 @@ export const zh: Record<string, string> = {
   'cmd.skill.clear.success': '✅ 已解除技能绑定。',
 
   'cmd.mcp.description': '查看 MCP 远程服务状态、重试连接或完成 OAuth 鉴权',
+  'cmd.mcp.sub.status': '查看所有 MCP 远程服务的连接状态与挂载工具数',
+  'cmd.mcp.sub.retry': '重试连接并重新探测指定的 MCP 远程服务',
+  'cmd.mcp.sub.auth': '发起 MCP 服务的 OAuth/设备码鉴权或输入回调地址完成换票',
   'cmd.mcp.status.title': '📡 **MCP 服务状态清单**：',
   'cmd.mcp.status.item': '- **{id}**：状态: `{status}`，工具数: {tools}，服务地址: {url}',
   'cmd.mcp.auth.missingServerId': '❌ 请指定目标 MCP 服务 ID：`/mcp auth <serverId> [redirectUrl]`',
@@ -141,7 +144,7 @@ export const zh: Record<string, string> = {
   'cmd.mcp.retry.missingServerId': '❌ 请指定需要重试连接的 MCP 服务 ID：`/mcp retry <serverId>`',
   'cmd.mcp.retry.success': '✅ 已成功重新连接并探测服务 **{serverId}**！工具已挂载就绪。',
   'cmd.mcp.retry.failed': '❌ 重新连接服务 **{serverId}** 失败：{message}',
-  'cmd.mcp.usage': '用法：`/mcp status`、`/mcp retry <serverId>` 或 `/mcp auth <serverId> [redirectUrl]`',
+  'cmd.mcp.unknown': '❌ 未知子命令 `{sub}`。可用子命令：`status`、`retry`、`auth`。',
 
   // 核心配置 Schema
   // Core Configuration Schema
