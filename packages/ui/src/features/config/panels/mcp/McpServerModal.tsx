@@ -141,7 +141,7 @@ export const McpServerModal: React.FC<McpServerModalProps> = ({
       setSaving(true);
       const apiPath = isEditing ? `/api/config/mcp/server/${encodeURIComponent(trimmedId)}` : '/api/config/mcp/server';
       const method = isEditing ? 'PUT' : 'POST';
-      const payload = isEditing ? { config } : { id: trimmedId, config };
+      const payload = isEditing ? { config } : { serverId: trimmedId, config };
 
       const res = await fetch(getApiUrl(apiPath), {
         method,
