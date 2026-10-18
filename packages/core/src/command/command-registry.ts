@@ -5,7 +5,8 @@ const BUILTIN_COMMAND_CATEGORY_MAP: Record<string, string> = {
   reject: 'auth',
   session: 'session',
   model: 'model',
-  models: 'model'
+  models: 'model',
+  mcp: 'mcp'
 };
 
 /**

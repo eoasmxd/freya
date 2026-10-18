@@ -1,5 +1,6 @@
 import type { ConfigFieldSchema, FreyaContext } from '@eoasmxd/freya-sdk';
 import type { FreyaConfigManager } from './config-manager.js';
+import type { FreyaMcpManager } from '../mcp/mcp-manager.js';
 import type http from 'node:http';
 import { I18n } from '../i18n/index.js';
 import { zh } from '../i18n/locales/zh.js';
@@ -20,8 +21,16 @@ export class FreyaConfigApi {
   };
   private readonly i18n: I18n;
 
-  constructor(private configManager: FreyaConfigManager, ctx?: FreyaContext) {
+  constructor(
+    private configManager: FreyaConfigManager,
+    ctx?: FreyaContext,
+    private mcpManager?: FreyaMcpManager
+  ) {
     this.i18n = new I18n({ zh, en }, ctx);
+  }
+
+  setMcpManager(mcpManager: FreyaMcpManager): void {
+    this.mcpManager = mcpManager;
   }
 
   private getBody(req: http.IncomingMessage): Promise<any> {
@@ -306,6 +315,148 @@ export class FreyaConfigApi {
         const msg = await this.configManager.editPrompt(promptName, targetContent, replacementContent);
         res.writeHead(200, this.headers);
         res.end(JSON.stringify({ success: !msg.startsWith('❌'), message: msg }));
+        return true;
+      }
+      if (pathname === '/api/config/mcp' && req.method === 'GET') {
+        if (!this.mcpManager) {
+          res.writeHead(200, this.headers);
+          res.end(JSON.stringify({ success: true, data: [] }));
+          return true;
+        }
+        const servers = await this.mcpManager.listServers();
+        res.writeHead(200, this.headers);
+        res.end(JSON.stringify({ success: true, data: servers }));
+        return true;
+      }
+
+      if (pathname === '/api/config/mcp/server' && req.method === 'POST') {
+        if (!this.mcpManager) {
+          res.writeHead(500, this.headers);
+          res.end(JSON.stringify({ success: false, error: this.i18n.t('api.error.mcpNotInit', 'MCP Manager is not initialized', undefined, defaultLang) }));
+          return true;
+        }
+        const { serverId, config } = await this.getBody(req);
+        if (!serverId || !config) {
+          res.writeHead(200, this.headers);
+          res.end(JSON.stringify({ success: false, error: this.i18n.t('api.error.missingMcpServerParams', 'Missing required parameters: serverId and config', undefined, defaultLang) }));
+          return true;
+        }
+        await this.mcpManager.saveServer(serverId, config);
+        res.writeHead(200, this.headers);
+        res.end(JSON.stringify({ success: true, message: this.i18n.t('api.mcp.saved', "MCP server '{serverId}' saved successfully.", { serverId }, defaultLang) }));
+        return true;
+      }
+
+      const mcpServerMatch = pathname.match(/^\/api\/config\/mcp\/server\/([^/]+)$/);
+      if (mcpServerMatch && req.method === 'PUT') {
+        if (!this.mcpManager) {
+          res.writeHead(500, this.headers);
+          res.end(JSON.stringify({ success: false, error: this.i18n.t('api.error.mcpNotInit', 'MCP Manager is not initialized', undefined, defaultLang) }));
+          return true;
+        }
+        const serverId = decodeURIComponent(mcpServerMatch[1]);
+        const { config } = await this.getBody(req);
+        if (!config) {
+          res.writeHead(200, this.headers);
+          res.end(JSON.stringify({ success: false, error: this.i18n.t('api.error.missingMcpConfig', 'Missing required parameter: config', undefined, defaultLang) }));
+          return true;
+        }
+        await this.mcpManager.saveServer(serverId, config);
+        res.writeHead(200, this.headers);
+        res.end(JSON.stringify({ success: true, message: this.i18n.t('api.mcp.updated', "MCP server '{serverId}' updated successfully.", { serverId }, defaultLang) }));
+        return true;
+      }
+
+      if (mcpServerMatch && req.method === 'DELETE') {
+        if (!this.mcpManager) {
+          res.writeHead(500, this.headers);
+          res.end(JSON.stringify({ success: false, error: this.i18n.t('api.error.mcpNotInit', 'MCP Manager is not initialized', undefined, defaultLang) }));
+          return true;
+        }
+        const serverId = decodeURIComponent(mcpServerMatch[1]);
+        await this.mcpManager.removeServer(serverId);
+        res.writeHead(200, this.headers);
+        res.end(JSON.stringify({ success: true, message: this.i18n.t('api.mcp.removed', "MCP server '{serverId}' removed successfully.", { serverId }, defaultLang) }));
+        return true;
+      }
+
+      if (pathname === '/api/config/mcp/toggle' && req.method === 'POST') {
+        if (!this.mcpManager) {
+          res.writeHead(500, this.headers);
+          res.end(JSON.stringify({ success: false, error: this.i18n.t('api.error.mcpNotInit', 'MCP Manager is not initialized', undefined, defaultLang) }));
+          return true;
+        }
+        const { serverId, enabled } = await this.getBody(req);
+        if (!serverId || typeof enabled !== 'boolean') {
+          res.writeHead(200, this.headers);
+          res.end(JSON.stringify({ success: false, error: this.i18n.t('api.error.missingMcpToggleParams', 'Missing required parameters: serverId and enabled', undefined, defaultLang) }));
+          return true;
+        }
+        await this.mcpManager.toggleServer(serverId, enabled);
+        res.writeHead(200, this.headers);
+        res.end(JSON.stringify({ success: true, message: this.i18n.t('api.mcp.statusUpdated', "MCP server '{serverId}' status updated.", { serverId }, defaultLang) }));
+        return true;
+      }
+
+      if (pathname === '/api/config/mcp/retry' && req.method === 'POST') {
+        if (!this.mcpManager) {
+          res.writeHead(500, this.headers);
+          res.end(JSON.stringify({ success: false, error: this.i18n.t('api.error.mcpNotInit', 'MCP Manager is not initialized', undefined, defaultLang) }));
+          return true;
+        }
+        const { serverId } = await this.getBody(req);
+        if (!serverId) {
+          res.writeHead(200, this.headers);
+          res.end(JSON.stringify({ success: false, error: this.i18n.t('api.error.missingMcpServerId', 'Missing required parameter: serverId', undefined, defaultLang) }));
+          return true;
+        }
+        await this.mcpManager.retryServer(serverId);
+        res.writeHead(200, this.headers);
+        res.end(JSON.stringify({ success: true, message: this.i18n.t('api.mcp.reconnected', "MCP server '{serverId}' reconnected successfully.", { serverId }, defaultLang) }));
+        return true;
+      }
+
+      if (pathname === '/api/config/mcp/auth' && req.method === 'POST') {
+        if (!this.mcpManager) {
+          res.writeHead(500, this.headers);
+          res.end(JSON.stringify({ success: false, error: this.i18n.t('api.error.mcpNotInit', 'MCP Manager is not initialized', undefined, defaultLang) }));
+          return true;
+        }
+        const { serverId, callbackUrl, action, code, state } = await this.getBody(req);
+        if (!serverId) {
+          res.writeHead(200, this.headers);
+          res.end(JSON.stringify({ success: false, error: this.i18n.t('api.error.missingMcpServerId', 'Missing required parameter: serverId', undefined, defaultLang) }));
+          return true;
+        }
+        if (action === 'poll') {
+          const status = this.mcpManager.getServerStatus(serverId);
+          const isSuccess = status === 'ready';
+          const deviceError = this.mcpManager.getAuthManager().getProvider(serverId)?.getLastDeviceAuthError();
+          const isFailed = status === 'error' || Boolean(deviceError);
+          res.writeHead(200, this.headers);
+          res.end(JSON.stringify({
+            success: true,
+            data: {
+              status: isSuccess ? 'success' : isFailed ? 'error' : 'pending',
+              error: deviceError
+            }
+          }));
+          return true;
+        }
+        if (action === 'callback') {
+          if (!code) {
+            res.writeHead(200, this.headers);
+            res.end(JSON.stringify({ success: false, error: this.i18n.t('api.error.missingMcpAuthCode', 'Missing required parameter: code', undefined, defaultLang) }));
+            return true;
+          }
+          await this.mcpManager.handleAuthCallback(code, state || '', serverId);
+          res.writeHead(200, this.headers);
+          res.end(JSON.stringify({ success: true, message: this.i18n.t('api.mcp.authSuccess', "Successfully authenticated server '{serverId}'", { serverId }, defaultLang) }));
+          return true;
+        }
+        const authResult = await this.mcpManager.startAuth(serverId, callbackUrl);
+        res.writeHead(200, this.headers);
+        res.end(JSON.stringify({ success: true, data: authResult }));
         return true;
       }
 

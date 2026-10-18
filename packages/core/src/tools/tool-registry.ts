@@ -91,8 +91,8 @@ export class FreyaToolRegistry {
    * Determine whether specified toolbox is registered and enabled
    */
   isToolboxEnabled(toolboxId: string, session?: Session): boolean {
-    const isRegistered = this.toolboxes.some((tb) => tb.getId() === toolboxId);
-    if (!isRegistered) {
+    const tb = this.toolboxes.find((t) => t.getId() === toolboxId);
+    if (!tb) {
       return false;
     }
 
@@ -110,6 +110,12 @@ export class FreyaToolRegistry {
    */
   registerToolbox(toolbox: FreyaToolbox): void {
     const newId = toolbox.getId();
+    if ((newId === 'mcp' || newId.startsWith('mcp_')) && !(toolbox as any).__isMcpToolbox) {
+      this.context?.logger.warn(
+        `[ToolRegistry] Toolbox ID prefix 'mcp_' is reserved for MCP services: ${newId}`
+      );
+      return;
+    }
     const existingIndex = this.toolboxes.findIndex((tb) => tb.getId() === newId || tb === toolbox);
 
     if (existingIndex > -1) {
@@ -210,8 +216,13 @@ export class FreyaToolRegistry {
       if (!this.isToolboxEnabled(toolboxId, session)) {
         continue;
       }
-      const key = toolbox.getInstructionPrompt?.();
-      const instruction = key ? promptRegistry.get(key) : undefined;
+      let instruction: string | undefined;
+      if (typeof (toolbox as any).getInstructionText === 'function') {
+        instruction = (toolbox as any).getInstructionText(session, promptRegistry);
+      } else {
+        const key = toolbox.getInstructionPrompt?.();
+        instruction = key ? promptRegistry.get(key) : undefined;
+      }
       list.push({ id: toolboxId, instruction });
     }
     return list;

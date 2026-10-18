@@ -77,6 +77,7 @@ Tools exposed to LLM function calling follow strict structural tiers and naming 
 1. **Classification Tiers**:
    - **Core Intrinsic Tools**: Tools built directly into the kernel without a toolbox ID. They are unconditionally or conditionally persistent (e.g., `activate_toolbox`, `deactivate_toolbox`, `activate_skill`, `deactivate_skill`, and conditionally `read_snapshot` when snapshots exist).
    - **On-Demand Toolbox Tools**: Tools organized within a named toolbox (`FreyaToolbox.getId()`, lowercase single word without underscores, e.g., `agent`, `config`, `fs`, `web`, `memory`, `mysql`). They must be dynamically activated/deactivated.
+   - **External Bridged Toolboxes (MCP)**: Tools bridged from remote MCP servers. The toolbox ID must use the format `mcp_<serverId>`. Exposed tools use the snake_case format `mcp_<serverId>_<originalToolName>`, exempt from singular noun and standardized verb constraints (as original names are defined externally).
 
 2. **Naming Syntax**:
    - **Intrinsic Tools**: `<verb>_<object>` in snake_case (e.g., `activate_toolbox`, `read_snapshot`).
