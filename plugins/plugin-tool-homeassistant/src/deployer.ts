@@ -53,9 +53,25 @@ export class HomeAssistantIntegrationDeployer {
       await fs.promises.cp(this.sourceDirectory, this.targetDirectory, { recursive: true, force: true });
       ctx.logger.info(`[HomeAssistantDeployer] Successfully deployed integration (v${sourceVersion}) to ${this.targetDirectory}.`);
 
+      if (!isInitialInstall) {
+        await this.createRestartIssue(sourceVersion, ctx);
+      }
       await this.sendRestartNotification(sourceVersion, isInitialInstall, ctx);
     } catch (err: any) {
       ctx.logger.warn(`[HomeAssistantDeployer] Failed to deploy integration: ${err?.message || err}`);
+    }
+  }
+
+  /**
+   * 向 Home Assistant 发送更新就绪待办（Repairs Issue）
+   * Send update pending issue (Repairs Flow) to Home Assistant for one-click restart
+   */
+  private async createRestartIssue(version: string, ctx: FreyaContext): Promise<void> {
+    try {
+      await this.client.postApi('freya/notify_update', { version });
+      ctx.logger.info(`[HomeAssistantDeployer] Triggered Freya restart repair issue for v${version}.`);
+    } catch (err: any) {
+      ctx.logger.debug(`[HomeAssistantDeployer] Could not call freya/notify_update endpoint: ${err?.message || err}`);
     }
   }
 

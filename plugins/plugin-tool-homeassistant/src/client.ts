@@ -416,6 +416,25 @@ export class HomeAssistantClient {
     return await response.json().catch(() => ({}));
   }
 
+  async postApi(endpoint: string, data: Record<string, any> = {}): Promise<any> {
+    const config = this.getConfig();
+    if (!config.baseUrl || !config.token) {
+      throw new Error('Home Assistant is not configured. Please set homeassistant.url and homeassistant.token in settings.');
+    }
+    const cleanEndpoint = endpoint.startsWith('/') ? endpoint.slice(1) : endpoint;
+    const url = `${config.baseUrl}/${cleanEndpoint}`;
+    const response = await this.request(
+      url,
+      {
+        method: 'POST',
+        body: JSON.stringify(data),
+        signal: AbortSignal.timeout(10_000)
+      },
+      config
+    );
+    return await response.json().catch(() => ({}));
+  }
+
   async getServices(): Promise<HAServiceDomain[]> {
     const config = this.getConfig();
     if (!config.baseUrl || !config.token) {
