@@ -6,6 +6,66 @@ import { I18n } from './i18n/index.js';
 import zh from './i18n/locales/zh.js';
 import en from './i18n/locales/en.js';
 
+/**
+ * 递归清洗 Tool Schema，基于白名单机制仅保留 Gemini API 严格支持的字段
+ * Recursively clean tool schema using allowlist to retain only fields strictly supported by Gemini API
+ */
+function sanitizeGeminiSchema(raw: any): any {
+  if (!raw || typeof raw !== 'object') {
+    return raw;
+  }
+
+  if (Array.isArray(raw)) {
+    return raw.map((item) => sanitizeGeminiSchema(item));
+  }
+
+  const cleaned: Record<string, any> = {};
+
+  if (typeof raw.type === 'string') {
+    cleaned.type = raw.type.toLowerCase();
+  }
+  if (typeof raw.description === 'string') {
+    cleaned.description = raw.description;
+  }
+  if (typeof raw.format === 'string') {
+    cleaned.format = raw.format;
+  }
+  if (typeof raw.title === 'string') {
+    cleaned.title = raw.title;
+  }
+  if (typeof raw.nullable === 'boolean') {
+    cleaned.nullable = raw.nullable;
+  }
+  if (raw.default !== undefined) {
+    cleaned.default = raw.default;
+  }
+
+  if (Array.isArray(raw.enum)) {
+    cleaned.enum = raw.enum;
+  } else if (raw.const !== undefined) {
+    cleaned.enum = [raw.const];
+  }
+
+  if (Array.isArray(raw.required)) {
+    cleaned.required = raw.required.filter((item: any) => typeof item === 'string');
+  }
+
+  if (raw.properties && typeof raw.properties === 'object') {
+    cleaned.properties = {};
+    for (const [key, prop] of Object.entries(raw.properties)) {
+      cleaned.properties[key] = sanitizeGeminiSchema(prop);
+    }
+  } else if (cleaned.type === 'object') {
+    cleaned.properties = {};
+  }
+
+  if (raw.items && typeof raw.items === 'object') {
+    cleaned.items = sanitizeGeminiSchema(raw.items);
+  }
+
+  return cleaned;
+}
+
 export default class GeminiPlugin implements LLMPlugin {
   type = 'llm' as const;
   providerTypes = ['gemini'];
@@ -210,7 +270,7 @@ export default class GeminiPlugin implements LLMPlugin {
         functionDeclarations: tools.map((t) => ({
           name: t.name,
           description: t.description,
-          parameters: t.parameters
+          parameters: sanitizeGeminiSchema(t.parameters)
         }))
       }]
       : undefined;
