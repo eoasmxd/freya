@@ -72,7 +72,7 @@ export class McpOAuthProvider {
         if (!authUrl) authUrl = bodyData.authorization_endpoint || bodyData.authorization_url || bodyData.authUrl || bodyData.loginUrl || bodyData.login_url;
         if (!tokenUrl) tokenUrl = bodyData.token_endpoint || bodyData.token_url || bodyData.tokenUrl;
         if (!deviceUrl) deviceUrl = bodyData.device_authorization_endpoint || bodyData.device_url || bodyData.deviceUrl;
-      } catch {}
+      } catch { }
     }
 
     let resourceMetadataUrl: string | undefined;
@@ -121,9 +121,9 @@ export class McpOAuthProvider {
           if (!res.ok) return;
           const data: any = await res.json();
           if (Array.isArray(data.scopes_supported) && data.scopes_supported.length > 0) {
-            const validBusinessScopes = data.scopes_supported.filter((s: string) => s.toLowerCase() !== 'openid');
-            if (validBusinessScopes.length > 0) {
-              this.discoveredScopes = validBusinessScopes;
+            const hasExplicitConfig = Boolean(this.config.scopes && this.config.scopes.length > 0);
+            if (!hasExplicitConfig) {
+              this.discoveredScopes = data.scopes_supported;
             }
           }
           if (Array.isArray(data.scopes_supported) && data.scopes_supported.includes('offline_access')) {
@@ -151,9 +151,9 @@ export class McpOAuthProvider {
           try {
             await probeEndpoints(metaUrl);
             if (authUrl && tokenUrl && deviceUrl) break;
-          } catch {}
+          } catch { }
         }
-      } catch {}
+      } catch { }
     }
 
     return { authorizationUrl: authUrl, tokenUrl, deviceAuthorizationUrl: deviceUrl };
@@ -169,7 +169,26 @@ export class McpOAuthProvider {
     if (this.config.scopes && this.config.scopes.length > 0) {
       effectiveScope = this.config.scopes.join(' ');
     } else if (this.discoveredScopes && this.discoveredScopes.length > 0) {
-      effectiveScope = this.discoveredScopes.join(' ');
+      const filteredScopes = !this.registrationEndpoint
+        ? this.discoveredScopes.filter((s) => s.toLowerCase() !== 'openid')
+        : this.discoveredScopes;
+      if (filteredScopes.length > 0) {
+        effectiveScope = filteredScopes.join(' ');
+      }
+    }
+
+    if (this.authHeaderHint) {
+      const scopeMatch = this.authHeaderHint.match(/scope=["']?([^"',]+)["']?/i);
+      if (scopeMatch && scopeMatch[1]) {
+        const requiredScopes = scopeMatch[1].split(/\s+/).filter(Boolean);
+        const currentScopes = effectiveScope ? effectiveScope.split(/\s+/).filter(Boolean) : [];
+        for (const req of requiredScopes) {
+          if (!currentScopes.includes(req)) {
+            currentScopes.push(req);
+          }
+        }
+        effectiveScope = currentScopes.join(' ');
+      }
     }
 
     if (effectiveScope && this.supportsOfflineAccess && !effectiveScope.split(' ').includes('offline_access')) {

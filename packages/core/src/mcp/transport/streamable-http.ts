@@ -14,7 +14,7 @@ export class StreamableHttpTransport {
     private readonly getHeaders: () => Promise<Record<string, string>>,
     private readonly timeoutMs: number = 30000,
     private readonly onUnauthorized?: () => Promise<boolean>
-  ) {}
+  ) { }
 
   getSessionId(): string | undefined {
     return this.sessionId;
@@ -232,7 +232,7 @@ export class StreamableHttpTransport {
           lastResult = parsed.result;
           return true;
         }
-      } catch {}
+      } catch { }
       return false;
     };
 
@@ -256,7 +256,7 @@ export class StreamableHttpTransport {
           }
         }
         if (rpcError || lastResult !== undefined) {
-          await reader.cancel().catch(() => {});
+          await reader.cancel().catch(() => { });
           break;
         }
       }
@@ -297,6 +297,6 @@ export class StreamableHttpTransport {
         },
         signal: AbortSignal.timeout(3000)
       });
-    } catch {}
+    } catch { }
   }
 }

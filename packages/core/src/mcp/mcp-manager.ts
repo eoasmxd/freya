@@ -70,6 +70,14 @@ export class FreyaMcpManager {
    * start OAuth flow for specified server (prioritizing device flow)
    */
   async startAuth(serverId: string, callbackUrl?: string): Promise<McpAuthStartResult> {
+    const config = this.servers.get(serverId);
+    if (!config) {
+      throw new Error(this.i18n.t('mcp.error.serverNotFound', `Server '${serverId}' not found in configuration.`, { serverId }));
+    }
+    if (config.auth && config.auth.type !== 'oauth') {
+      throw new Error(this.i18n.t('mcp.error.oauthNotSupported', `Server '${serverId}' does not support OAuth authentication.`, { serverId }));
+    }
+
     const result = await this.authManager.startAuth(serverId, callbackUrl);
     this.statuses.set(serverId, 'connecting');
     return result;
@@ -92,6 +100,9 @@ export class FreyaMcpManager {
    * handle OAuth callback code exchange
    */
   async handleAuthCallback(code: string, state: string, serverIdHint?: string): Promise<string> {
+    if (serverIdHint && !this.servers.has(serverIdHint)) {
+      throw new Error(this.i18n.t('mcp.error.serverNotFound', `Server '${serverIdHint}' not found in configuration.`, { serverId: serverIdHint }));
+    }
     return await this.authManager.handleCallback(code, state, serverIdHint);
   }
 
@@ -109,7 +120,10 @@ export class FreyaMcpManager {
     } else if (config.auth?.type === 'oauth' || !config.auth) {
       const provider = this.authManager.getProvider(serverId);
       if (provider) {
-        const token = await provider.getValidToken().catch(() => null);
+        const token = await provider.getValidToken().catch((err: any) => {
+          this.context.logger.warn(`[FreyaMcpManager] Failed to get valid token for '${serverId}': ${err.message}`);
+          return null;
+        });
         if (token) {
           headers['Authorization'] = `Bearer ${token}`;
         }
