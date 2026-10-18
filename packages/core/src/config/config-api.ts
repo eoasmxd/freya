@@ -23,7 +23,7 @@ export class FreyaConfigApi {
 
   constructor(
     private configManager: FreyaConfigManager,
-    ctx?: FreyaContext,
+    private readonly ctx?: FreyaContext,
     private mcpManager?: FreyaMcpManager
   ) {
     this.i18n = new I18n({ zh, en }, ctx);
