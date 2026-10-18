@@ -51,6 +51,10 @@ export class FreyaWebContainer implements FreyaHttpService {
         return this.authService;
     }
 
+    getPort(): number {
+        return this.port;
+    }
+
     registerApi(pathPrefix: string, handler: HttpRouteHandler, options: RouteOptions = {}): () => void {
         const normalized = normalizePrefix(pathPrefix);
         this.apiRoutes.set(normalized, {

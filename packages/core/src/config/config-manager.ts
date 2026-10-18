@@ -986,6 +986,15 @@ export class FreyaConfigManager {
         showWhen: 'contextManagement.enabled'
       },
       {
+        key: 'session.autoArchiveHours',
+        defaultValue: 48,
+        description: this.i18n.all('schema.core.session.autoArchiveHours.desc', 'Inactive session auto-archive timeout in hours (set to 0 to disable)'),
+        type: 'number',
+        min: 0,
+        max: 8760,
+        category: this.i18n.all('schema.core.category.session', 'Session Management')
+      },
+      {
         key: 'tools.builtin.config.enabled',
         defaultValue: true,
         description: this.i18n.all('schema.core.tools.config.enabled.desc', 'Enable core config toolbox (allows model to view/modify config)'),
@@ -1026,13 +1035,12 @@ export class FreyaConfigManager {
         manualOnly: true
       },
       {
-        key: 'session.autoArchiveHours',
-        defaultValue: 48,
-        description: this.i18n.all('schema.core.session.autoArchiveHours.desc', 'Inactive session auto-archive timeout in hours (set to 0 to disable)'),
-        type: 'number',
-        min: 0,
-        max: 8760,
-        category: this.i18n.all('schema.core.category.session', 'Session Management')
+        key: 'commands.builtin.mcp.enabled',
+        defaultValue: true,
+        description: this.i18n.all('schema.core.commands.mcp.enabled.desc', 'Enable MCP service inspection and authorization commands (/mcp and subcommands)'),
+        type: 'boolean',
+        category: this.i18n.all('schema.core.category.commands', 'Builtin Commands'),
+        manualOnly: true
       },
       {
         key: 'log.console.error',
