@@ -19,34 +19,18 @@ The user is already running the Freya AI agent system. Your goal is to guide use
 
 ## 🔌 1. Home Assistant Official Integration Installation & Setup
 
-Bidirectional communication between Freya and Home Assistant relies on the official custom integration (`custom_components/freya`). Depending on how Freya is deployed, choose the corresponding method:
+Bidirectional communication between Freya and Home Assistant relies on the official custom integration (`custom_components/freya`).
 
-### Scenario A: Freya Running as a Home Assistant App / Add-on (Automatic Deployment)
-When Freya runs within the Home Assistant App Store / Supervisor:
-1. **Automatic Deployment**: Upon startup, the Freya App **automatically deploys the integration** into `/config/custom_components/freya` on the Home Assistant host;
-2. **Restart Required**: A persistent notification will pop up in Home Assistant indicating that the integration has been deployed/updated. Instruct the user to navigate to **Settings -> System -> Power icon (top-right) -> Restart Home Assistant**;
-3. **Add Integration**: After restarting, go to **Settings -> Devices & Services**:
-   - The discovered **Freya** integration card will appear automatically. Click **Configure / Confirm** to finish;
-   - If not automatically discovered, click **Add Integration** in the bottom-right corner, search for `Freya`, and the setup wizard will automatically verify the local App and establish the connection.
-
-### Scenario B: Standalone Freya Deployment (External Docker or Host Machine)
-If Freya runs externally outside Home Assistant, the integration must be installed manually:
-
-#### Method 1: Via HACS (Recommended)
+### Step 1: Install Integration via HACS (Recommended)
 1. In Home Assistant, open **HACS -> Integrations**;
 2. Click the three-dots menu (**⋮**) in the top-right corner and select **Custom repositories**;
 3. Enter repository URL: `https://github.com/eoasmxd/ha-integration-freya` with category **Integration**, then click Add;
-4. Search for **Freya AI Agent** in HACS, download it, and **restart Home Assistant**.
+4. Download the integration and **restart Home Assistant**.
 
-#### Method 2: Manual Download from Releases
-1. Visit the [ha-integration-freya Releases page](https://github.com/eoasmxd/ha-integration-freya/releases) and download the latest archive;
-2. Extract the `custom_components/freya` folder into `<config>/custom_components/freya` in Home Assistant;
-3. Restart Home Assistant.
-
-#### Integration Configuration
-After restarting, navigate to **Settings -> Devices & Services -> Add Integration** and search for `Freya`:
-- **Server URL (`url`)**: Enter the external Freya service URL (e.g. `http://192.168.1.100:3000`);
-- **Password (`password`)**: Enter the authentication password if configured on Freya, or leave it blank.
+### Step 2: Add Integration via UI
+1. Go to **Settings -> Devices & Services -> Add Integration** and search for `Freya`;
+2. If Freya is deployed as an App / Add-on locally, it will connect automatically;
+3. If Freya runs externally, provide the service URL (e.g. `http://192.168.1.100:3000`) and optional password.
 
 ---
 
@@ -156,7 +140,7 @@ Unlike ordinary chat channels, Home Assistant directly interacts with physical h
 
 1. **Kernel Enforcement**: The kernel blocks AI tools from mutating `homeassistant.url`, `homeassistant.token`, `homeassistant.allowControl`, or `homeassistant.controlLevel` (preventing prompt injections from enabling physical device control or altering tokens);
 2. **AI Guidance Responsibilities**: When a user asks to "enable device control", "upgrade privilege level", or provides an HA URL and Token:
-   - **Never** invoke any configuration mutation tools;
-   - **Explain the security isolation policy** and the principle of least privilege;
-   - **Guide the user clearly**: Direct them to open the Web console at **Settings ⚙️ -> Plugins -> Home Assistant Smart Control Toolbox** to manually toggle or input settings;
-   - Remind the user to safeguard credentials and avoid sharing tokens in plain chat channels.
+  - **Never** invoke any configuration mutation tools;
+  - **Explain the security isolation policy** and the principle of least privilege;
+  - **Guide the user clearly**: Direct them to open the Web console at **Settings ⚙️ -> Plugins -> Home Assistant Smart Control Toolbox** to manually toggle or input settings;
+  - Remind the user to safeguard credentials and avoid sharing tokens in plain chat channels.

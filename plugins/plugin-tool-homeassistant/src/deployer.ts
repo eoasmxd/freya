@@ -5,122 +5,60 @@ import type { HomeAssistantClient } from './client.js';
 import type { I18n } from './i18n/index.js';
 
 /**
- * Home Assistant 自定义集成自动部署管理器
- * Home Assistant custom integration automatic deployer
+ * Home Assistant 自定义集成探测与引导管理器
+ * Home Assistant custom integration detection and guidance manager
  */
 export class HomeAssistantIntegrationDeployer {
   private readonly client: HomeAssistantClient;
   private readonly i18n: I18n;
-  private readonly sourceDirectory: string;
   private readonly targetDirectory: string;
 
   constructor(client: HomeAssistantClient, i18n: I18n) {
     this.client = client;
     this.i18n = i18n;
-    this.sourceDirectory = process.env.FREYA_INTEGRATION_SOURCE_DIR || '/app/integration/custom_components/freya';
     this.targetDirectory = process.env.FREYA_INTEGRATION_TARGET_DIR || '/config/custom_components/freya';
   }
 
   /**
-   * 探测并在版本不一致时自动部署集成至宿主机
-   * Detect and automatically deploy integration to host when versions mismatch
+   * 探测集成安装状态并在缺失时输出安装指引与持久通知
+   * Detect integration status and send guidance notification if missing
    */
-  async deployIfNeeded(ctx: FreyaContext): Promise<void> {
-    const sourceManifestPath = path.join(this.sourceDirectory, 'manifest.json');
-    if (!fs.existsSync(sourceManifestPath)) {
-      await this.triggerDiscovery(ctx);
-      return;
-    }
-
-    const sourceVersion = await this.readVersion(sourceManifestPath);
-    if (!sourceVersion) {
-      await this.triggerDiscovery(ctx);
-      return;
-    }
-
+  async verifyOrGuide(ctx: FreyaContext): Promise<void> {
     const targetManifestPath = path.join(this.targetDirectory, 'manifest.json');
-    const isInitialInstall = !fs.existsSync(targetManifestPath);
-    const targetVersion = isInitialInstall ? '' : await this.readVersion(targetManifestPath);
+    const isMissing = !fs.existsSync(targetManifestPath);
 
-    if (!isInitialInstall && targetVersion === sourceVersion) {
-      ctx.logger.debug(`[HomeAssistantDeployer] Integration version matches (v${sourceVersion}), skipping deployment.`);
-      await this.triggerDiscovery(ctx);
-      return;
+    if (isMissing) {
+      ctx.logger.info(
+        '[HomeAssistantDeployer] Freya integration not found in custom_components/freya. Guiding user via notification.'
+      );
+      await this.sendMissingNotification(ctx);
+    } else {
+      ctx.logger.debug('[HomeAssistantDeployer] Freya integration detected in custom_components/freya.');
     }
 
-    try {
-      await fs.promises.mkdir(path.dirname(this.targetDirectory), { recursive: true });
-      await fs.promises.cp(this.sourceDirectory, this.targetDirectory, { recursive: true, force: true });
-      ctx.logger.info(`[HomeAssistantDeployer] Successfully deployed integration (v${sourceVersion}) to ${this.targetDirectory}.`);
-
-      if (!isInitialInstall) {
-        await this.createRestartIssue(sourceVersion, ctx);
-      }
-      await this.sendRestartNotification(sourceVersion, isInitialInstall, ctx);
-    } catch (err: any) {
-      ctx.logger.warn(`[HomeAssistantDeployer] Failed to deploy integration: ${err?.message || err}`);
-    }
+    await this.triggerDiscovery(ctx);
   }
 
   /**
-   * 向 Home Assistant 发送更新就绪待办（Repairs Issue）
-   * Send update pending issue (Repairs Flow) to Home Assistant for one-click restart
+   * 向 Home Assistant 发送集成缺失与 HACS 安装引导通知
+   * Send integration missing and HACS installation guidance notification to Home Assistant
    */
-  private async createRestartIssue(version: string, ctx: FreyaContext): Promise<void> {
+  private async sendMissingNotification(ctx: FreyaContext): Promise<void> {
     try {
-      await this.client.postApi('freya/notify_update', { version });
-      ctx.logger.info(`[HomeAssistantDeployer] Triggered Freya restart repair issue for v${version}.`);
-    } catch (err: any) {
-      ctx.logger.debug(`[HomeAssistantDeployer] Could not call freya/notify_update endpoint: ${err?.message || err}`);
-    }
-  }
-
-  /**
-   * 读取清单文件中的版本号
-   * Read version string from manifest file
-   */
-  private async readVersion(manifestPath: string): Promise<string> {
-    try {
-      const rawContent = await fs.promises.readFile(manifestPath, 'utf-8');
-      const manifest = JSON.parse(rawContent);
-      return typeof manifest?.version === 'string' ? manifest.version.trim() : '';
-    } catch {
-      return '';
-    }
-  }
-
-  /**
-   * 向 Home Assistant 发送重启提示通知
-   * Send restart reminder notification to Home Assistant
-   */
-  private async sendRestartNotification(
-    version: string,
-    isInitialInstall: boolean,
-    ctx: FreyaContext
-  ): Promise<void> {
-    try {
-      const title = isInitialInstall
-        ? this.i18n.t('notification.install.title', 'Freya Integration Installed')
-        : this.i18n.t('notification.update.title', `Freya Integration Updated (v${version})`, { version });
-      const message = isInitialInstall
-        ? this.i18n.t(
-            'notification.install.message',
-            'Freya integration has been automatically installed to `custom_components/freya`. Please [**restart Home Assistant**](/config/system) to activate it.'
-          )
-        : this.i18n.t(
-            'notification.update.message',
-            `Freya integration has been updated to v${version}. Please [**restart Home Assistant**](/config/system) to apply updates.`,
-            { version }
-          );
+      const title = this.i18n.t('notification.missing.title', 'Freya Integration Not Installed');
+      const message = this.i18n.t(
+        'notification.missing.message',
+        'Freya Home Assistant integration is not detected. Please install it via [**HACS**](/hacs/integrations) (search for **Freya**).'
+      );
 
       await this.client.callService('persistent_notification', 'create', {
-        notification_id: 'freya_integration_update',
+        notification_id: 'freya_integration_missing',
         title,
         message
       });
-      ctx.logger.info('[HomeAssistantDeployer] Sent restart notification to Home Assistant.');
+      ctx.logger.info('[HomeAssistantDeployer] Sent HACS guidance notification to Home Assistant.');
     } catch (err: any) {
-      ctx.logger.warn(`[HomeAssistantDeployer] Failed to send restart notification: ${err?.message || err}`);
+      ctx.logger.warn(`[HomeAssistantDeployer] Failed to send missing notification: ${err?.message || err}`);
     }
   }
 

@@ -36,8 +36,8 @@ export default class HomeAssistantPlugin implements ToolPlugin {
     this.client.setContext(ctx);
     this.client.startBackgroundSync(60_000);
     if (process.env.SUPERVISOR_TOKEN) {
-      this.deployer.deployIfNeeded(ctx).catch((err) => {
-        ctx.logger.warn(`[HomeAssistantPlugin] Integration deployment encountered an error: ${err}`);
+      this.deployer.verifyOrGuide(ctx).catch((err) => {
+        ctx.logger.warn(`[HomeAssistantPlugin] Integration verification encountered an error: ${err}`);
       });
     }
   }
