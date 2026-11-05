@@ -22,10 +22,9 @@ The user is already running the Freya AI agent system. Your goal is to guide use
 Bidirectional communication between Freya and Home Assistant relies on the official custom integration (`custom_components/freya`).
 
 ### Step 1: Install Integration via HACS (Recommended)
-1. In Home Assistant, open **HACS -> Integrations**;
-2. Click the three-dots menu (**⋮**) in the top-right corner and select **Custom repositories**;
-3. Enter repository URL: `https://github.com/eoasmxd/ha-integration-freya` with category **Integration**, then click Add;
-4. Download the integration and **restart Home Assistant**.
+1. In Home Assistant, open **HACS -> Integrations** and search for **Freya**;
+2. *(Optional if not listed yet)* Click the three-dots menu (**⋮**) in the top-right corner, select **Custom repositories**, and add `https://github.com/eoasmxd/ha-integration-freya` with category **Integration**;
+3. Download the integration and **restart Home Assistant**.
 
 ### Step 2: Add Integration via UI
 1. Go to **Settings -> Devices & Services -> Add Integration** and search for `Freya`;
