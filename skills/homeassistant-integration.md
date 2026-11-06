@@ -23,8 +23,7 @@ Bidirectional communication between Freya and Home Assistant relies on the offic
 
 ### Step 1: Install Integration via HACS (Recommended)
 1. In Home Assistant, open **HACS -> Integrations** and search for **Freya**;
-2. *(Optional if not listed yet)* Click the three-dots menu (**⋮**) in the top-right corner, select **Custom repositories**, and add `https://github.com/eoasmxd/ha-integration-freya` with category **Integration**;
-3. Download the integration and **restart Home Assistant**.
+2. Download the integration and **restart Home Assistant**.
 
 ### Step 2: Add Integration via UI
 1. Go to **Settings -> Devices & Services -> Add Integration** and search for `Freya`;
