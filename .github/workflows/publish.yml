@@ -10,6 +10,10 @@ on:
           - edge
           - release
         default: edge
+      publish_docker:
+        description: 'Publish Docker image (GHCR / Docker Hub)'
+        type: boolean
+        default: true
       publish_npm:
         description: 'Publish packages to NPM (only effective for release channel)'
         type: boolean
@@ -19,6 +23,7 @@ jobs:
   publish-docker:
     name: Build & Publish Docker Image (GHCR)
     runs-on: ubuntu-latest
+    if: inputs.publish_docker == true
     permissions:
       contents: read
       packages: write
@@ -34,12 +39,7 @@ jobs:
 
       - name: Determine Release Channel
         id: channel
-        run: |
-          if [[ "${{ github.ref }}" == refs/tags/* ]]; then
-            echo "mode=release" >> $GITHUB_OUTPUT
-          else
-            echo "mode=${{ github.event.inputs.channel || 'edge' }}" >> $GITHUB_OUTPUT
-          fi
+        run: echo "mode=${{ inputs.channel }}" >> $GITHUB_OUTPUT
 
       - name: Set up QEMU for multi-platform emulation
         uses: docker/setup-qemu-action@v3
@@ -92,10 +92,7 @@ jobs:
     permissions:
       contents: read
       id-token: write
-    needs: [publish-docker]
-    if: |
-      (startsWith(github.ref, 'refs/tags/') || inputs.publish_npm == true) &&
-      (github.event.inputs.channel == 'release' || startsWith(github.ref, 'refs/tags/'))
+    if: inputs.publish_npm == true && inputs.channel == 'release'
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
@@ -106,7 +103,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: 24
           registry-url: 'https://registry.npmjs.org'
 
       - name: Install Dependencies

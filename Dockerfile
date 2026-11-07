@@ -1,4 +1,4 @@
-FROM node:22-bookworm-slim AS builder
+FROM node:24-bookworm-slim AS builder
 
 WORKDIR /repo
 
@@ -18,7 +18,7 @@ WORKDIR /repo/dist
 RUN mkdir -p /app-dist/app && npm pack --pack-destination /app-dist/app
 
 
-FROM node:22-bookworm-slim
+FROM node:24-bookworm-slim
 
 WORKDIR /app
 
