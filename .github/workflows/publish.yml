@@ -18,12 +18,16 @@ on:
         description: 'Publish packages to NPM (only effective for release channel)'
         type: boolean
         default: false
+      publish_release:
+        description: 'Publish GitHub Release (only effective for release channel)'
+        type: boolean
+        default: false
 
 jobs:
   publish-docker:
     name: Build & Publish Docker Image (GHCR)
     runs-on: ubuntu-latest
-    if: inputs.publish_docker == true
+    if: inputs.publish_docker == true && github.ref == 'refs/heads/main'
     permissions:
       contents: read
       packages: write
@@ -92,7 +96,7 @@ jobs:
     permissions:
       contents: read
       id-token: write
-    if: inputs.publish_npm == true && inputs.channel == 'release'
+    if: inputs.publish_npm == true && inputs.channel == 'release' && github.ref == 'refs/heads/main'
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
@@ -111,4 +115,32 @@ jobs:
 
       - name: Build & Publish to NPM
         run: pnpm release
+
+  publish-release:
+    name: Create GitHub Release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    if: inputs.publish_release == true && inputs.channel == 'release' && github.ref == 'refs/heads/main'
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Read version from package.json
+        id: pkg_version
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ steps.pkg_version.outputs.version }}
+          name: v${{ steps.pkg_version.outputs.version }}
+          draft: true
+          prerelease: false
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
 
