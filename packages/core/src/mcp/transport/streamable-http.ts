@@ -1,12 +1,12 @@
-import { McpAuthRequiredError, McpConnectionError } from '../types.js';
+import { McpAuthRequiredError, McpConnectionError, type McpTransport } from '../types.js';
 
 /**
  * 原生 Streamable HTTP 传输协议实现
  * Native Streamable HTTP client transport implementation for MCP
  */
-export class StreamableHttpTransport {
+export class StreamableHttpTransport implements McpTransport {
   private sessionId?: string;
-  private readonly protocolVersion = '2025-06-18';
+  private protocolVersion = '2025-06-18';
   private nextRequestId = 1;
 
   constructor(
@@ -22,6 +22,65 @@ export class StreamableHttpTransport {
 
   setSessionId(sessionId: string | undefined): void {
     this.sessionId = sessionId;
+  }
+
+  /**
+   * 更新协商后的协议版本号，用于后续请求头
+   * Update negotiated MCP protocol version for subsequent request headers
+   */
+  setProtocolVersion(version: string): void {
+    this.protocolVersion = version;
+  }
+
+  private async handleResponse(res: Response, requestId: number): Promise<any> {
+    const newSessionId = res.headers.get('mcp-session-id');
+    if (newSessionId) {
+      this.sessionId = newSessionId;
+    }
+
+    if (res.status === 401) {
+      const authHeader = res.headers.get('www-authenticate') || undefined;
+      const responseBody = await res.text().catch(() => undefined);
+      throw new McpAuthRequiredError(`HTTP 401 Unauthorized from ${this.url}`, authHeader, responseBody);
+    }
+
+    if (res.status === 404 && this.sessionId) {
+      this.sessionId = undefined;
+      throw new McpConnectionError(`Session expired or not found on ${this.url}`, {
+        isSessionExpired: true,
+        httpStatus: 404
+      });
+    }
+
+    if (!res.ok) {
+      const errorText = await res.text().catch(() => '');
+      let isJsonRpcError = false;
+      try {
+        const parsed = JSON.parse(errorText);
+        if (parsed && parsed.jsonrpc === '2.0' && parsed.error) {
+          isJsonRpcError = true;
+        }
+      } catch {}
+
+      if ((res.status === 400 || res.status === 404 || res.status === 405) && !isJsonRpcError) {
+        throw new McpConnectionError(`HTTP ${res.status}: ${errorText.slice(0, 300)}`, {
+          httpStatus: res.status,
+          isJsonRpcError: false
+        });
+      }
+      throw new Error(`HTTP ${res.status}: ${errorText.slice(0, 300)}`);
+    }
+
+    const contentType = res.headers.get('content-type') || '';
+    if (contentType.includes('text/event-stream')) {
+      return await this.parseSseStream(res.body, requestId);
+    }
+
+    const data: any = await res.json();
+    if (data.error) {
+      throw new Error(`RPC Error [${data.error.code}]: ${data.error.message}`);
+    }
+    return data.result;
   }
 
   /**
@@ -58,85 +117,41 @@ export class StreamableHttpTransport {
         signal: controller.signal
       });
 
-      const newSessionId = res.headers.get('mcp-session-id');
-      if (newSessionId) {
-        this.sessionId = newSessionId;
-      }
-
-      if (res.status === 401) {
-        if (this.onUnauthorized) {
-          const refreshed = await this.onUnauthorized().catch(() => false);
-          if (refreshed) {
-            const retryAuthHeaders = await this.getHeaders();
-            const retryHeaders: Record<string, string> = {
-              ...headers,
-              ...retryAuthHeaders
-            };
-            const retryRes = await fetch(this.url, {
-              method: 'POST',
-              headers: retryHeaders,
-              body: JSON.stringify({
-                jsonrpc: '2.0',
-                id: requestId,
-                method,
-                params
-              }),
-              signal: controller.signal
-            });
-            const retrySessionId = retryRes.headers.get('mcp-session-id');
-            if (retrySessionId) {
-              this.sessionId = retrySessionId;
-            }
-            if (retryRes.ok) {
-              const retryContentType = retryRes.headers.get('content-type') || '';
-              if (retryContentType.includes('text/event-stream')) {
-                return await this.parseSseStream(retryRes.body, requestId);
-              }
-              const retryData: any = await retryRes.json();
-              if (retryData.error) {
-                throw new Error(`RPC Error [${retryData.error.code}]: ${retryData.error.message}`);
-              }
-              return retryData.result;
-            }
-            if (retryRes.status === 401) {
-              const retryAuthHeader = retryRes.headers.get('www-authenticate') || undefined;
-              const retryResponseBody = await retryRes.text().catch(() => undefined);
-              throw new McpAuthRequiredError(`HTTP 401 Unauthorized from ${this.url}`, retryAuthHeader, retryResponseBody);
-            }
-            const retryErrorText = await retryRes.text().catch(() => '');
-            throw new Error(`HTTP ${retryRes.status}: ${retryErrorText.slice(0, 300)}`);
-          }
+      if (res.status === 401 && this.onUnauthorized) {
+        const refreshed = await this.onUnauthorized().catch(() => false);
+        if (refreshed) {
+          const retryAuthHeaders = await this.getHeaders();
+          const retryHeaders: Record<string, string> = {
+            ...headers,
+            ...retryAuthHeaders
+          };
+          const retryRes = await fetch(this.url, {
+            method: 'POST',
+            headers: retryHeaders,
+            body: JSON.stringify({
+              jsonrpc: '2.0',
+              id: requestId,
+              method,
+              params
+            }),
+            signal: controller.signal
+          });
+          return await this.handleResponse(retryRes, requestId);
         }
-        const authHeader = res.headers.get('www-authenticate') || undefined;
-        const responseBody = await res.text().catch(() => undefined);
-        throw new McpAuthRequiredError(`HTTP 401 Unauthorized from ${this.url}`, authHeader, responseBody);
       }
 
-      if (res.status === 404 && this.sessionId) {
-        this.sessionId = undefined;
-        throw new McpConnectionError(`Session expired or not found on ${this.url}`);
-      }
-
-      if (!res.ok) {
-        const errorText = await res.text();
-        throw new Error(`HTTP ${res.status}: ${errorText.slice(0, 300)}`);
-      }
-
-      const contentType = res.headers.get('content-type') || '';
-      if (contentType.includes('text/event-stream')) {
-        return await this.parseSseStream(res.body, requestId);
-      }
-
-      const data: any = await res.json();
-      if (data.error) {
-        throw new Error(`RPC Error [${data.error.code}]: ${data.error.message}`);
-      }
-      return data.result;
+      return await this.handleResponse(res, requestId);
     } catch (err: any) {
-      if (err instanceof McpAuthRequiredError) {
+      if (err instanceof McpAuthRequiredError || err instanceof McpConnectionError) {
         throw err;
       }
       if (err.name === 'AbortError') {
+        if (method !== 'initialize') {
+          this.sendJsonRpcNotification('notifications/cancelled', {
+            requestId,
+            reason: 'Request timed out'
+          }, 2000).catch(() => {});
+        }
         throw new McpConnectionError(`Request to ${this.url} timed out after ${this.timeoutMs}ms`);
       }
       if (err.cause?.code || err.code === 'ECONNREFUSED' || err.code === 'ENOTFOUND') {
@@ -152,7 +167,7 @@ export class StreamableHttpTransport {
    * 发送 JSON-RPC 2.0 通知（不包含 id 字段）
    * Send JSON-RPC 2.0 notification without id member
    */
-  async sendJsonRpcNotification(method: string, params?: any): Promise<void> {
+  async sendJsonRpcNotification(method: string, params?: any, timeoutOverrideMs?: number): Promise<void> {
     const authHeaders = await this.getHeaders();
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
@@ -166,7 +181,7 @@ export class StreamableHttpTransport {
     }
 
     const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), this.timeoutMs);
+    const timer = setTimeout(() => controller.abort(), timeoutOverrideMs ?? this.timeoutMs);
 
     try {
       const res = await fetch(this.url, {
@@ -186,11 +201,16 @@ export class StreamableHttpTransport {
       }
 
       if (res.status === 401) {
-        throw new McpAuthRequiredError(`HTTP 401 Unauthorized from ${this.url}`);
+        const authHeader = res.headers.get('www-authenticate') || undefined;
+        const responseBody = await res.text().catch(() => undefined);
+        throw new McpAuthRequiredError(`HTTP 401 Unauthorized from ${this.url}`, authHeader, responseBody);
       }
       if (res.status === 404 && this.sessionId) {
         this.sessionId = undefined;
-        throw new McpConnectionError(`Session expired or not found on ${this.url}`);
+        throw new McpConnectionError(`Session expired or not found on ${this.url}`, {
+          isSessionExpired: true,
+          httpStatus: 404
+        });
       }
     } finally {
       clearTimeout(timer);
@@ -203,7 +223,7 @@ export class StreamableHttpTransport {
    */
   private async parseSseStream(body: ReadableStream<Uint8Array> | null, requestId: number): Promise<any> {
     if (!body) {
-      return undefined;
+      throw new McpConnectionError('SSE stream ended prematurely before receiving response');
     }
 
     const reader = body.getReader();
@@ -211,6 +231,7 @@ export class StreamableHttpTransport {
     let buffer = '';
     let lastResult: any = undefined;
     let rpcError: Error | undefined;
+    let receivedMatch = false;
 
     let currentEventData: string[] = [];
 
@@ -222,17 +243,33 @@ export class StreamableHttpTransport {
 
       try {
         const parsed = JSON.parse(jsonStr);
-        if (parsed?.id !== requestId) {
-          return false;
-        }
-        if (parsed.error) {
-          rpcError = new Error(`RPC Error [${parsed.error.code}]: ${parsed.error.message}`);
-          return true;
-        } else if (parsed.result !== undefined) {
-          lastResult = parsed.result;
-          return true;
+        const items = Array.isArray(parsed) ? parsed : [parsed];
+        for (const item of items) {
+          if (item?.id !== requestId) {
+            continue;
+          }
+          if (item.error) {
+            receivedMatch = true;
+            rpcError = new Error(`RPC Error [${item.error.code}]: ${item.error.message}`);
+            return true;
+          } else if (item.result !== undefined) {
+            receivedMatch = true;
+            lastResult = item.result;
+            return true;
+          }
         }
       } catch { }
+      return false;
+    };
+
+    const consumeLine = (line: string): boolean => {
+      const trimmed = line.replace(/\r$/, '');
+      if (trimmed === '') {
+        return processEvent();
+      }
+      if (trimmed.startsWith('data:')) {
+        currentEventData.push(trimmed.slice(5).trimStart());
+      }
       return false;
     };
 
@@ -246,22 +283,20 @@ export class StreamableHttpTransport {
         buffer = lines.pop() || '';
 
         for (const line of lines) {
-          const trimmed = line.replace(/\r$/, '');
-          if (trimmed === '') {
-            if (processEvent()) {
-              break;
-            }
-          } else if (trimmed.startsWith('data:')) {
-            currentEventData.push(trimmed.slice(5).trimStart());
+          if (consumeLine(line)) {
+            break;
           }
         }
-        if (rpcError || lastResult !== undefined) {
+        if (rpcError || receivedMatch) {
           await reader.cancel().catch(() => { });
           break;
         }
       }
 
-      if (!rpcError && lastResult === undefined) {
+      if (!rpcError && !receivedMatch) {
+        if (buffer) {
+          consumeLine(buffer);
+        }
         processEvent();
       }
     } finally {
@@ -270,6 +305,10 @@ export class StreamableHttpTransport {
 
     if (rpcError) {
       throw rpcError;
+    }
+
+    if (!receivedMatch) {
+      throw new McpConnectionError('SSE stream ended prematurely before receiving response');
     }
 
     return lastResult;

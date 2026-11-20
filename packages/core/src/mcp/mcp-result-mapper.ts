@@ -50,6 +50,18 @@ export async function mapMcpResult(
     }
   }
 
+  if (rawResult.structuredContent !== undefined) {
+    try {
+      const structuredStr = JSON.stringify(rawResult.structuredContent, null, 2);
+      const joinedText = textParts.join('\n').trim();
+      if (textParts.length === 0) {
+        textParts.push(structuredStr);
+      } else if (joinedText !== structuredStr && joinedText !== JSON.stringify(rawResult.structuredContent)) {
+        textParts.push(structuredStr);
+      }
+    } catch {}
+  }
+
   let finalContent = textParts.join('\n\n').trim();
   if (isError) {
     finalContent = `[MCP Error] ${finalContent}`;

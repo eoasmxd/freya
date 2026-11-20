@@ -23,9 +23,14 @@ export class McpOAuthProvider {
   private responseBodyHint?: string;
   private discoveredScopes?: string[];
   private discoveredResource?: string;
+  private discoveredAuthUrl?: string;
+  private discoveredTokenUrl?: string;
+  private discoveredDeviceUrl?: string;
   private registrationEndpoint?: string;
   private registeredClientId?: string;
   private registeredClientSecret?: string;
+  private tokenEndpointAuthMethodsSupported?: string[];
+  private grantTypesSupported?: string[];
   private supportsOfflineAccess = false;
   private lastDeviceAuthError?: string;
   private readonly i18n: I18n;
@@ -58,9 +63,9 @@ export class McpOAuthProvider {
    * Discover or resolve standard OAuth 2.1 authorization server endpoints
    */
   async resolveEndpoints(): Promise<{ authorizationUrl?: string; tokenUrl?: string; deviceAuthorizationUrl?: string }> {
-    let authUrl = this.config.authorizationUrl;
-    let tokenUrl = this.config.tokenUrl;
-    let deviceUrl = this.config.deviceAuthorizationUrl;
+    let authUrl = this.config.authorizationUrl || this.discoveredAuthUrl;
+    let tokenUrl = this.config.tokenUrl || this.discoveredTokenUrl;
+    let deviceUrl = this.config.deviceAuthorizationUrl || this.discoveredDeviceUrl;
 
     if (authUrl && tokenUrl && deviceUrl) {
       return { authorizationUrl: authUrl, tokenUrl, deviceAuthorizationUrl: deviceUrl };
@@ -109,14 +114,34 @@ export class McpOAuthProvider {
         if (path && path !== '') {
           probeQueue.push(`${parsed.origin}/.well-known/oauth-protected-resource${path}`);
           probeQueue.push(`${parsed.origin}/.well-known/oauth-authorization-server${path}`);
-          probeQueue.push(`${candidateUrl}/.well-known/openid-configuration`);
+          probeQueue.push(`${parsed.origin}${path}/.well-known/openid-configuration`);
         }
 
         probeQueue.push(`${parsed.origin}/.well-known/oauth-protected-resource`);
         probeQueue.push(`${parsed.origin}/.well-known/oauth-authorization-server`);
         probeQueue.push(`${parsed.origin}/.well-known/openid-configuration`);
 
+        const visitedUrls = new Set<string>();
+        const buildAuthServerProbeUrls = (authServerUrl: string): string[] => {
+          const targets: string[] = [];
+          try {
+            const authParsed = new URL(authServerUrl);
+            const authPath = authParsed.pathname.replace(/\/+$/, '');
+            if (authPath) {
+              targets.push(`${authParsed.origin}/.well-known/oauth-authorization-server${authPath}`);
+              targets.push(`${authParsed.origin}/.well-known/openid-configuration${authPath}`);
+              targets.push(`${authParsed.origin}${authPath}/.well-known/oauth-authorization-server`);
+              targets.push(`${authParsed.origin}${authPath}/.well-known/openid-configuration`);
+            }
+            targets.push(`${authParsed.origin}/.well-known/oauth-authorization-server`);
+            targets.push(`${authParsed.origin}/.well-known/openid-configuration`);
+          } catch { }
+          return targets;
+        };
+
         const probeEndpoints = async (url: string) => {
+          if (visitedUrls.has(url)) return;
+          visitedUrls.add(url);
           const res = await fetch(url, { signal: AbortSignal.timeout(3000) });
           if (!res.ok) return;
           const data: any = await res.json();
@@ -129,15 +154,23 @@ export class McpOAuthProvider {
           if (Array.isArray(data.scopes_supported) && data.scopes_supported.includes('offline_access')) {
             this.supportsOfflineAccess = true;
           }
-          if (data.resource && typeof data.resource === 'string') {
-            this.discoveredResource = data.resource;
-          } else if (Array.isArray(data.protected_resources) && data.protected_resources.length > 0 && !this.discoveredResource) {
-            this.discoveredResource = data.protected_resources[0];
+          if (Array.isArray(data.token_endpoint_auth_methods_supported)) {
+            this.tokenEndpointAuthMethodsSupported = data.token_endpoint_auth_methods_supported.map(String);
           }
-          if (Array.isArray(data.authorization_servers) && data.authorization_servers.length > 0) {
-            const authServer = data.authorization_servers[0];
-            await probeEndpoints(`${authServer.replace(/\/+$/, '')}/.well-known/oauth-authorization-server`);
-            await probeEndpoints(`${authServer.replace(/\/+$/, '')}/.well-known/openid-configuration`);
+          if (Array.isArray(data.grant_types_supported)) {
+            this.grantTypesSupported = data.grant_types_supported.map(String);
+          }
+          const rawResource = typeof data.resource === 'string'
+            ? data.resource
+            : (Array.isArray(data.protected_resources) && typeof data.protected_resources[0] === 'string'
+              ? data.protected_resources[0]
+              : undefined);
+          if (rawResource && !this.discoveredResource) {
+            if (this.isValidResourceUrl(rawResource)) {
+              this.discoveredResource = rawResource;
+            } else {
+              this.context?.logger.warn(`[McpOAuth] Rejected mismatched resource URL '${rawResource}' for server '${this.serverId}'.`);
+            }
           }
           if (!authUrl) authUrl = data.authorization_endpoint || data.authorization_url;
           if (!tokenUrl) tokenUrl = data.token_endpoint || data.token_url;
@@ -145,16 +178,32 @@ export class McpOAuthProvider {
           if (!this.registrationEndpoint && data.registration_endpoint) {
             this.registrationEndpoint = data.registration_endpoint;
           }
+          if ((!authUrl || !tokenUrl) && Array.isArray(data.authorization_servers) && data.authorization_servers.length > 0) {
+            const authServer = String(data.authorization_servers[0] || '').trim();
+            if (authServer) {
+              const normalizedAuthServer = authServer.replace(/\/+$/, '');
+              for (const subUrl of buildAuthServerProbeUrls(normalizedAuthServer)) {
+                try {
+                  await probeEndpoints(subUrl);
+                  if (authUrl && tokenUrl) break;
+                } catch { }
+              }
+            }
+          }
         };
 
         for (const metaUrl of probeQueue) {
           try {
             await probeEndpoints(metaUrl);
-            if (authUrl && tokenUrl && deviceUrl) break;
+            if (authUrl && tokenUrl) break;
           } catch { }
         }
       } catch { }
     }
+
+    if (authUrl) this.discoveredAuthUrl = authUrl;
+    if (tokenUrl) this.discoveredTokenUrl = tokenUrl;
+    if (deviceUrl) this.discoveredDeviceUrl = deviceUrl;
 
     return { authorizationUrl: authUrl, tokenUrl, deviceAuthorizationUrl: deviceUrl };
   }
@@ -235,6 +284,7 @@ export class McpOAuthProvider {
       authorizationUrl: authUrl,
       tokenUrl,
       clientId,
+      resource: this.discoveredResource,
       createdAt: Date.now()
     };
 
@@ -251,12 +301,181 @@ export class McpOAuthProvider {
     const scope = this.determineScope();
     if (scope) {
       url.searchParams.set('scope', scope);
+      if (scope.split(/\s+/).includes('offline_access') && !url.searchParams.has('prompt')) {
+        url.searchParams.set('prompt', 'consent');
+      }
     }
     if (this.discoveredResource) {
       url.searchParams.set('resource', this.discoveredResource);
     }
 
     return url.toString();
+  }
+
+  /**
+   * 校验探测到的 Resource URL 是否与当前 MCP 服务归属同源
+   * Validate that discovered Resource URL matches current MCP server origin and path prefix
+   */
+  private isValidResourceUrl(resourceUrl: string): boolean {
+    if (!this.serverUrl) {
+      return true;
+    }
+    try {
+      const target = new URL(resourceUrl);
+      const server = new URL(this.serverUrl);
+      if (target.origin !== server.origin) {
+        return false;
+      }
+      const targetPath = target.pathname.replace(/\/+$/, '');
+      const serverPath = server.pathname.replace(/\/+$/, '');
+      if (!targetPath) {
+        return true;
+      }
+      return serverPath === targetPath || serverPath.startsWith(`${targetPath}/`);
+    } catch {
+      return false;
+    }
+  }
+
+  /**
+   * 依据服务端元数据与密钥状态注入 OAuth 客户端认证凭证
+   * Apply OAuth client authentication credentials based on server metadata and client secret
+   */
+  private applyClientAuth(
+    headers: Record<string, string>,
+    body: URLSearchParams,
+    clientId: string,
+    clientSecret?: string
+  ): void {
+    body.set('client_id', clientId);
+    if (!clientSecret) {
+      return;
+    }
+
+    const supportsBasic = !this.tokenEndpointAuthMethodsSupported
+      || this.tokenEndpointAuthMethodsSupported.includes('client_secret_basic');
+    const supportsPost = Boolean(this.tokenEndpointAuthMethodsSupported?.includes('client_secret_post'));
+
+    if (!supportsBasic && supportsPost) {
+      body.set('client_secret', clientSecret);
+      return;
+    }
+
+    const encoded = Buffer.from(`${encodeURIComponent(clientId)}:${encodeURIComponent(clientSecret)}`).toString('base64');
+    headers['Authorization'] = `Basic ${encoded}`;
+  }
+
+  private isInvalidClientError(status: number, responseText: string): boolean {
+    if (status !== 400 && status !== 401) {
+      return false;
+    }
+    try {
+      const parsed = JSON.parse(responseText);
+      const errCode = String(parsed?.error || '').toLowerCase();
+      if (errCode === 'invalid_client') {
+        return true;
+      }
+    } catch { }
+    const lower = responseText.toLowerCase();
+    return lower.includes('invalid_client');
+  }
+
+  private async clearInvalidDynamicClient(): Promise<boolean> {
+    if (this.config.clientId || !this.registrationEndpoint) {
+      return false;
+    }
+    this.registeredClientId = undefined;
+    this.registeredClientSecret = undefined;
+    await this.tokenStore.clearClientInfo(this.serverId);
+    this.context?.logger.warn(`[McpOAuth] Cleared expired dynamic client registration for server '${this.serverId}'.`);
+    return true;
+  }
+
+  private parseOAuthTokenPayload(rawText: string, fallbackRefreshToken?: string): McpOAuthTokenData {
+    let data: any;
+    try {
+      data = JSON.parse(rawText);
+    } catch {
+      data = Object.fromEntries(new URLSearchParams(rawText));
+    }
+    if (data?.error) {
+      const desc = data.error_description ? `: ${data.error_description}` : '';
+      throw new Error(`${data.error}${desc}`);
+    }
+    if (!data?.access_token || typeof data.access_token !== 'string') {
+      throw new Error(`Missing access_token in token response`);
+    }
+    return {
+      accessToken: data.access_token,
+      refreshToken: data.refresh_token || fallbackRefreshToken,
+      tokenType: data.token_type || 'Bearer',
+      expiresAt: data.expires_in ? Date.now() + data.expires_in * 1000 : undefined,
+      scope: data.scope
+    };
+  }
+
+  /**
+   * 判断当前服务是否应采用非交互式 client_credentials（M2M）鉴权模式
+   * Determine whether server should use non-interactive client_credentials M2M flow
+   */
+  private isClientCredentialsMode(endpoints: {
+    authorizationUrl?: string;
+    tokenUrl?: string;
+    deviceAuthorizationUrl?: string;
+  }): boolean {
+    if (!this.config.clientId || !this.config.clientSecret || !endpoints.tokenUrl) {
+      return false;
+    }
+    if (this.grantTypesSupported && this.grantTypesSupported.length > 0) {
+      const supportsInteractive = this.grantTypesSupported.includes('authorization_code')
+        || this.grantTypesSupported.includes('urn:ietf:params:oauth:grant-type:device_code');
+      if (this.grantTypesSupported.includes('client_credentials') && !supportsInteractive) {
+        return true;
+      }
+    }
+    return !endpoints.authorizationUrl && !endpoints.deviceAuthorizationUrl;
+  }
+
+  /**
+   * 通过 client_credentials 模式向 Token 端点请求访问令牌
+   * Request access token using OAuth client_credentials grant
+   */
+  private async requestClientCredentialsToken(tokenUrl: string): Promise<string> {
+    const clientId = this.config.clientId!;
+    const clientSecret = this.config.clientSecret!;
+    const body = new URLSearchParams({
+      grant_type: 'client_credentials'
+    });
+
+    const scope = this.determineScope();
+    if (scope) {
+      body.set('scope', scope);
+    }
+    if (this.discoveredResource) {
+      body.set('resource', this.discoveredResource);
+    }
+
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/x-www-form-urlencoded',
+      'Accept': 'application/json'
+    };
+    this.applyClientAuth(headers, body, clientId, clientSecret);
+
+    const res = await fetch(tokenUrl, {
+      method: 'POST',
+      headers,
+      body
+    });
+
+    if (!res.ok) {
+      const errorText = await res.text().catch(() => '');
+      throw new McpAuthRequiredError(`[McpOAuth] Client credentials request failed (${res.status}): ${errorText.slice(0, 300)}`);
+    }
+
+    const rawText = await res.text();
+    const token = this.parseOAuthTokenPayload(rawText);
+    await this.tokenStore.saveToken(this.serverId, token);
+    return token.accessToken;
   }
 
   /**
@@ -275,47 +494,51 @@ export class McpOAuthProvider {
       throw new Error(`[McpOAuth] OAuth authentication session expired. Please initiate authorization again.`);
     }
 
+    if (!this.config.clientId && !this.config.clientSecret && !this.registeredClientSecret) {
+      const cachedClient = await this.tokenStore.loadClientInfo(this.serverId);
+      if (cachedClient?.clientSecret) {
+        this.registeredClientSecret = cachedClient.clientSecret;
+      }
+    }
+
+    if (this.getClientSecret() && !this.tokenEndpointAuthMethodsSupported) {
+      await this.resolveEndpoints().catch(() => { });
+    }
+
     const body = new URLSearchParams({
       grant_type: 'authorization_code',
       code,
       redirect_uri: pending.redirectUri,
-      client_id: pending.clientId,
       code_verifier: pending.codeVerifier
     });
 
-    const clientSecret = this.getClientSecret();
-    if (clientSecret) {
-      body.set('client_secret', clientSecret);
+    const resource = pending.resource || this.discoveredResource;
+    if (resource) {
+      body.set('resource', resource);
     }
+
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/x-www-form-urlencoded',
+      'Accept': 'application/json'
+    };
+    this.applyClientAuth(headers, body, pending.clientId, this.getClientSecret());
 
     const res = await fetch(pending.tokenUrl, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
-        'Accept': 'application/json'
-      },
+      headers,
       body
     });
 
     if (!res.ok) {
-      const err = await res.text();
-      throw new Error(`[McpOAuth] Token exchange failed: ${err.slice(0, 300)}`);
+      const errorText = await res.text();
+      if (this.isInvalidClientError(res.status, errorText)) {
+        await this.clearInvalidDynamicClient();
+      }
+      throw new Error(`[McpOAuth] Token exchange failed: ${errorText.slice(0, 300)}`);
     }
 
     const rawText = await res.text();
-    let data: any;
-    try {
-      data = JSON.parse(rawText);
-    } catch {
-      data = Object.fromEntries(new URLSearchParams(rawText));
-    }
-    const token: McpOAuthTokenData = {
-      accessToken: data.access_token,
-      refreshToken: data.refresh_token,
-      tokenType: data.token_type || 'Bearer',
-      expiresAt: data.expires_in ? Date.now() + data.expires_in * 1000 : undefined,
-      scope: data.scope
-    };
+    const token = this.parseOAuthTokenPayload(rawText);
 
     await this.tokenStore.saveToken(this.serverId, token);
     await this.tokenStore.clearPendingAuth(this.serverId);
@@ -331,24 +554,39 @@ export class McpOAuthProvider {
     }
 
     const token = await this.tokenStore.loadToken(this.serverId);
-    if (!token) {
-      throw new McpAuthRequiredError(`No access token found for server '${this.serverId}'`);
-    }
-
-    if (!token.expiresAt || token.expiresAt - Date.now() > 60000) {
+    if (token && (!token.expiresAt || token.expiresAt - Date.now() > 60000)) {
       return token.accessToken;
     }
 
-    if (!token.refreshToken) {
-      throw new McpAuthRequiredError(`Access token expired and no refresh token for server '${this.serverId}'`);
+    if (token?.refreshToken) {
+      if (!this.refreshPromise) {
+        this.refreshPromise = this.refreshToken(token.refreshToken).finally(() => {
+          this.refreshPromise = undefined;
+        });
+      }
+      return await this.refreshPromise;
     }
 
-    if (!this.refreshPromise) {
-      this.refreshPromise = this.refreshToken(token.refreshToken).finally(() => {
-        this.refreshPromise = undefined;
-      });
+    if (this.config.clientId && this.config.clientSecret) {
+      const endpoints = await this.resolveEndpoints().catch(() => ({} as {
+        authorizationUrl?: string;
+        tokenUrl?: string;
+        deviceAuthorizationUrl?: string;
+      }));
+      if (this.isClientCredentialsMode(endpoints)) {
+        if (!this.refreshPromise) {
+          this.refreshPromise = this.requestClientCredentialsToken(endpoints.tokenUrl!).finally(() => {
+            this.refreshPromise = undefined;
+          });
+        }
+        return await this.refreshPromise;
+      }
     }
-    return await this.refreshPromise;
+
+    if (!token) {
+      throw new McpAuthRequiredError(`No access token found for server '${this.serverId}'`);
+    }
+    throw new McpAuthRequiredError(`Access token expired and no refresh token for server '${this.serverId}'`);
   }
 
   /**
@@ -356,14 +594,48 @@ export class McpOAuthProvider {
    * Force refresh access token using stored refresh token
    */
   async forceRefreshToken(): Promise<boolean> {
-    const token = await this.tokenStore.loadToken(this.serverId);
-    if (!token?.refreshToken) return false;
-    try {
-      await this.refreshToken(token.refreshToken);
-      return true;
-    } catch {
-      return false;
+    if (this.refreshPromise) {
+      try {
+        await this.refreshPromise;
+        return true;
+      } catch {
+        return false;
+      }
     }
+
+    const token = await this.tokenStore.loadToken(this.serverId);
+    if (token?.refreshToken) {
+      try {
+        this.refreshPromise = this.refreshToken(token.refreshToken).finally(() => {
+          this.refreshPromise = undefined;
+        });
+        await this.refreshPromise;
+        return true;
+      } catch {
+        return false;
+      }
+    }
+
+    if (this.config.clientId && this.config.clientSecret) {
+      const endpoints = await this.resolveEndpoints().catch(() => ({} as {
+        authorizationUrl?: string;
+        tokenUrl?: string;
+        deviceAuthorizationUrl?: string;
+      }));
+      if (this.isClientCredentialsMode(endpoints)) {
+        try {
+          this.refreshPromise = this.requestClientCredentialsToken(endpoints.tokenUrl!).finally(() => {
+            this.refreshPromise = undefined;
+          });
+          await this.refreshPromise;
+          return true;
+        } catch {
+          return false;
+        }
+      }
+    }
+
+    return false;
   }
 
   /**
@@ -380,43 +652,35 @@ export class McpOAuthProvider {
     const clientId = await this.ensureClientId();
     const body = new URLSearchParams({
       grant_type: 'refresh_token',
-      refresh_token: refreshToken,
-      client_id: clientId
+      refresh_token: refreshToken
     });
-
-    const clientSecret = this.getClientSecret();
-    if (clientSecret) {
-      body.set('client_secret', clientSecret);
+    if (this.discoveredResource) {
+      body.set('resource', this.discoveredResource);
     }
+
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/x-www-form-urlencoded',
+      'Accept': 'application/json'
+    };
+    this.applyClientAuth(headers, body, clientId, this.getClientSecret());
 
     const res = await fetch(tokenUrl, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
-        'Accept': 'application/json'
-      },
+      headers,
       body
     });
 
     if (!res.ok) {
+      const errorText = await res.text().catch(() => '');
+      if (this.isInvalidClientError(res.status, errorText)) {
+        await this.clearInvalidDynamicClient();
+      }
       this.context?.logger.warn(`[McpOAuth] Refresh token failed for server '${this.serverId}'. User re-auth required.`);
       throw new McpAuthRequiredError(`Failed to refresh token for server '${this.serverId}'`);
     }
 
     const rawText = await res.text();
-    let data: any;
-    try {
-      data = JSON.parse(rawText);
-    } catch {
-      data = Object.fromEntries(new URLSearchParams(rawText));
-    }
-    const newToken: McpOAuthTokenData = {
-      accessToken: data.access_token,
-      refreshToken: data.refresh_token || refreshToken,
-      tokenType: data.token_type || 'Bearer',
-      expiresAt: data.expires_in ? Date.now() + data.expires_in * 1000 : undefined,
-      scope: data.scope
-    };
+    const newToken = this.parseOAuthTokenPayload(rawText, refreshToken);
 
     await this.tokenStore.saveToken(this.serverId, newToken);
     return newToken.accessToken;
@@ -432,6 +696,9 @@ export class McpOAuthProvider {
    * Get client secret prioritizing explicit config with fallback to RFC 7591 dynamic result
    */
   private getClientSecret(): string | undefined {
+    if (this.config.clientId) {
+      return this.config.clientSecret;
+    }
     return this.config.clientSecret || this.registeredClientSecret;
   }
 
@@ -460,7 +727,6 @@ export class McpOAuthProvider {
         const fallbackRedirect = redirectUri || 'http://localhost/callback';
         const payload: Record<string, any> = {
           client_name: 'freya-mcp-client',
-          token_endpoint_auth_method: 'none',
           redirect_uris: [fallbackRedirect],
           grant_types: [
             'authorization_code',
@@ -469,6 +735,9 @@ export class McpOAuthProvider {
           ],
           response_types: ['code']
         };
+        if (!this.tokenEndpointAuthMethodsSupported || this.tokenEndpointAuthMethodsSupported.includes('none')) {
+          payload.token_endpoint_auth_method = 'none';
+        }
 
         const res = await fetch(this.registrationEndpoint, {
           method: 'POST',
@@ -476,17 +745,15 @@ export class McpOAuthProvider {
           body: JSON.stringify(payload)
         });
         if (!res.ok) {
-          const errText = await res.text().catch(() => '');
-          throw new Error(`[McpOAuth] Dynamic client registration rejected (${res.status}): ${errText.slice(0, 300)}`);
+          const errorText = await res.text().catch(() => '');
+          throw new Error(`[McpOAuth] Dynamic client registration rejected (${res.status}): ${errorText.slice(0, 300)}`);
         }
 
         const data: any = await res.json();
         if (data.client_id) {
           const resolvedId = String(data.client_id);
           this.registeredClientId = resolvedId;
-          if (data.client_secret) {
-            this.registeredClientSecret = String(data.client_secret);
-          }
+          this.registeredClientSecret = data.client_secret ? String(data.client_secret) : undefined;
           await this.tokenStore.saveClientInfo(this.serverId, {
             clientId: resolvedId,
             clientSecret: this.registeredClientSecret,
@@ -529,31 +796,43 @@ export class McpOAuthProvider {
       );
     }
 
-    const clientId = await this.ensureClientId();
-    const body = new URLSearchParams({
-      client_id: clientId
-    });
+    let clientId = await this.ensureClientId();
+    const requestDeviceCode = async (resolvedClientId: string): Promise<Response> => {
+      const body = new URLSearchParams();
+      const scope = this.determineScope();
+      if (scope) {
+        body.set('scope', scope);
+      }
+      if (this.discoveredResource) {
+        body.set('resource', this.discoveredResource);
+      }
 
-    const scope = this.determineScope();
-    if (scope) {
-      body.set('scope', scope);
-    }
-    if (this.discoveredResource) {
-      body.set('resource', this.discoveredResource);
-    }
-
-    const res = await fetch(deviceUrl, {
-      method: 'POST',
-      headers: {
+      const headers: Record<string, string> = {
         'Content-Type': 'application/x-www-form-urlencoded',
         'Accept': 'application/json'
-      },
-      body
-    });
+      };
+      this.applyClientAuth(headers, body, resolvedClientId, this.getClientSecret());
 
+      return await fetch(deviceUrl, {
+        method: 'POST',
+        headers,
+        body
+      });
+    };
+
+    let res = await requestDeviceCode(clientId);
     if (!res.ok) {
-      const err = await res.text();
-      throw new Error(`[McpOAuth] Device authorization request failed: ${err.slice(0, 300)}`);
+      const errorText = await res.text();
+      if (this.isInvalidClientError(res.status, errorText) && await this.clearInvalidDynamicClient()) {
+        clientId = await this.ensureClientId();
+        res = await requestDeviceCode(clientId);
+        if (!res.ok) {
+          const retryErrorText = await res.text();
+          throw new Error(`[McpOAuth] Device authorization request failed: ${retryErrorText.slice(0, 300)}`);
+        }
+      } else {
+        throw new Error(`[McpOAuth] Device authorization request failed: ${errorText.slice(0, 300)}`);
+      }
     }
 
     const data: any = await res.json();
@@ -620,35 +899,29 @@ export class McpOAuthProvider {
       const clientId = await this.ensureClientId();
       const body = new URLSearchParams({
         grant_type: 'urn:ietf:params:oauth:grant-type:device_code',
-        device_code: deviceCode,
-        client_id: clientId
+        device_code: deviceCode
       });
-
-      const clientSecret = this.getClientSecret();
-      if (clientSecret) {
-        body.set('client_secret', clientSecret);
+      if (this.discoveredResource) {
+        body.set('resource', this.discoveredResource);
       }
+
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'Accept': 'application/json'
+      };
+      this.applyClientAuth(headers, body, clientId, this.getClientSecret());
 
       try {
         const res = await fetch(tokenUrl, {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/x-www-form-urlencoded',
-            'Accept': 'application/json'
-          },
+          headers,
           body,
           signal
         });
 
         if (res.ok) {
-          const data: any = await res.json();
-          const token: McpOAuthTokenData = {
-            accessToken: data.access_token,
-            refreshToken: data.refresh_token,
-            tokenType: data.token_type || 'Bearer',
-            expiresAt: data.expires_in ? Date.now() + data.expires_in * 1000 : undefined,
-            scope: data.scope
-          };
+          const rawText = await res.text();
+          const token = this.parseOAuthTokenPayload(rawText);
 
           await this.tokenStore.saveToken(this.serverId, token);
           this.context?.logger.info(`[McpOAuth] Device authorization succeeded for server '${this.serverId}'.`);
@@ -659,7 +932,18 @@ export class McpOAuthProvider {
           return;
         }
 
-        const data: any = await res.json().catch(() => ({}));
+        const errorText = await res.text().catch(() => '');
+        if (this.isInvalidClientError(res.status, errorText)) {
+          await this.clearInvalidDynamicClient();
+          this.lastDeviceAuthError = 'Dynamic client registration expired';
+          this.context?.logger.warn(`[McpOAuth] Device polling stopped due to invalid client for '${this.serverId}'.`);
+          return;
+        }
+
+        let data: any = {};
+        try {
+          data = JSON.parse(errorText);
+        } catch { }
         const errType = data.error;
 
         if (errType === 'authorization_pending') {

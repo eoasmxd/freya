@@ -82,7 +82,19 @@ export interface McpOAuthPendingAuth {
   authorizationUrl: string;
   tokenUrl: string;
   clientId: string;
+  resource?: string;
   createdAt: number;
+}
+
+/**
+ * MCP 传输层抽象契约接口，统一屏蔽底层通信协议差异
+ * Abstract transport contract encapsulating underlying MCP communication protocols
+ */
+export interface McpTransport {
+  sendJsonRpc(method: string, params?: any): Promise<any>;
+  sendJsonRpcNotification(method: string, params?: any): Promise<void>;
+  disconnect(): Promise<void>;
+  setProtocolVersion?(version: string): void;
 }
 
 export interface McpToolSchema {
@@ -122,8 +134,21 @@ export class McpAuthRequiredError extends Error {
   }
 }
 
+/**
+ * MCP 连接异常的附加状态描述选项，用于协议降级与会话过期识别
+ * Supplementary options on MCP connection errors for transport fallback and session expiration detection
+ */
+export interface McpConnectionErrorOptions {
+  isSessionExpired?: boolean;
+  httpStatus?: number;
+  isJsonRpcError?: boolean;
+}
+
 export class McpConnectionError extends Error {
-  constructor(message: string) {
+  constructor(
+    message: string,
+    public readonly options?: McpConnectionErrorOptions
+  ) {
     super(message);
     this.name = 'McpConnectionError';
   }

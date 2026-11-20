@@ -75,15 +75,35 @@ export class TokenStore {
     }
   }
 
+  private async clearFile(serverId: string, suffix: 'token' | 'pending' | 'client'): Promise<void> {
+    try {
+      const filePath = this.resolveFilePath(serverId, suffix);
+      await fs.unlink(filePath);
+    } catch {}
+  }
+
+  /**
+   * 清除服务当前持久化的 Token
+   * Clear persisted token for specified server
+   */
+  async clearToken(serverId: string): Promise<void> {
+    await this.clearFile(serverId, 'token');
+  }
+
   /**
    * 清除待验证的 OAuth 中间态
    * Clear pending OAuth authentication state
    */
   async clearPendingAuth(serverId: string): Promise<void> {
-    try {
-      const filePath = this.resolveFilePath(serverId, 'pending');
-      await fs.unlink(filePath);
-    } catch {}
+    await this.clearFile(serverId, 'pending');
+  }
+
+  /**
+   * 清除服务注册的客户端信息 (RFC 7591)
+   * Clear registered dynamic client info for specified server
+   */
+  async clearClientInfo(serverId: string): Promise<void> {
+    await this.clearFile(serverId, 'client');
   }
 
   /**
