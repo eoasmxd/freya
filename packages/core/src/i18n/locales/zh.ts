@@ -165,6 +165,7 @@ export const zh: Record<string, string> = {
   'schema.core.system.language.enum.en': 'English (en)',
   'schema.core.workspace.desc': '用户文档工作区目录名',
   'schema.core.config.authTimeout.desc': 'AI 代理配置修改等待授权超时秒数',
+  'schema.core.agent.maxTurns.desc': '单次智能体执行允许的最大 ReAct 工具调用循环轮数',
 
   'schema.core.models.default.desc': '默认模型降级链列表',
   'schema.core.models.image.desc': '图像模型列表',

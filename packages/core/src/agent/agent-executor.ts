@@ -66,7 +66,14 @@ export class FreyaAgentExecutor {
         toolboxes
       );
 
-      const maxTurns = options?.maxTurns ?? 20;
+      const rawMaxTurns = (this.context.config as any)?.agent?.maxTurns;
+      const configuredMaxTurns = typeof rawMaxTurns === 'number'
+        ? rawMaxTurns
+        : (typeof rawMaxTurns === 'string' && rawMaxTurns.trim() !== '' ? Number(rawMaxTurns) : NaN);
+      const defaultMaxTurns = Number.isInteger(configuredMaxTurns) && configuredMaxTurns > 0
+        ? Math.min(configuredMaxTurns, 200)
+        : 20;
+      const maxTurns = options?.maxTurns ?? defaultMaxTurns;
       if (turnCount++ >= maxTurns) {
         this.context.logger.warn(`Session ${sessionId} exceeded maximum iterations (${maxTurns}), generating final summary...`);
         const finalPayload: LLMMessage[] = [
