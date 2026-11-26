@@ -921,6 +921,16 @@ export class FreyaConfigManager {
         manualOnly: true
       },
       {
+        key: 'agent.maxTurns',
+        defaultValue: 20,
+        description: this.i18n.all('schema.core.agent.maxTurns.desc', 'Maximum ReAct tool-calling iterations per agent run'),
+        type: 'number',
+        min: 1,
+        max: 200,
+        category: this.i18n.all('schema.core.category.system', 'System Parameters'),
+        manualOnly: true
+      },
+      {
         key: 'contextManagement.enabled',
         defaultValue: true,
         description: this.i18n.all('schema.core.context.enabled.desc', 'Enable context management'),

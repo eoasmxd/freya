@@ -165,6 +165,7 @@ export const en: Record<string, string> = {
   'schema.core.system.language.enum.en': 'English (en)',
   'schema.core.workspace.desc': 'User document workspace directory name',
   'schema.core.config.authTimeout.desc': 'Timeout seconds for AI agent waiting for config authorization',
+  'schema.core.agent.maxTurns.desc': 'Maximum ReAct tool-calling iterations per agent run',
 
   'schema.core.models.default.desc': 'Default model fallback chain list',
   'schema.core.models.image.desc': 'Image models list',
