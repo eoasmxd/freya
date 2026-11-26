@@ -3,23 +3,20 @@ name: Publish
 on:
   workflow_dispatch:
     inputs:
-      channel:
-        description: 'Release channel (edge: test build, only ghcr.io:edge; release: official release with npm & ghcr.io:latest)'
-        type: choice
-        options:
-          - edge
-          - release
-        default: edge
-      publish_docker:
-        description: 'Publish Docker image (GHCR / Docker Hub)'
+      publish_docker_edge:
+        description: 'Publish Docker edge image (ghcr.io:edge)'
         type: boolean
         default: true
+      publish_docker_release:
+        description: 'Publish Docker release image (GHCR & Docker Hub: latest + version)'
+        type: boolean
+        default: false
       publish_npm:
-        description: 'Publish packages to NPM (only effective for release channel)'
+        description: 'Publish packages to NPM'
         type: boolean
         default: false
       publish_release:
-        description: 'Publish GitHub Release (only effective for release channel)'
+        description: 'Publish GitHub Release'
         type: boolean
         default: false
 
@@ -27,7 +24,7 @@ jobs:
   publish-docker:
     name: Build & Publish Docker Image (GHCR)
     runs-on: ubuntu-latest
-    if: inputs.publish_docker == true && github.ref == 'refs/heads/main'
+    if: (inputs.publish_docker_edge == true || inputs.publish_docker_release == true) && github.ref == 'refs/heads/main'
     permissions:
       contents: read
       packages: write
@@ -37,13 +34,10 @@ jobs:
 
       - name: Read version from package.json
         id: pkg_version
+        if: inputs.publish_docker_release == true
         run: |
           VERSION=$(node -p "require('./package.json').version")
           echo "version=$VERSION" >> $GITHUB_OUTPUT
-
-      - name: Determine Release Channel
-        id: channel
-        run: echo "mode=${{ inputs.channel }}" >> $GITHUB_OUTPUT
 
       - name: Set up QEMU for multi-platform emulation
         uses: docker/setup-qemu-action@v3
@@ -52,7 +46,7 @@ jobs:
         uses: docker/setup-buildx-action@v3
 
       - name: Login to Docker Hub
-        if: steps.channel.outputs.mode == 'release'
+        if: inputs.publish_docker_release == true
         uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
@@ -65,28 +59,51 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Extract Docker Metadata
-        id: meta
+      - name: Extract Docker Metadata (edge)
+        id: meta_edge
+        if: inputs.publish_docker_edge == true
         uses: docker/metadata-action@v5
         with:
           images: |
             ghcr.io/${{ github.repository }}
-            ${{ steps.channel.outputs.mode == 'release' && format('{0}/freya', secrets.DOCKERHUB_USERNAME) || '' }}
           tags: |
-            type=raw,value=edge,enable=${{ steps.channel.outputs.mode == 'edge' }}
-            type=raw,value=latest,enable=${{ steps.channel.outputs.mode == 'release' }}
-            type=raw,value=${{ steps.pkg_version.outputs.version }},enable=${{ steps.channel.outputs.mode == 'release' }}
+            type=raw,value=edge
 
-
-      - name: Build and Push Multi-Platform Docker Image
+      - name: Build and Push Multi-Platform Docker Image (edge)
+        if: inputs.publish_docker_edge == true
         uses: docker/build-push-action@v5
         with:
           context: .
           file: ./Dockerfile
           platforms: linux/amd64,linux/arm64
           push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
+          tags: ${{ steps.meta_edge.outputs.tags }}
+          labels: ${{ steps.meta_edge.outputs.labels }}
+          cache-from: type=gha,scope=freya
+          cache-to: type=gha,mode=max,scope=freya
+
+      - name: Extract Docker Metadata (release)
+        id: meta_release
+        if: inputs.publish_docker_release == true
+        uses: docker/metadata-action@v5
+        with:
+          images: |
+            ghcr.io/${{ github.repository }}
+            ${{ secrets.DOCKERHUB_USERNAME }}/freya
+          tags: |
+            type=raw,value=latest
+            type=raw,value=${{ steps.pkg_version.outputs.version }}
+
+      - name: Build and Push Multi-Platform Docker Image (release)
+        if: inputs.publish_docker_release == true
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./Dockerfile
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.meta_release.outputs.tags }}
+          labels: ${{ steps.meta_release.outputs.labels }}
           cache-from: type=gha,scope=freya
           cache-to: type=gha,mode=max,scope=freya
 
@@ -96,7 +113,7 @@ jobs:
     permissions:
       contents: read
       id-token: write
-    if: inputs.publish_npm == true && inputs.channel == 'release' && github.ref == 'refs/heads/main'
+    if: inputs.publish_npm == true && github.ref == 'refs/heads/main'
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
@@ -121,7 +138,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
-    if: inputs.publish_release == true && inputs.channel == 'release' && github.ref == 'refs/heads/main'
+    if: inputs.publish_release == true && github.ref == 'refs/heads/main'
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
